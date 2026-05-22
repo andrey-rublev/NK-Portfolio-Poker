@@ -8,7 +8,12 @@ import {
 import { flushSync } from 'react-dom'
 import { animate, createTimeline, stagger, utils } from 'animejs'
 import { PlayingCard } from './components/PlayingCard'
-import { tableSeats, type PortfolioCardData, type Suit } from './data/portfolio'
+import {
+  tableSeats,
+  type PortfolioCardData,
+  type Suit,
+  type TableSeatData,
+} from './data/portfolio'
 import './App.css'
 
 const SUIT_SYMBOLS: Record<Suit, string> = {
@@ -18,25 +23,139 @@ const SUIT_SYMBOLS: Record<Suit, string> = {
   diamonds: '\u2666',
 }
 
-const ALL_CARDS = tableSeats.flatMap((seat) => seat.cards)
-const DEAL_ORDER = [0, 1].flatMap((round) =>
-  tableSeats.map((seat) => ({ seat, round })),
-)
+const CHIP_COLORS = ['#cf3030', '#1e64d6', '#f5ead2', '#f3bc40', '#121722']
 
 type DetailTransitionPhase = 'idle' | 'opening' | 'open' | 'closing'
 type RevertibleAnimation = {
   revert: () => unknown
 }
 
-const CHIP_COLORS = ['#cf3030', '#1e64d6', '#f0f3f0', '#f4b942', '#111827']
+interface DealerSeatLayout {
+  id: TableSeatData['id']
+  label: string
+  depth: 'near' | 'mid' | 'far'
+  chipStacks: number[]
+  avatar: {
+    skin: string
+    hair: string
+    shirt: string
+    accent: string
+  }
+  position: {
+    desktop: {
+      left: string
+      top: string
+      rotate: number
+      scale: number
+      z: number
+    }
+    mobile: {
+      left: string
+      top: string
+      rotate: number
+      scale: number
+      z: number
+    }
+  }
+}
 
-const CHIP_STACKS = [
-  { id: 'stack-northwest', left: '35%', top: '39%', rotate: -18, count: 5 },
-  { id: 'stack-north', left: '50%', top: '33%', rotate: 5, count: 6 },
-  { id: 'stack-northeast', left: '65%', top: '39%', rotate: 18, count: 5 },
-  { id: 'stack-southwest', left: '34%', top: '64%', rotate: 14, count: 6 },
-  { id: 'stack-southeast', left: '66%', top: '64%', rotate: -13, count: 6 },
+const DEALER_VIEW_LAYOUT: DealerSeatLayout[] = [
+  {
+    id: 'seat-southwest',
+    label: 'Seat 1',
+    depth: 'near',
+    chipStacks: [5, 4],
+    avatar: {
+      skin: '#c98555',
+      hair: '#23140d',
+      shirt: '#235f4b',
+      accent: '#74e2aa',
+    },
+    position: {
+      desktop: { left: '20%', top: '68%', rotate: -22, scale: 1.08, z: 7 },
+      mobile: { left: '18%', top: '68%', rotate: -24, scale: 0.9, z: 7 },
+    },
+  },
+  {
+    id: 'seat-northwest',
+    label: 'Seat 2',
+    depth: 'mid',
+    chipStacks: [4, 3],
+    avatar: {
+      skin: '#e0aa7a',
+      hair: '#302017',
+      shirt: '#253d67',
+      accent: '#7dbbff',
+    },
+    position: {
+      desktop: { left: '24%', top: '31%', rotate: -15, scale: 0.9, z: 5 },
+      mobile: { left: '21%', top: '36%', rotate: -17, scale: 0.72, z: 5 },
+    },
+  },
+  {
+    id: 'seat-north',
+    label: 'Seat 3',
+    depth: 'far',
+    chipStacks: [5, 4, 3],
+    avatar: {
+      skin: '#b86f45',
+      hair: '#17110c',
+      shirt: '#6e2429',
+      accent: '#ff947e',
+    },
+    position: {
+      desktop: { left: '50%', top: '21%', rotate: 0, scale: 0.8, z: 4 },
+      mobile: { left: '50%', top: '28%', rotate: 0, scale: 0.66, z: 4 },
+    },
+  },
+  {
+    id: 'seat-northeast',
+    label: 'Seat 4',
+    depth: 'mid',
+    chipStacks: [4, 3],
+    avatar: {
+      skin: '#d79a63',
+      hair: '#5b321b',
+      shirt: '#5e3e7c',
+      accent: '#c3a2ff',
+    },
+    position: {
+      desktop: { left: '76%', top: '31%', rotate: 15, scale: 0.9, z: 5 },
+      mobile: { left: '79%', top: '36%', rotate: 17, scale: 0.72, z: 5 },
+    },
+  },
+  {
+    id: 'seat-southeast',
+    label: 'Seat 5',
+    depth: 'near',
+    chipStacks: [5, 4],
+    avatar: {
+      skin: '#cf8d58',
+      hair: '#21140f',
+      shirt: '#67441e',
+      accent: '#ffc66c',
+    },
+    position: {
+      desktop: { left: '80%', top: '68%', rotate: 22, scale: 1.08, z: 7 },
+      mobile: { left: '82%', top: '68%', rotate: 24, scale: 0.9, z: 7 },
+    },
+  },
 ]
+
+const seatById = new Map(tableSeats.map((seat) => [seat.id, seat]))
+const dealerSeats = DEALER_VIEW_LAYOUT.map((layout) => {
+  const seat = seatById.get(layout.id)
+
+  if (!seat) {
+    throw new Error(`Missing portfolio seat data for ${layout.id}`)
+  }
+
+  return { ...layout, seat }
+})
+const ALL_CARDS = dealerSeats.flatMap(({ seat }) => seat.cards)
+const DEAL_ORDER = [0, 1].flatMap((round) =>
+  dealerSeats.map((dealerSeat) => ({ dealerSeat, round })),
+)
 
 function getRouteCardId() {
   const slug = window.location.pathname.replace(/^\/+|\/+$/g, '')
@@ -69,36 +188,79 @@ function TableCenterMark() {
   )
 }
 
-function ChipScatter() {
+function SeatChipBank({
+  seatIndex,
+  chipStacks,
+}: {
+  seatIndex: number
+  chipStacks: number[]
+}) {
   return (
-    <div className="chip-stacks" aria-hidden="true">
-      {CHIP_STACKS.map((stack, stackIndex) => (
+    <div className="seat-chip-bank" aria-hidden="true">
+      {chipStacks.map((chipCount, stackIndex) => (
         <div
-          key={stack.id}
-          className="chip-stack"
+          key={`${seatIndex}-${stackIndex}`}
+          className="seat-chip-stack"
           style={
             {
-              '--stack-left': stack.left,
-              '--stack-top': stack.top,
-              '--stack-rotate': `${stack.rotate}deg`,
+              '--chip-stack-index': stackIndex,
+              '--chip-stack-count': chipStacks.length,
             } as CSSProperties
           }
         >
-          {Array.from({ length: stack.count }).map((_, chipIndex) => (
+          {Array.from({ length: chipCount }).map((_, chipIndex) => (
             <span
-              key={`${stack.id}-${chipIndex}`}
+              key={`${seatIndex}-${stackIndex}-${chipIndex}`}
               className="poker-chip"
               style={
                 {
                   '--chip-index': chipIndex,
                   '--chip-color':
-                    CHIP_COLORS[(stackIndex + chipIndex) % CHIP_COLORS.length],
+                    CHIP_COLORS[
+                      (seatIndex + stackIndex + chipIndex) % CHIP_COLORS.length
+                    ],
                 } as CSSProperties
               }
             />
           ))}
         </div>
       ))}
+    </div>
+  )
+}
+
+function PlayerAvatar({
+  avatar,
+}: {
+  avatar: DealerSeatLayout['avatar']
+}) {
+  return (
+    <div
+      className="player-station"
+      style={
+        {
+          '--avatar-skin': avatar.skin,
+          '--avatar-hair': avatar.hair,
+          '--avatar-shirt': avatar.shirt,
+          '--avatar-accent': avatar.accent,
+        } as CSSProperties
+      }
+      aria-hidden="true"
+    >
+      <div className="player-chair" />
+      <div className="player-avatar">
+        <span className="player-avatar__neck" />
+        <span className="player-avatar__body" />
+        <span className="player-avatar__head">
+          <span className="player-avatar__hair" />
+          <span className="player-avatar__ear player-avatar__ear--left" />
+          <span className="player-avatar__ear player-avatar__ear--right" />
+          <span className="player-avatar__eye player-avatar__eye--left" />
+          <span className="player-avatar__eye player-avatar__eye--right" />
+          <span className="player-avatar__nose" />
+          <span className="player-avatar__smile" />
+        </span>
+      </div>
     </div>
   )
 }
@@ -127,36 +289,38 @@ function SectionPage({
           <span>{SUIT_SYMBOLS[card.suit]}</span>
         </div>
 
-        <span className="section-page__label">{card.label}</span>
-        <h1 id="section-page-title">{card.title}</h1>
-        <p className="section-page__detail">{card.detail}</p>
+        <div className="section-page__reveal">
+          <span className="section-page__label">{card.label}</span>
+          <h1 id="section-page-title">{card.title}</h1>
+          <p className="section-page__detail">{card.detail}</p>
 
-        <ul className="section-page__list">
-          {card.bullets.map((bullet) => (
-            <li key={bullet}>{bullet}</li>
-          ))}
-        </ul>
+          <ul className="section-page__list">
+            {card.bullets.map((bullet) => (
+              <li key={bullet}>{bullet}</li>
+            ))}
+          </ul>
 
-        <div className="section-page__tags">
-          {card.tags.map((tag) => (
-            <span key={tag}>{tag}</span>
-          ))}
-        </div>
-
-        {card.actions?.length ? (
-          <div className="section-page__actions">
-            {card.actions.map((action) => (
-              <a
-                key={action.href}
-                href={action.href}
-                target={action.href.startsWith('http') ? '_blank' : undefined}
-                rel={action.href.startsWith('http') ? 'noreferrer' : undefined}
-              >
-                {action.label}
-              </a>
+          <div className="section-page__tags">
+            {card.tags.map((tag) => (
+              <span key={tag}>{tag}</span>
             ))}
           </div>
-        ) : null}
+
+          {card.actions?.length ? (
+            <div className="section-page__actions">
+              {card.actions.map((action) => (
+                <a
+                  key={action.href}
+                  href={action.href}
+                  target={action.href.startsWith('http') ? '_blank' : undefined}
+                  rel={action.href.startsWith('http') ? 'noreferrer' : undefined}
+                >
+                  {action.label}
+                </a>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   )
@@ -192,15 +356,18 @@ function createTravelCard(card: PortfolioCardData, sourceRect: DOMRect) {
   frontRank.className = 'travel-card__rank'
   frontRank.textContent = `${card.rank} ${SUIT_SYMBOLS[card.suit]}`
 
-  const frontLabel = document.createElement('span')
-  frontLabel.className = 'travel-card__front-label'
-  frontLabel.textContent = card.label
+  const blankMark = document.createElement('div')
+  blankMark.className = 'travel-card__blank-mark'
 
-  const frontTitle = document.createElement('strong')
-  frontTitle.textContent = card.title
+  const blankHalo = document.createElement('span')
+  blankHalo.className = 'travel-card__blank-halo'
+
+  const blankPip = document.createElement('strong')
+  blankPip.textContent = card.label
 
   back.append(backPattern, backLabel)
-  front.append(frontRank, frontLabel, frontTitle)
+  blankMark.append(blankHalo, blankPip)
+  front.append(frontRank, blankMark)
   inner.append(back, front)
   travelCard.append(inner)
 
@@ -209,9 +376,26 @@ function createTravelCard(card: PortfolioCardData, sourceRect: DOMRect) {
   return { travelCard, inner }
 }
 
+function createDealCardClone(motion: HTMLElement, targetRect: DOMRect) {
+  const cardFace = motion.firstElementChild?.cloneNode(true)
+  const dealCard = document.createElement('div')
+  dealCard.className = 'deal-fly-card'
+  dealCard.style.width = `${targetRect.width}px`
+  dealCard.style.height = `${targetRect.height}px`
+
+  if (cardFace instanceof HTMLElement) {
+    dealCard.append(cardFace)
+  }
+
+  document.body.append(dealCard)
+
+  return dealCard
+}
+
 function App() {
   const rootRef = useRef<HTMLDivElement>(null)
   const ambientAnimations = useRef<RevertibleAnimation[]>([])
+  const dealTimeouts = useRef<number[]>([])
   const transitionInProgress = useRef(false)
   const [dealComplete, setDealComplete] = useState(false)
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
@@ -237,138 +421,132 @@ function App() {
       '(prefers-reduced-motion: reduce)',
     ).matches
     const deck = root.querySelector<HTMLElement>('.deck-anchor')
-    const seatSpots = tableSeats
-      .map((_, index) =>
-        root.querySelector<HTMLElement>(`[data-seat-index="${index}"]`),
-      )
-      .filter((node): node is HTMLElement => node !== null)
-    const motions = DEAL_ORDER.map((_, index) =>
-      root.querySelector<HTMLElement>(`[data-deal-index="${index}"]`),
-    ).filter((node): node is HTMLElement => node !== null)
-    const chipStacks = Array.from(
-      root.querySelectorAll<HTMLElement>('.chip-stack'),
-    )
-    const chips = Array.from(root.querySelectorAll<HTMLElement>('.poker-chip'))
-    const centerMark = root.querySelector<HTMLElement>('.table-center-mark')
     const dealerZone = root.querySelector<HTMLElement>('.dealer-zone')
     const dealerButton = root.querySelector<HTMLElement>('.dealer-button')
     const tableGlow = root.querySelector<HTMLElement>('.table-glow')
+    const centerMark = root.querySelector<HTMLElement>('.table-center-mark')
+    const sceneHud = root.querySelector<HTMLElement>('.scene-hud')
+    const seatClusters = Array.from(
+      root.querySelectorAll<HTMLElement>('.seat-cluster'),
+    )
+    const seatSpots = Array.from(root.querySelectorAll<HTMLElement>('.seat-spot'))
+    const chipStacks = Array.from(
+      root.querySelectorAll<HTMLElement>('.seat-chip-stack'),
+    )
+    const chips = Array.from(root.querySelectorAll<HTMLElement>('.poker-chip'))
+    const motions = DEAL_ORDER.map((_, index) =>
+      root.querySelector<HTMLElement>(`[data-deal-index="${index}"]`),
+    ).filter((node): node is HTMLElement => node !== null)
 
     if (
       !deck ||
-      motions.length === 0 ||
-      !centerMark ||
       !dealerZone ||
       !dealerButton ||
-      !tableGlow
+      !tableGlow ||
+      !centerMark ||
+      !sceneHud ||
+      motions.length === 0
     ) {
       return undefined
     }
 
-    const showFinishedState = () => {
-      utils.set(motions, {
-        x: 0,
-        y: 0,
-        scale: 1,
-        rotate: 0,
+    const finishDealImmediately = () => {
+      utils.set([centerMark, sceneHud, dealerZone, ...seatClusters], {
         opacity: 1,
       })
-      utils.set(seatSpots, { opacity: 1 })
-      utils.set(chipStacks, { opacity: 1 })
-      utils.set(chips, { opacity: 1 })
-      utils.set(centerMark, { opacity: 1 })
-      utils.set(dealerZone, { opacity: 1 })
+      utils.set([...seatSpots, ...chipStacks, ...chips, ...motions], {
+        opacity: 1,
+      })
       setDealComplete(true)
     }
 
     if (reduceMotion || initialRouteCardId.current) {
-      showFinishedState()
+      finishDealImmediately()
       return undefined
     }
 
-    const deckRect = deck.getBoundingClientRect()
-
     setDealComplete(false)
     setActiveCardId(null)
-
-    motions.forEach((motion, index) => {
-      const cardRect = motion.getBoundingClientRect()
-      const deltaX =
-        deckRect.left + deckRect.width / 2 - (cardRect.left + cardRect.width / 2)
-      const deltaY =
-        deckRect.top + deckRect.height / 2 - (cardRect.top + cardRect.height / 2)
-
-      utils.set(motion, {
-        x: deltaX,
-        y: deltaY,
-        scale: 0.12,
-        rotate: index % 2 === 0 ? -24 : 22,
-        opacity: 0,
-      })
+    utils.set([centerMark, sceneHud, dealerZone, ...seatClusters], {
+      opacity: 0,
+    })
+    utils.set([...seatSpots, ...chipStacks, ...chips, ...motions], {
+      opacity: 0,
     })
 
-    utils.set(seatSpots, { opacity: 0 })
-    utils.set(dealerZone, { opacity: 0 })
-    utils.set(centerMark, { opacity: 0 })
-    utils.set(chipStacks, { opacity: 0 })
-    utils.set(chips, { opacity: 0 })
-
-    const dealTimeline = createTimeline({
-      defaults: {
-        ease: 'outQuart',
-      },
-      onComplete: () => {
-        setDealComplete(true)
-      },
+    const intro = createTimeline({
+      defaults: { ease: 'outQuart' },
     })
 
-    dealTimeline
+    intro
+      .add(
+        sceneHud,
+        {
+          opacity: [0, 1],
+          y: [-10, 0],
+          duration: 520,
+          ease: 'outExpo',
+        },
+        160,
+      )
       .add(
         centerMark,
         {
           opacity: [0, 1],
-          duration: 760,
+          duration: 840,
           ease: 'outExpo',
         },
-        280,
+        320,
+      )
+      .add(
+        seatClusters,
+        {
+          opacity: [0, 1],
+          duration: 620,
+          delay: stagger(80, { from: 'center' }),
+          ease: 'outQuad',
+        },
+        620,
+      )
+      .add(
+        seatSpots,
+        {
+          opacity: [0, 1],
+          duration: 520,
+          delay: stagger(70, { from: 'center' }),
+          ease: 'outQuad',
+        },
+        660,
       )
       .add(
         chipStacks,
         {
           opacity: [0, 1],
-          duration: 680,
-          delay: stagger(72, { from: 'center' }),
+          duration: 420,
+          delay: stagger(36, { from: 'center' }),
           ease: 'outQuad',
         },
-        560,
+        820,
       )
       .add(
         chips,
         {
           opacity: [0, 1],
-          duration: 240,
-          delay: stagger(18),
+          duration: 220,
+          delay: stagger(10),
           ease: 'outQuad',
         },
-        640,
+        920,
       )
       .add(
         dealerZone,
         {
           opacity: [0, 1],
-          duration: 520,
+          y: [16, 0],
+          duration: 540,
           ease: 'outExpo',
         },
-        980,
-      )
-      .add(
-        deck,
-        {
-          rotate: [0, -5, 0],
-          duration: 220,
-          ease: 'inOutSine',
-        },
-        1390,
+        1160,
       )
       .add(
         dealerButton,
@@ -380,63 +558,65 @@ function App() {
         1400,
       )
 
+    let completedDeals = 0
+
     motions.forEach((motion, index) => {
-      const currentDeal = DEAL_ORDER[index]
-      const seatIndex = index % tableSeats.length
-      const dealStart = 1660 + index * 205
+      const timeoutId = window.setTimeout(() => {
+        const deckRect = deck.getBoundingClientRect()
+        const targetRect = motion.getBoundingClientRect()
+        const dealCard = createDealCardClone(motion, targetRect)
+        const startLeft = deckRect.left + deckRect.width / 2 - targetRect.width / 2
+        const startTop =
+          deckRect.top + deckRect.height / 2 - targetRect.height / 2
 
-      if (currentDeal.round === 0) {
-        dealTimeline.add(
-          seatSpots[seatIndex],
-          {
-            opacity: [0, 1],
-            duration: 280,
-            ease: 'outQuart',
-          },
-          dealStart - 70,
-        )
-      }
+        utils.set(dealCard, {
+          left: startLeft,
+          top: startTop,
+          scale: 0.16,
+          rotate: index % 2 === 0 ? -22 : 20,
+          opacity: 0,
+        })
 
-      dealTimeline
-        .add(
-          deck,
-          {
-            y: [0, -7, 0],
-            duration: 180,
-            ease: 'inOutQuad',
+        animate(deck, {
+          y: [0, -8, 0],
+          duration: 190,
+          ease: 'inOutSine',
+        })
+
+        animate(dealCard, {
+          left: targetRect.left,
+          top: targetRect.top,
+          scale: [0.16, 1],
+          rotate: 0,
+          opacity: [0, 1],
+          duration: 690,
+          ease: 'outExpo',
+          onComplete: () => {
+            utils.set(motion, { opacity: 1 })
+            animate(motion, {
+              y: [0, 4, 0],
+              duration: 150,
+              ease: 'inOutSine',
+            })
+            dealCard.remove()
+            completedDeals += 1
+
+            if (completedDeals === motions.length) {
+              setDealComplete(true)
+            }
           },
-          dealStart - 26,
-        )
-        .add(
-          motion,
-          {
-            x: 0,
-            y: 0,
-            scale: 1,
-            rotate: 0,
-            opacity: [0, 1],
-            duration: 640,
-            ease: 'outExpo',
-          },
-          dealStart,
-        )
-        .add(
-          motion,
-          {
-            y: [0, 3, 0],
-            duration: 150,
-            ease: 'inOutSine',
-          },
-          dealStart + 500,
-        )
+        })
+      }, 1640 + index * 210)
+
+      dealTimeouts.current.push(timeoutId)
     })
 
     ambientAnimations.current = [
-      dealTimeline,
+      intro,
       animate(tableGlow, {
-        scale: [1, 1.055],
-        opacity: [0.72, 0.9],
-        duration: 3400,
+        scale: [1, 1.04],
+        opacity: [0.7, 0.9],
+        duration: 3600,
         alternate: true,
         loop: true,
         ease: 'inOutSine',
@@ -451,8 +631,11 @@ function App() {
     ]
 
     return () => {
+      dealTimeouts.current.forEach((timeoutId) => window.clearTimeout(timeoutId))
+      dealTimeouts.current = []
       ambientAnimations.current.forEach((animation) => animation.revert())
       ambientAnimations.current = []
+      document.querySelectorAll('.deal-fly-card').forEach((node) => node.remove())
     }
   }, [])
 
@@ -475,7 +658,7 @@ function App() {
       animate('.table-stage', {
         scale: 1,
         filter: 'brightness(1) blur(0px)',
-        duration: 320,
+        duration: 360,
         ease: 'outQuad',
       })
       return
@@ -489,9 +672,9 @@ function App() {
         scale: 1,
       })
       animate('.table-stage', {
-        scale: 0.965,
-        filter: 'brightness(0.62) blur(3px)',
-        duration: 400,
+        scale: 0.97,
+        filter: 'brightness(0.58) blur(3px)',
+        duration: 420,
         ease: 'outQuad',
       })
     }
@@ -518,7 +701,7 @@ function App() {
 
     source.style.visibility = 'hidden'
 
-    const openDetailFromTable = () => {
+    const openDetailFromPeek = () => {
       flushSync(() => {
         setRouteCardId(card.id)
         setDetailPhase('opening')
@@ -539,40 +722,31 @@ function App() {
       }
 
       utils.set(sectionPage, { opacity: 0 })
+      const revealItems = Array.from(
+        sectionCard.querySelectorAll<HTMLElement>('.section-page__reveal > *'),
+      )
 
-      utils.set(sectionCard, { opacity: 0, y: 0, scale: 1 })
+      utils.set(sectionCard, { opacity: 0, y: 22, scale: 0.98 })
+      utils.set(revealItems, { opacity: 0, y: 18 })
 
-      const targetRect = sectionCard?.getBoundingClientRect()
-
-      utils.set(sectionCard, {
-        opacity: 0,
-        y: 18,
-        scale: 0.985,
-      })
-
-      const target = targetRect ?? {
-        left:
-          window.innerWidth / 2 - Math.min(760, window.innerWidth * 0.9) / 2,
-        top:
-          window.innerHeight / 2 -
-          Math.min(760, window.innerHeight * 0.86) / 2,
-        width: Math.min(760, window.innerWidth * 0.9),
-        height: Math.min(760, window.innerHeight * 0.86),
-      }
-      const centerWidth = Math.min(430, window.innerWidth * 0.74)
-      const centerHeight = Math.min(590, window.innerHeight * 0.78)
+      const targetRect = sectionCard.getBoundingClientRect()
+      const centerWidth = Math.min(440, window.innerWidth * 0.76)
+      const centerHeight = Math.min(610, window.innerHeight * 0.78)
       const centerLeft = window.innerWidth / 2 - centerWidth / 2
       const centerTop = window.innerHeight / 2 - centerHeight / 2
 
+      // Intentional "teleport": after the table peek, the opened card becomes
+      // the center focus before it grows into the full detail panel.
       utils.set(travelCard, {
         left: centerLeft,
         top: centerTop,
-        x: 0,
-        y: 0,
         width: centerWidth,
         height: centerHeight,
-        scale: 0.82,
+        x: 0,
+        y: 0,
+        scale: 0.78,
         rotate: 0,
+        rotateX: 0,
         opacity: 1,
       })
 
@@ -582,9 +756,10 @@ function App() {
           source.style.visibility = ''
           utils.set(sectionPage, { opacity: 1 })
           utils.set(sectionCard, { opacity: 1, y: 0, scale: 1 })
+          utils.set(revealItems, { opacity: 1, y: 0 })
           animate(travelCard, {
             opacity: 0,
-            duration: 80,
+            duration: 90,
             onComplete: () => travelCard.remove(),
           })
           setDetailPhase('open')
@@ -597,7 +772,7 @@ function App() {
           sectionPage,
           {
             opacity: [0, 1],
-            duration: 280,
+            duration: 320,
             ease: 'outQuad',
           },
           0,
@@ -605,9 +780,9 @@ function App() {
         .add(
           '.table-stage',
           {
-            scale: 0.965,
-            filter: 'brightness(0.62) blur(3px)',
-            duration: 640,
+            scale: 0.97,
+            filter: 'brightness(0.58) blur(3px)',
+            duration: 680,
             ease: 'inOutCubic',
           },
           0,
@@ -615,12 +790,12 @@ function App() {
         .add(
           travelCard,
           {
-            left: target.left,
-            top: target.top,
-            width: target.width,
-            height: target.height,
+            left: targetRect.left,
+            top: targetRect.top,
+            width: targetRect.width,
+            height: targetRect.height,
             scale: 1,
-            duration: 540,
+            duration: 620,
             ease: 'outExpo',
           },
           80,
@@ -631,37 +806,47 @@ function App() {
             opacity: 1,
             y: 0,
             scale: 1,
-            duration: 220,
+            duration: 260,
             ease: 'outQuad',
           },
-          480,
+          540,
+        )
+        .add(
+          revealItems,
+          {
+            opacity: [0, 1],
+            y: [18, 0],
+            duration: 520,
+            delay: stagger(58),
+            ease: 'outExpo',
+          },
+          620,
         )
         .add(
           travelCard,
           {
             opacity: 0,
-            duration: 160,
+            duration: 210,
             ease: 'outQuad',
           },
-          540,
+          760,
         )
     }
 
-    const flipTimeline = createTimeline({
+    const peekTimeline = createTimeline({
       defaults: { ease: 'inOutCubic' },
-      onComplete: () => {
-        openDetailFromTable()
-      },
+      onComplete: openDetailFromPeek,
     })
 
-    flipTimeline
+    peekTimeline
       .add(
         travelCard,
         {
-          y: -18,
-          scale: 1.08,
-          rotate: card.rank === 'A' || card.rank === 'K' ? -3 : 3,
-          duration: 200,
+          y: [-4, -30],
+          scale: [1, 1.12],
+          rotate: card.rank === 'A' || card.rank === 'K' ? -4 : 4,
+          rotateX: [0, 11],
+          duration: 260,
           ease: 'outQuad',
         },
         0,
@@ -670,7 +855,7 @@ function App() {
         inner,
         {
           rotateY: 180,
-          duration: 560,
+          duration: 620,
           ease: 'inOutQuart',
         },
         80,
@@ -678,12 +863,13 @@ function App() {
       .add(
         travelCard,
         {
-          y: -8,
-          scale: 1.04,
-          duration: 180,
+          y: -16,
+          scale: 1.07,
+          rotateX: 0,
+          duration: 210,
           ease: 'outQuad',
         },
-        480,
+        560,
       )
   }
 
@@ -737,7 +923,7 @@ function App() {
         {
           scale: 1,
           filter: 'brightness(1) blur(0px)',
-          duration: 680,
+          duration: 700,
           ease: 'inOutCubic',
         },
         0,
@@ -746,7 +932,7 @@ function App() {
         sectionPage,
         {
           opacity: 0,
-          duration: 480,
+          duration: 500,
           ease: 'inOutQuad',
         },
         120,
@@ -758,7 +944,7 @@ function App() {
           top: sourceRect.top,
           width: sourceRect.width,
           height: sourceRect.height,
-          duration: 740,
+          duration: 760,
           ease: 'inOutExpo',
         },
         0,
@@ -776,88 +962,123 @@ function App() {
         travelCard,
         {
           opacity: 0,
-          duration: 160,
+          duration: 170,
           ease: 'outQuad',
         },
-        640,
+        650,
       )
   }
 
   return (
     <div className="app-shell" ref={rootRef}>
+      <div className="scene-hud" aria-hidden="true">
+        <span>Dealer view</span>
+        <strong>Peek a card to reveal the portfolio</strong>
+      </div>
+
       <div className="table-stage">
+        <div className="casino-depth" />
+
         <div className="table-shell">
-          <div className="table-shell__rim" />
+          <div className="table-rim table-rim--outer" />
+          <div className="table-rim table-rim--inner" />
 
           <div className="table-surface">
             <div className="table-glow" />
             <TableCenterMark />
-            <ChipScatter />
 
-            {tableSeats.map((seat, seatIndex) => (
+            <div className="board-slot" aria-hidden="true">
+              <span>Portfolio Hold&apos;em</span>
+              {Array.from({ length: 5 }).map((_, index) => (
+                <i key={index} />
+              ))}
+            </div>
+
+            {dealerSeats.map((dealerSeat, seatIndex) => (
               <div
-                key={`${seat.id}-spot`}
-                className="seat-spot"
+                key={dealerSeat.id}
+                className={`seat-cluster seat-cluster--${dealerSeat.depth}`}
+                data-seat-index={seatIndex}
                 style={
                   {
-                    '--seat-left-desktop': seat.position.desktop.left,
-                    '--seat-top-desktop': seat.position.desktop.top,
-                    '--seat-rotate-desktop': `${seat.position.desktop.rotate}deg`,
-                    '--seat-left-mobile': seat.position.mobile.left,
-                    '--seat-top-mobile': seat.position.mobile.top,
-                    '--seat-rotate-mobile': `${seat.position.mobile.rotate}deg`,
+                    '--seat-left': dealerSeat.position.desktop.left,
+                    '--seat-top': dealerSeat.position.desktop.top,
+                    '--seat-rotate': `${dealerSeat.position.desktop.rotate}deg`,
+                    '--seat-scale': dealerSeat.position.desktop.scale,
+                    '--seat-z': dealerSeat.position.desktop.z,
+                    '--seat-left-mobile': dealerSeat.position.mobile.left,
+                    '--seat-top-mobile': dealerSeat.position.mobile.top,
+                    '--seat-rotate-mobile': `${dealerSeat.position.mobile.rotate}deg`,
+                    '--seat-scale-mobile': dealerSeat.position.mobile.scale,
+                    '--seat-z-mobile': dealerSeat.position.mobile.z,
                   } as CSSProperties
                 }
-                data-seat-index={seatIndex}
-                aria-hidden="true"
-              />
+              >
+                <PlayerAvatar avatar={dealerSeat.avatar} />
+
+                <div className="seat-spot" aria-hidden="true">
+                  <span>{dealerSeat.label}</span>
+                </div>
+
+                <SeatChipBank
+                  seatIndex={seatIndex}
+                  chipStacks={dealerSeat.chipStacks}
+                />
+
+                <div className="pocket-row">
+                  {dealerSeat.seat.cards.map((card, cardIndex) => {
+                    const isActive = activeCardId === card.id
+                    const dealIndex = cardIndex * dealerSeats.length + seatIndex
+
+                    return (
+                      <button
+                        key={card.id}
+                        type="button"
+                        className={`pocket-card-shell pocket-card-shell--${cardIndex}${
+                          isActive ? ' is-active' : ''
+                        }`}
+                        data-card-id={card.id}
+                        onClick={() => openCardPage(card)}
+                        disabled={!dealComplete || routeCard !== null}
+                        aria-label={`Peek at ${card.label}`}
+                      >
+                        <div
+                          className="pocket-card-motion"
+                          data-deal-index={dealIndex}
+                        >
+                          <PlayingCard label={card.label} accent={card.accent} />
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             ))}
 
             <div className="dealer-zone" aria-hidden="true">
               <DeckStack />
               <div className="dealer-button">Dealer</div>
             </div>
+          </div>
+        </div>
 
-            {tableSeats.map((seat, seatIndex) => (
-              <div
-                key={seat.id}
-                className="seat-group"
+        <div className="dealer-foreground" aria-hidden="true">
+          <div className="chip-tray">
+            {CHIP_COLORS.map((color, index) => (
+              <span
+                key={color}
+                className="tray-chip"
                 style={
                   {
-                    '--seat-left-desktop': seat.position.desktop.left,
-                    '--seat-top-desktop': seat.position.desktop.top,
-                    '--seat-rotate-desktop': `${seat.position.desktop.rotate}deg`,
-                    '--seat-left-mobile': seat.position.mobile.left,
-                    '--seat-top-mobile': seat.position.mobile.top,
-                    '--seat-rotate-mobile': `${seat.position.mobile.rotate}deg`,
+                    '--chip-color': color,
+                    '--tray-index': index,
                   } as CSSProperties
                 }
-              >
-                {seat.cards.map((card, cardIndex) => {
-                  const isActive = activeCardId === card.id
-                  const dealIndex = cardIndex * tableSeats.length + seatIndex
-
-                  return (
-                    <button
-                      key={card.id}
-                      type="button"
-                      className={`pocket-card-shell pocket-card-shell--${cardIndex}${
-                        isActive ? ' is-active' : ''
-                      }`}
-                      data-card-id={card.id}
-                      onClick={() => openCardPage(card)}
-                      disabled={!dealComplete || routeCard !== null}
-                      aria-label={`Open ${card.label}`}
-                    >
-                      <div className="pocket-card-motion" data-deal-index={dealIndex}>
-                        <PlayingCard label={card.label} accent={card.accent} />
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+              />
             ))}
           </div>
+          <span className="dealer-hand dealer-hand--left" />
+          <span className="dealer-hand dealer-hand--right" />
         </div>
       </div>
 

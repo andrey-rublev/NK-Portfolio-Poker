@@ -6,6 +6,7 @@ import { Card3D } from './Card3D'
 import { Chips } from './Chips'
 import { Players } from './Player'
 import { cardLayouts, DECK_POSITION, CARD, CAMERA_HOME } from './layout'
+import { createLabelTexture } from './labelTexture'
 import { prefersReducedMotion } from './motion'
 import type { PortfolioCardData } from '../data/portfolio'
 
@@ -62,9 +63,8 @@ function CameraController() {
     const homeZ = CAMERA_HOME[2] + extra * 17
 
     const t = state.clock.elapsedTime
-    const e = reducedMotion.current
-      ? 1
-      : easeOutCubic(Math.min(1, t / INTRO_SECONDS))
+    // The fly-in always plays; only the perpetual idle drift respects reduce-motion.
+    const e = easeOutCubic(Math.min(1, t / INTRO_SECONDS))
     const drift = reducedMotion.current ? 0 : e
 
     let x = THREE.MathUtils.lerp(INTRO_START[0], homeX, e)
@@ -142,10 +142,31 @@ export function Scene({ dealt, selectedId, reducedMotion, onSelect }: SceneProps
           dealt={dealt}
           selected={selectedId === layout.card.id}
           anySelected={selectedId !== null}
-          reducedMotion={reducedMotion}
           onSelect={onSelect}
         />
       ))}
+
+      {/* Billboarded nameplates so every section is readable at a glance.
+          The two cards per seat are staggered in height to avoid overlap. */}
+      {dealt &&
+        selectedId === null &&
+        cardLayouts.map((layout) => (
+          <sprite
+            key={`${layout.card.id}-label`}
+            position={[
+              layout.position[0],
+              layout.position[1] + (layout.cardIndex === 0 ? 1.5 : 0.82),
+              layout.position[2],
+            ]}
+            scale={[1.15, 0.38, 1]}
+          >
+            <spriteMaterial
+              map={createLabelTexture(layout.card.label, layout.card.accent)}
+              transparent
+              depthWrite={false}
+            />
+          </sprite>
+        ))}
 
       <CameraController />
     </>

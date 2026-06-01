@@ -109,8 +109,8 @@
   padding: 0;
   cursor: pointer;
   background:
-    radial-gradient(circle at 50% 38%, rgba(6, 50, 34, 0.7), rgba(2, 8, 6, 0.86) 70%);
-  backdrop-filter: blur(7px);
+    radial-gradient(circle at 50% 40%, rgba(5, 32, 21, 0.95), rgba(2, 7, 5, 0.985) 72%);
+  backdrop-filter: blur(13px);
 }
 
 .detail-overlay__back {

@@ -40,6 +40,8 @@ const SEAT_RADIUS_FACTOR = 0.74
 export interface CardLayout {
   card: PortfolioCardData
   seatId: string
+  /** Index of this card within its seat (0 or 1). */
+  cardIndex: number
   /** Resting world position [x, y, z] on the felt. */
   position: [number, number, number]
   /** Resting yaw (radians) — small fan so a seat's two cards splay apart. */
@@ -74,6 +76,7 @@ export const cardLayouts: CardLayout[] = (() => {
       layouts.push({
         card,
         seatId: seat.id,
+        cardIndex: i,
         position: [cx + offset, CARD.restY, cz],
         yaw: (i === 0 ? 1 : -1) * 0.12,
         dealIndex: 0, // assigned below

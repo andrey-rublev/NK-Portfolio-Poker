@@ -23,11 +23,11 @@ function cardPath(id: string) {
 
 function App() {
   // Initial-only values: lazy state keeps them stable without reading refs in render.
+  // `reducedMotion` only governs *idle/ambient* loops now; the deal, fly-in, and
+  // flip always play (deep links skip the deal by starting dealt=true).
   const [reducedMotion] = useState(prefersReducedMotion)
   const [selectedId, setSelectedId] = useState<string | null>(getRouteCardId)
-  const [dealt, setDealt] = useState(
-    () => prefersReducedMotion() || getRouteCardId() !== null,
-  )
+  const [dealt, setDealt] = useState(() => getRouteCardId() !== null)
   const [closing, setClosing] = useState(false)
   const closeTimer = useRef<number | undefined>(undefined)
 

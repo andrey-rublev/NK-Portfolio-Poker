@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useThree, type ThreeEvent } from '@react-three/fiber'
+import type { ThreeEvent } from '@react-three/fiber'
 import { useSpring, animated, config } from '@react-spring/three'
 import { createCardTextures } from './cardTextures'
 import { CARD, DECK_POSITION } from './layout'
@@ -14,7 +14,6 @@ interface Card3DProps {
   dealt: boolean
   selected: boolean
   anySelected: boolean
-  reducedMotion: boolean
   onSelect: (card: PortfolioCardData) => void
 }
 
@@ -23,11 +22,9 @@ export function Card3D({
   dealt,
   selected,
   anySelected,
-  reducedMotion,
   onSelect,
 }: Card3DProps) {
   const [hovered, setHovered] = useState(false)
-  const invalidate = useThree((s) => s.invalidate)
   const { front, back } = useMemo(
     () => createCardTextures(layout.card),
     [layout.card],
@@ -58,11 +55,8 @@ export function Card3D({
     position,
     rotation,
     scale,
-    delay: dealt && !reducedMotion ? layout.dealIndex * 105 : 0,
-    immediate: reducedMotion,
+    delay: dealt ? layout.dealIndex * 105 : 0,
     config: selected ? config.gentle : config.stiff,
-    // Drive renders while animating (the Canvas uses frameloop="demand").
-    onChange: () => invalidate(),
   })
 
   const onOver = (e: ThreeEvent<PointerEvent>) => {

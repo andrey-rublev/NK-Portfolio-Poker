@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import { TABLE } from './layout'
+import { createFeltTexture } from './feltTexture'
 
 /** A closed 3D curve tracing the table's ellipse in the XZ plane. */
 class EllipseCurve3D extends THREE.Curve<THREE.Vector3> {
@@ -26,6 +27,7 @@ class EllipseCurve3D extends THREE.Curve<THREE.Vector3> {
 }
 
 export function PokerTable() {
+  const felt = useMemo(() => createFeltTexture(), [])
   const railGeometry = useMemo(() => {
     const curve = new EllipseCurve3D(
       TABLE.rx + TABLE.railTube * 0.35,
@@ -54,7 +56,7 @@ export function PokerTable() {
         receiveShadow
       >
         <circleGeometry args={[1, 96]} />
-        <meshStandardMaterial color="#0c6b46" roughness={0.92} metalness={0.02} />
+        <meshStandardMaterial map={felt} roughness={0.95} metalness={0.02} />
       </mesh>
 
       {/* Subtle gold accent ring ("betting line") */}

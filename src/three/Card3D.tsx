@@ -25,29 +25,29 @@ interface Card3DProps {
 
 export function Card3D({ layout, dealt, selected, anySelected, onSelect }: Card3DProps) {
   const [hovered, setHovered] = useState(false)
-  // The per-card stagger applies only to the initial deal; once it's done,
-  // hover/open/close springs respond immediately (no leftover delay).
-  const [dealDone, setDealDone] = useState(false)
+  // The deal is staggered by *when* each card leaves the deck (not a spring
+  // delay), so hover/open/close springs always respond immediately.
+  const [outOfDeck, setOutOfDeck] = useState(dealt)
   const texture = useMemo(() => createCardTexture(layout.card), [layout.card])
 
   useEffect(() => {
-    if (!dealt || dealDone) return
+    if (!dealt || outOfDeck) return
     const id = window.setTimeout(
-      () => setDealDone(true),
-      layout.dealIndex * 230 + 1200,
+      () => setOutOfDeck(true),
+      layout.dealIndex * 230,
     )
     return () => window.clearTimeout(id)
-  }, [dealt, dealDone, layout.dealIndex])
+  }, [dealt, outOfDeck, layout.dealIndex])
 
   const rest = layout.position
-  const interactive = dealt && !anySelected
+  const interactive = outOfDeck && !anySelected
   const active = hovered && interactive
 
   let position: [number, number, number] = rest
   let rotation: [number, number, number] = [FLAT_X, layout.yaw, 0]
   let scale = 1
 
-  if (!dealt) {
+  if (!outOfDeck) {
     position = DECK_POSITION
     rotation = [FLAT_X, 0, 0]
   } else if (selected) {
@@ -66,8 +66,6 @@ export function Card3D({ layout, dealt, selected, anySelected, onSelect }: Card3
     position,
     rotation,
     scale,
-    // Stagger only during the initial deal-out.
-    delay: dealt && !dealDone && !selected ? layout.dealIndex * 230 : 0,
     config: selected ? LIFT_CONFIG : DEAL_CONFIG,
   })
 

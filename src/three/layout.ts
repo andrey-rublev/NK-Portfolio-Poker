@@ -69,7 +69,7 @@ export const cardLayouts: CardLayout[] = (() => {
     const angle = SEAT_ANGLES[seat.id] ?? 90
     const [cx, cz] = polar(angle, SEAT_RADIUS_FACTOR)
     // Spread the pair apart (along world X) so the two cards never overlap.
-    const spread = CARD.w * 1.18
+    const spread = CARD.w * 1.08
 
     seat.cards.forEach((card, i) => {
       const offset = (i - (seat.cards.length - 1) / 2) * spread
@@ -113,7 +113,7 @@ export const TOTAL_CARDS = portfolioCards.length
 export const DECK_POSITION: [number, number, number] = [0, CARD.restY, TABLE.rz * 0.42]
 
 /** Default camera position (widescreen) — close in so players are only half-visible. */
-export const CAMERA_HOME: [number, number, number] = [0, 6.5, 7.7]
+export const CAMERA_HOME: [number, number, number] = [0, 7.1, 8.9]
 
 export interface SeatSpot {
   seatId: string

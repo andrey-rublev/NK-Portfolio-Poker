@@ -55,11 +55,13 @@ function CameraController() {
   const reducedMotion = useRef(prefersReducedMotion())
 
   useFrame((state) => {
+    // Wide screens get the zoomed-in view; narrower/squarer screens pull back
+    // so all ten cards stay in frame (their horizontal FOV is smaller).
     const aspect = size.width / Math.max(1, size.height)
-    const extra = Math.max(0, 0.82 - aspect)
+    const extra = Math.max(0, 1.4 - aspect)
     const homeX = CAMERA_HOME[0]
-    const homeY = CAMERA_HOME[1] + extra * 4.5
-    const homeZ = CAMERA_HOME[2] + extra * 17
+    const homeY = CAMERA_HOME[1] + extra * 3.5
+    const homeZ = CAMERA_HOME[2] + extra * 10.5
 
     const t = state.clock.elapsedTime
     // The fly-in always plays; only the perpetual idle drift respects reduce-motion.

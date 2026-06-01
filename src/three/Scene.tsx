@@ -1,13 +1,15 @@
-import { useEffect } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PokerTable } from './PokerTable'
 import { Card3D } from './Card3D'
 import { Chips } from './Chips'
+import { Players } from './Player'
 import { cardLayouts, DECK_POSITION, CARD, CAMERA_HOME } from './layout'
+import { prefersReducedMotion } from './motion'
 import type { PortfolioCardData } from '../data/portfolio'
 
-const LOOK_AT = new THREE.Vector3(0, -0.2, -0.3)
+const LOOK_AT = new THREE.Vector3(0, 0.1, -0.2)
 
 function Deck() {
   return (
@@ -33,29 +35,53 @@ function Deck() {
   )
 }
 
+const INTRO_SECONDS = 2.0
+const INTRO_START: [number, number, number] = [0, 17, 23]
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+
 /**
- * Frames the table for the current viewport. Runs on mount and whenever the
- * canvas resizes, then requests a render — no continuous loop, so the scene
- * idles when nothing is animating (better battery, lets the GPU rest).
+ * Drives the camera every frame: a cinematic fly-in over the table at load
+ * (synced with the deal), then a subtle idle drift + mouse parallax. Pulls back
+ * on narrow/portrait screens so the table still fills the frame.
  */
 function CameraController() {
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
-  const invalidate = useThree((s) => s.invalidate)
+  const pointer = useThree((s) => s.pointer)
+  const finePointer = useRef(
+    typeof window !== 'undefined' &&
+      window.matchMedia('(pointer: fine)').matches,
+  )
+  const reducedMotion = useRef(prefersReducedMotion())
 
-  useEffect(() => {
-    // Pull the camera back on narrow/portrait screens so the whole table fits.
+  useFrame((state) => {
     const aspect = size.width / Math.max(1, size.height)
     const extra = Math.max(0, 0.82 - aspect)
-    camera.position.set(
-      CAMERA_HOME[0],
-      CAMERA_HOME[1] + extra * 4,
-      CAMERA_HOME[2] + extra * 16,
-    )
+    const homeX = CAMERA_HOME[0]
+    const homeY = CAMERA_HOME[1] + extra * 4.5
+    const homeZ = CAMERA_HOME[2] + extra * 17
+
+    const t = state.clock.elapsedTime
+    const e = reducedMotion.current
+      ? 1
+      : easeOutCubic(Math.min(1, t / INTRO_SECONDS))
+    const drift = reducedMotion.current ? 0 : e
+
+    let x = THREE.MathUtils.lerp(INTRO_START[0], homeX, e)
+    let y = THREE.MathUtils.lerp(INTRO_START[1], homeY, e)
+    const z = THREE.MathUtils.lerp(INTRO_START[2], homeZ, e)
+
+    // Once settled, breathe gently and follow the mouse a touch.
+    x += Math.sin(t * 0.32) * 0.16 * drift
+    y += Math.sin(t * 0.5) * 0.12 * drift
+    if (finePointer.current) {
+      x += pointer.x * 0.9 * drift
+      y -= pointer.y * 0.5 * drift
+    }
+
+    camera.position.set(x, y, z)
     camera.lookAt(LOOK_AT)
-    camera.updateProjectionMatrix()
-    invalidate()
-  }, [camera, size, invalidate])
+  })
 
   return null
 }
@@ -107,6 +133,7 @@ export function Scene({ dealt, selectedId, reducedMotion, onSelect }: SceneProps
       <PokerTable />
       <Deck />
       <Chips />
+      <Players reducedMotion={reducedMotion} />
 
       {cardLayouts.map((layout) => (
         <Card3D

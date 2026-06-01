@@ -101,9 +101,21 @@ export function Card3D({
         <meshStandardMaterial attach="material-1" color="#efe6d2" roughness={0.7} />
         <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
         <meshStandardMaterial attach="material-3" color="#efe6d2" roughness={0.7} />
-        {/* front (+Z) and back (-Z) */}
-        <meshStandardMaterial attach="material-4" map={front} roughness={0.55} />
-        <meshStandardMaterial attach="material-5" map={back} roughness={0.55} />
+        {/* front (+Z) and back (-Z) — clearcoat gives a subtle card-stock sheen */}
+        <meshPhysicalMaterial
+          attach="material-4"
+          map={front}
+          roughness={0.5}
+          clearcoat={0.35}
+          clearcoatRoughness={0.45}
+        />
+        <meshPhysicalMaterial
+          attach="material-5"
+          map={back}
+          roughness={0.52}
+          clearcoat={0.3}
+          clearcoatRoughness={0.5}
+        />
       </mesh>
     </animated.group>
   )

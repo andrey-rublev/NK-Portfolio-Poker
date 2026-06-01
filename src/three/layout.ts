@@ -110,7 +110,7 @@ export const TOTAL_CARDS = portfolioCards.length
 export const DECK_POSITION: [number, number, number] = [0, CARD.restY, TABLE.rz * 0.42]
 
 /** Default camera position (widescreen). CameraController pulls it back on narrow screens. */
-export const CAMERA_HOME: [number, number, number] = [0, 9.9, 12.2]
+export const CAMERA_HOME: [number, number, number] = [0, 8.2, 10.1]
 
 export interface SeatSpot {
   seatId: string
@@ -125,4 +125,27 @@ export const seatSpots: SeatSpot[] = tableSeats.map((seat) => {
   const angle = SEAT_ANGLES[seat.id] ?? 90
   const [x, z] = polar(angle, SEAT_RADIUS_FACTOR)
   return { seatId: seat.id, x, z, angle }
+})
+
+export interface PlayerSpot {
+  seatId: string
+  x: number
+  z: number
+  /** Yaw so a model built facing +Z turns to face the table center. */
+  faceYaw: number
+  /** Stable 0..1 used to vary skin/shirt per seat. */
+  variant: number
+}
+
+/** One seated player just outside the rail behind each seat, facing the table. */
+export const playerSpots: PlayerSpot[] = tableSeats.map((seat, i) => {
+  const angle = SEAT_ANGLES[seat.id] ?? 90
+  const [x, z] = polar(angle, 1.16)
+  return {
+    seatId: seat.id,
+    x,
+    z,
+    faceYaw: Math.atan2(-x, -z),
+    variant: i / Math.max(1, tableSeats.length - 1),
+  }
 })

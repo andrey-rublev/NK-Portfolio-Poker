@@ -2,19 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Scene } from './three/Scene'
 import { CAMERA_HOME } from './three/layout'
+import { prefersReducedMotion } from './three/motion'
 import { SectionPage } from './components/SectionPage'
 import { owner, portfolioCards, lastDataUpdate } from './data/portfolio'
 import type { PortfolioCardData } from './data/portfolio'
 import './ui.css'
 
 const BASE = import.meta.env.BASE_URL || '/'
-
-function prefersReducedMotion() {
-  return (
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
-}
 
 function getRouteCardId(): string | null {
   let path = window.location.pathname
@@ -81,10 +75,9 @@ function App() {
     <div className="app-shell">
       <Canvas
         shadows
-        frameloop="demand"
         dpr={[1, 2]}
         gl={{ antialias: true }}
-        camera={{ position: CAMERA_HOME, fov: 38, near: 0.1, far: 100 }}
+        camera={{ position: CAMERA_HOME, fov: 40, near: 0.1, far: 100 }}
       >
         <Scene
           dealt={dealt}

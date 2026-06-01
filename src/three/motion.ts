@@ -7,8 +7,8 @@
  */
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined') return false
+  // Animations are part of the experience, so they're ON by default.
+  // Opt out explicitly with ?motion=0 (or ?motion=off).
   const flag = new URLSearchParams(window.location.search).get('motion')
-  if (flag === '1' || flag === 'on') return false
-  if (flag === '0' || flag === 'off') return true
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return flag === '0' || flag === 'off'
 }

@@ -7,7 +7,9 @@ import type { CardLayout } from './layout'
 import type { PortfolioCardData } from '../data/portfolio'
 
 /** Where a selected card flies to (in front of the camera). */
-const FOCUS_POSITION: [number, number, number] = [0, 2.6, 4.1]
+const FOCUS_POSITION: [number, number, number] = [0, 2.2, 4.3]
+/** Flat on the felt with the label (front, +Z) face up and reading upright. */
+const FLAT_X = -Math.PI / 2
 
 interface Card3DProps {
   layout: CardLayout
@@ -35,20 +37,22 @@ export function Card3D({
   const active = hovered && interactive
 
   let position: [number, number, number] = rest
-  let rotation: [number, number, number] = [Math.PI / 2, layout.yaw, 0]
+  let rotation: [number, number, number] = [FLAT_X, layout.yaw, 0]
   let scale = 1
 
   if (!dealt) {
     position = DECK_POSITION
-    rotation = [Math.PI / 2, 0, 0]
+    rotation = [FLAT_X, 0, 0]
   } else if (selected) {
+    // Lift the card up to face the camera as the detail panel opens.
     position = FOCUS_POSITION
-    rotation = [0.04, 0, 0]
-    scale = 2.15
+    rotation = [0, 0, 0]
+    scale = 1.85
   } else if (active) {
-    position = [rest[0], rest[1] + 0.55, rest[2] - 0.25]
-    rotation = [Math.PI / 2 - 0.5, layout.yaw * 0.5, 0]
-    scale = 1.08
+    // Tilt the card up toward the camera on hover for a clearer read.
+    position = [rest[0], rest[1] + 0.4, rest[2] - 0.15]
+    rotation = [FLAT_X + 0.5, layout.yaw, 0]
+    scale = 1.07
   }
 
   const spring = useSpring({

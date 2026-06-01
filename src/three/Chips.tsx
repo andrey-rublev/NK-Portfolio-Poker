@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { CARD, seatSpots } from './layout'
+import { CARD, chipSpots } from './layout'
 import { getChipTextures } from './chipTexture'
 
 const CHIP_COLORS = ['#c0282a', '#1f5fa8', '#d8a32b', '#e9ecf0', '#1f8a5b', '#2a2d33']
-const CHIP_R = 0.21
+const CHIP_R = 0.2
 const CHIP_H = 0.045
 
 function ChipStack({
@@ -37,28 +37,45 @@ function ChipStack({
   )
 }
 
-/** Chip stacks beside each seat for casino flavor. */
+/** Chip stacks beside each player, plus a pot in the middle. */
 export function Chips() {
-  const stacks = useMemo(
+  const seatStacks = useMemo(
     () =>
-      seatSpots.flatMap((spot, si) =>
-        [-1, 1].map((side) => ({
-          key: `${spot.seatId}-${side}`,
-          position: [
-            spot.x * 0.78 + side * 0.52,
-            0,
-            spot.z * 0.78 + side * 0.12,
-          ] as [number, number, number],
-          count: 4 + ((si * 2 + (side > 0 ? 3 : 0)) % 6),
-          color: CHIP_COLORS[(si * 2 + (side > 0 ? 1 : 0)) % CHIP_COLORS.length],
-        })),
-      ),
+      chipSpots.map((spot, si) => ({
+        key: spot.seatId,
+        position: [spot.x, 0, spot.z] as [number, number, number],
+        count: 5 + ((si * 3) % 6),
+        color: CHIP_COLORS[si % CHIP_COLORS.length],
+      })),
     [],
   )
 
+  // A small pot of mixed chips in the betting area.
+  const pot = useMemo(() => {
+    const out: { key: string; position: [number, number, number]; count: number; color: string }[] = []
+    const spots: [number, number][] = [
+      [0, -0.15],
+      [0.32, 0.1],
+      [-0.3, 0.08],
+      [0.05, 0.34],
+    ]
+    spots.forEach(([x, z], i) => {
+      out.push({
+        key: `pot-${i}`,
+        position: [x, 0, z],
+        count: 2 + (i % 3),
+        color: CHIP_COLORS[(i * 2) % CHIP_COLORS.length],
+      })
+    })
+    return out
+  }, [])
+
   return (
     <>
-      {stacks.map((s) => (
+      {seatStacks.map((s) => (
+        <ChipStack key={s.key} position={s.position} count={s.count} color={s.color} />
+      ))}
+      {pot.map((s) => (
         <ChipStack key={s.key} position={s.position} count={s.count} color={s.color} />
       ))}
     </>

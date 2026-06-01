@@ -15,11 +15,11 @@ export const TABLE = {
 }
 
 export const CARD = {
-  w: 0.92,
-  h: 1.3,
-  thickness: 0.025,
+  w: 1.0,
+  h: 1.42,
+  thickness: 0.03,
   /** Resting height above the felt. */
-  restY: 0.04,
+  restY: 0.05,
 }
 
 /**
@@ -35,7 +35,7 @@ const SEAT_ANGLES: Record<string, number> = {
 }
 
 /** How far out along the ellipse each seat's cards rest (1 = felt edge). */
-const SEAT_RADIUS_FACTOR = 0.74
+const SEAT_RADIUS_FACTOR = 0.7
 
 export interface CardLayout {
   card: PortfolioCardData
@@ -68,8 +68,8 @@ export const cardLayouts: CardLayout[] = (() => {
   tableSeats.forEach((seat) => {
     const angle = SEAT_ANGLES[seat.id] ?? 90
     const [cx, cz] = polar(angle, SEAT_RADIUS_FACTOR)
-    // Spread the pair left/right relative to the camera (along world X).
-    const spread = CARD.w * 0.62
+    // Spread the pair apart (along world X) so the two cards never overlap.
+    const spread = CARD.w * 1.18
 
     seat.cards.forEach((card, i) => {
       const offset = (i - (seat.cards.length - 1) / 2) * spread
@@ -78,7 +78,7 @@ export const cardLayouts: CardLayout[] = (() => {
         seatId: seat.id,
         cardIndex: i,
         position: [cx + offset, CARD.restY, cz],
-        yaw: (i === 0 ? 1 : -1) * 0.12,
+        yaw: (i === 0 ? 1 : -1) * 0.04,
         dealIndex: 0, // assigned below
       })
     })
@@ -112,8 +112,8 @@ export const TOTAL_CARDS = portfolioCards.length
 /** Deck origin — in front of the dealer (camera side), where cards fly from. */
 export const DECK_POSITION: [number, number, number] = [0, CARD.restY, TABLE.rz * 0.42]
 
-/** Default camera position (widescreen). CameraController pulls it back on narrow screens. */
-export const CAMERA_HOME: [number, number, number] = [0, 8.2, 10.1]
+/** Default camera position (widescreen) — close in so players are only half-visible. */
+export const CAMERA_HOME: [number, number, number] = [0, 6.5, 7.7]
 
 export interface SeatSpot {
   seatId: string
@@ -128,6 +128,24 @@ export const seatSpots: SeatSpot[] = tableSeats.map((seat) => {
   const angle = SEAT_ANGLES[seat.id] ?? 90
   const [x, z] = polar(angle, SEAT_RADIUS_FACTOR)
   return { seatId: seat.id, x, z, angle }
+})
+
+export interface ChipSpot {
+  seatId: string
+  x: number
+  z: number
+}
+
+/** A chip stack beside each seat, just outside the cards toward the player. */
+export const chipSpots: ChipSpot[] = tableSeats.map((seat) => {
+  const angle = SEAT_ANGLES[seat.id] ?? 90
+  const a = (angle * Math.PI) / 180
+  const [bx, bz] = polar(angle, 0.86)
+  // Unit tangent along the ellipse, to shift the stack to one side of the cards.
+  const tx = -TABLE.rx * Math.sin(a)
+  const tz = -TABLE.rz * Math.cos(a)
+  const tl = Math.hypot(tx, tz) || 1
+  return { seatId: seat.id, x: bx + (tx / tl) * 0.95, z: bz + (tz / tl) * 0.95 }
 })
 
 export interface PlayerSpot {

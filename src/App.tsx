@@ -27,9 +27,15 @@ function App() {
   // flip always play (deep links skip the deal by starting dealt=true).
   const [reducedMotion] = useState(prefersReducedMotion)
   const [selectedId, setSelectedId] = useState<string | null>(getRouteCardId)
+  // The 3D card focuses immediately (selectedId); the HTML panel appears a beat
+  // later (showOverlay) so the card-lift animation is visible first.
+  const [showOverlay, setShowOverlay] = useState(() => getRouteCardId() !== null)
   const [dealt, setDealt] = useState(() => getRouteCardId() !== null)
   const [closing, setClosing] = useState(false)
+  const openTimer = useRef<number | undefined>(undefined)
   const closeTimer = useRef<number | undefined>(undefined)
+
+  const OVERLAY_DELAY = reducedMotion ? 0 : 520
 
   const selectedCard = selectedId
     ? portfolioCards.find((card) => card.id === selectedId) ?? null
@@ -42,33 +48,50 @@ function App() {
     return () => window.clearTimeout(id)
   }, [dealt])
 
-  // Back / forward navigation.
+  // Back / forward navigation — jump straight to the target state (no stagger).
   useEffect(() => {
     const onPop = () => {
+      window.clearTimeout(openTimer.current)
       window.clearTimeout(closeTimer.current)
       setClosing(false)
-      setSelectedId(getRouteCardId())
+      const next = getRouteCardId()
+      setSelectedId(next)
+      setShowOverlay(next !== null)
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
-  useEffect(() => () => window.clearTimeout(closeTimer.current), [])
+  useEffect(
+    () => () => {
+      window.clearTimeout(openTimer.current)
+      window.clearTimeout(closeTimer.current)
+    },
+    [],
+  )
 
   const handleSelect = (card: PortfolioCardData) => {
     if (selectedId) return
+    // Lift the 3D card now; reveal the detail panel once the lift is visible.
     setSelectedId(card.id)
     window.history.pushState({}, '', cardPath(card.id))
+    window.clearTimeout(openTimer.current)
+    openTimer.current = window.setTimeout(() => setShowOverlay(true), OVERLAY_DELAY)
   }
 
   const handleBack = () => {
     if (!selectedId || closing) return
     setClosing(true)
     window.history.pushState({}, '', BASE)
-    closeTimer.current = window.setTimeout(() => {
-      setSelectedId(null)
-      setClosing(false)
-    }, 340)
+    window.clearTimeout(closeTimer.current)
+    closeTimer.current = window.setTimeout(
+      () => {
+        setShowOverlay(false)
+        setSelectedId(null)
+        setClosing(false)
+      },
+      reducedMotion ? 0 : 340,
+    )
   }
 
   return (
@@ -99,7 +122,7 @@ function App() {
         </span>
       ) : null}
 
-      {selectedCard ? (
+      {selectedCard && showOverlay ? (
         <SectionPage
           key={selectedCard.id}
           card={selectedCard}

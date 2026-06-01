@@ -52,24 +52,25 @@ function PlayerFigure({
           <sphereGeometry args={[0.315, 24, 24, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
           <meshStandardMaterial color={hair} roughness={0.9} />
         </mesh>
-        {/* Arms reaching onto the table */}
-        <mesh position={[0.46, 1.02, 0.36]} rotation={[0.95, 0, -0.18]} castShadow>
-          <capsuleGeometry args={[0.135, 0.66, 6, 14]} />
-          <meshStandardMaterial color={shirt} roughness={0.85} />
-        </mesh>
-        <mesh position={[-0.46, 1.02, 0.36]} rotation={[0.95, 0, 0.18]} castShadow>
-          <capsuleGeometry args={[0.135, 0.66, 6, 14]} />
-          <meshStandardMaterial color={shirt} roughness={0.85} />
-        </mesh>
-        {/* Hands */}
-        <mesh position={[0.52, 0.78, 0.78]} castShadow>
-          <sphereGeometry args={[0.12, 16, 16]} />
-          <meshStandardMaterial color={skin} roughness={0.7} />
-        </mesh>
-        <mesh position={[-0.52, 0.78, 0.78]} castShadow>
-          <sphereGeometry args={[0.12, 16, 16]} />
-          <meshStandardMaterial color={skin} roughness={0.7} />
-        </mesh>
+        {/* Arms reaching forward onto the table, hand fixed to the arm's end */}
+        {[-1, 1].map((side) => (
+          <group
+            key={side}
+            position={[side * 0.4, 1.32, 0.12]}
+            rotation={[-0.95, 0, side * 0.16]}
+          >
+            {/* upper arm + forearm */}
+            <mesh position={[0, -0.4, 0]} castShadow>
+              <capsuleGeometry args={[0.13, 0.56, 6, 14]} />
+              <meshStandardMaterial color={shirt} roughness={0.85} />
+            </mesh>
+            {/* hand at the end of the arm */}
+            <mesh position={[0, -0.82, 0]} castShadow>
+              <sphereGeometry args={[0.14, 16, 16]} />
+              <meshStandardMaterial color={skin} roughness={0.7} />
+            </mesh>
+          </group>
+        ))}
       </group>
     </group>
   )

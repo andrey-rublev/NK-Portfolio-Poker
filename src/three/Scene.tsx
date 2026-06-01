@@ -40,47 +40,29 @@ const INTRO_START: [number, number, number] = [0, 17, 23]
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
 /**
- * Drives the camera every frame: a cinematic fly-in over the table at load
- * (synced with the deal), then a subtle idle drift + mouse parallax. Pulls back
- * on narrow/portrait screens so the table still fills the frame.
+ * A one-time cinematic fly-in over the table at load, then the camera holds
+ * still — no mouse parallax, no idle drift. Pulls back on narrower/squarer
+ * screens so all ten cards stay in frame.
  */
 function CameraController() {
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
-  const pointer = useThree((s) => s.pointer)
-  const finePointer = useRef(
-    typeof window !== 'undefined' &&
-      window.matchMedia('(pointer: fine)').matches,
-  )
   const reducedMotion = useRef(prefersReducedMotion())
 
   useFrame((state) => {
-    // Wide screens get the zoomed-in view; narrower/squarer screens pull back
-    // so all ten cards stay in frame (their horizontal FOV is smaller).
     const aspect = size.width / Math.max(1, size.height)
     const extra = Math.max(0, 1.4 - aspect)
-    const homeX = CAMERA_HOME[0]
     const homeY = CAMERA_HOME[1] + extra * 3.5
     const homeZ = CAMERA_HOME[2] + extra * 10.5
 
     const t = state.clock.elapsedTime
-    // The fly-in always plays; only the perpetual idle drift respects reduce-motion.
-    const e = easeOutCubic(Math.min(1, t / INTRO_SECONDS))
-    const drift = reducedMotion.current ? 0 : e
+    const e = reducedMotion.current ? 1 : easeOutCubic(Math.min(1, t / INTRO_SECONDS))
 
-    let x = THREE.MathUtils.lerp(INTRO_START[0], homeX, e)
-    let y = THREE.MathUtils.lerp(INTRO_START[1], homeY, e)
-    const z = THREE.MathUtils.lerp(INTRO_START[2], homeZ, e)
-
-    // Once settled, breathe gently and follow the mouse a touch.
-    x += Math.sin(t * 0.32) * 0.16 * drift
-    y += Math.sin(t * 0.5) * 0.12 * drift
-    if (finePointer.current) {
-      x += pointer.x * 0.9 * drift
-      y -= pointer.y * 0.5 * drift
-    }
-
-    camera.position.set(x, y, z)
+    camera.position.set(
+      CAMERA_HOME[0],
+      THREE.MathUtils.lerp(INTRO_START[1], homeY, e),
+      THREE.MathUtils.lerp(INTRO_START[2], homeZ, e),
+    )
     camera.lookAt(LOOK_AT)
   })
 
@@ -91,7 +73,7 @@ interface SceneProps {
   dealt: boolean
   selectedId: string | null
   reducedMotion: boolean
-  onSelect: (card: PortfolioCardData) => void
+  onSelect: (card: PortfolioCardData, origin: { x: number; y: number }) => void
 }
 
 export function Scene({ dealt, selectedId, reducedMotion, onSelect }: SceneProps) {
@@ -100,23 +82,23 @@ export function Scene({ dealt, selectedId, reducedMotion, onSelect }: SceneProps
       <color attach="background" args={['#05110c']} />
       <fog attach="fog" args={['#05110c', 17, 36]} />
 
-      <ambientLight intensity={0.5} />
-      <hemisphereLight args={['#bfe3d0', '#160f08', 0.55]} />
-      {/* Overhead poker lamp: warm pool of light, no shadow (avoids acne on the felt). */}
+      <ambientLight intensity={0.28} />
+      <hemisphereLight args={['#9fc8b4', '#140d07', 0.32]} />
+      {/* Overhead poker lamp: a contained warm pool, dimmer so the felt isn't blown out. */}
       <spotLight
         position={[0, 13, 1.5]}
-        angle={0.62}
-        penumbra={0.7}
-        intensity={1500}
-        distance={44}
+        angle={0.58}
+        penumbra={0.75}
+        intensity={780}
+        distance={42}
         decay={2}
-        color="#fff3da"
+        color="#ffeccb"
       />
       {/* Shadow caster: directional gives uniform shadow precision. */}
       <directionalLight
         position={[5, 13, 7]}
-        intensity={2.1}
-        color="#fff1d6"
+        intensity={1.25}
+        color="#ffe8c8"
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0002}
@@ -128,8 +110,8 @@ export function Scene({ dealt, selectedId, reducedMotion, onSelect }: SceneProps
         shadow-camera-top={11}
         shadow-camera-bottom={-11}
       />
-      <pointLight position={[-9, 5, 9]} intensity={45} color="#ffd9a0" />
-      <pointLight position={[9, 4, 6]} intensity={25} color="#9fd8ff" />
+      <pointLight position={[-9, 5, 9]} intensity={20} color="#ffd9a0" />
+      <pointLight position={[9, 4, 6]} intensity={12} color="#9fd8ff" />
 
       <PokerTable />
       <Deck />

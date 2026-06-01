@@ -27,19 +27,21 @@ function App() {
   // flip always play (deep links skip the deal by starting dealt=true).
   const [reducedMotion] = useState(prefersReducedMotion)
   const [selectedId, setSelectedId] = useState<string | null>(getRouteCardId)
-  // The 3D card focuses immediately (selectedId); the HTML panel appears a beat
-  // later (showOverlay) so the card-lift animation is visible first.
-  const [showOverlay, setShowOverlay] = useState(() => getRouteCardId() !== null)
   const [dealt, setDealt] = useState(() => getRouteCardId() !== null)
   const [closing, setClosing] = useState(false)
-  const openTimer = useRef<number | undefined>(undefined)
+  // Screen point the selected card was clicked at — the panel flies from here.
+  const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null)
   const closeTimer = useRef<number | undefined>(undefined)
-
-  const OVERLAY_DELAY = reducedMotion ? 0 : 520
 
   const selectedCard = selectedId
     ? portfolioCards.find((card) => card.id === selectedId) ?? null
     : null
+
+  // Make CSS animations follow our motion setting (the ?motion flag), not the
+  // OS prefers-reduced-motion, since animations are part of the experience.
+  useEffect(() => {
+    document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
+  }, [reducedMotion])
 
   // Kick off the deal once after mount.
   useEffect(() => {
@@ -48,35 +50,26 @@ function App() {
     return () => window.clearTimeout(id)
   }, [dealt])
 
-  // Back / forward navigation — jump straight to the target state (no stagger).
+  // Back / forward navigation — jump straight to the target state.
   useEffect(() => {
     const onPop = () => {
-      window.clearTimeout(openTimer.current)
       window.clearTimeout(closeTimer.current)
       setClosing(false)
       const next = getRouteCardId()
       setSelectedId(next)
-      setShowOverlay(next !== null)
+      if (!next) setOrigin(null)
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
-  useEffect(
-    () => () => {
-      window.clearTimeout(openTimer.current)
-      window.clearTimeout(closeTimer.current)
-    },
-    [],
-  )
+  useEffect(() => () => window.clearTimeout(closeTimer.current), [])
 
-  const handleSelect = (card: PortfolioCardData) => {
+  const handleSelect = (card: PortfolioCardData, from: { x: number; y: number }) => {
     if (selectedId) return
-    // Lift the 3D card now; reveal the detail panel once the lift is visible.
+    setOrigin(from)
     setSelectedId(card.id)
     window.history.pushState({}, '', cardPath(card.id))
-    window.clearTimeout(openTimer.current)
-    openTimer.current = window.setTimeout(() => setShowOverlay(true), OVERLAY_DELAY)
   }
 
   const handleBack = () => {
@@ -86,11 +79,11 @@ function App() {
     window.clearTimeout(closeTimer.current)
     closeTimer.current = window.setTimeout(
       () => {
-        setShowOverlay(false)
         setSelectedId(null)
         setClosing(false)
+        setOrigin(null)
       },
-      reducedMotion ? 0 : 340,
+      reducedMotion ? 0 : 460,
     )
   }
 
@@ -122,12 +115,13 @@ function App() {
         </span>
       ) : null}
 
-      {selectedCard && showOverlay ? (
+      {selectedCard ? (
         <SectionPage
           key={selectedCard.id}
           card={selectedCard}
           onBack={handleBack}
           closing={closing}
+          origin={origin}
         />
       ) : null}
     </div>

@@ -92,13 +92,15 @@ select {
   color: #fffaf1;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+/* Animations are part of the experience and stay on by default. They're
+   disabled only when explicitly opted out via ?motion=0 (which sets
+   data-reduced-motion on <html>), so this respects intent without the OS
+   setting silently killing the scene's motion. */
+[data-reduced-motion='true'] *,
+[data-reduced-motion='true'] *::before,
+[data-reduced-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }

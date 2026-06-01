@@ -77,29 +77,6 @@
   display: grid;
   place-items: center;
   padding: clamp(16px, 4vw, 48px);
-  animation: overlay-in 0.35s ease both;
-}
-
-.detail-overlay.is-closing {
-  animation: overlay-out 0.32s ease both;
-}
-
-@keyframes overlay-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes overlay-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
 }
 
 .detail-overlay__scrim {
@@ -111,6 +88,29 @@
   background:
     radial-gradient(circle at 50% 40%, rgba(5, 32, 21, 0.95), rgba(2, 7, 5, 0.985) 72%);
   backdrop-filter: blur(13px);
+  animation: scrim-in 0.34s ease both;
+}
+
+.detail-overlay.is-closing .detail-overlay__scrim {
+  animation: scrim-out 0.44s ease both;
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scrim-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .detail-overlay__back {
@@ -156,61 +156,34 @@
   color: #111821;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--accent) 50%, #999) transparent;
-  animation: card-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center;
+  /* One continuous motion: grow out of the clicked card (--fx/--fy) to center. */
+  animation: card-fly 0.62s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .detail-overlay.is-closing .detail-card {
-  animation: card-out 0.32s ease both;
+  animation: card-fly-out 0.44s cubic-bezier(0.4, 0, 0.7, 0.4) both;
 }
 
-@keyframes card-in {
+@keyframes card-fly {
   from {
     opacity: 0;
-    transform: translateY(46px) scale(0.96);
+    transform: translate(var(--fx, 0px), var(--fy, 0px)) scale(0.12);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate(0px, 0px) scale(1);
   }
 }
 
-@keyframes card-out {
+@keyframes card-fly-out {
   from {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate(0px, 0px) scale(1);
   }
   to {
     opacity: 0;
-    transform: translateY(30px) scale(0.98);
-  }
-}
-
-.detail-card__rank {
-  position: absolute;
-  top: clamp(20px, 3vw, 30px);
-  right: clamp(22px, 3vw, 34px);
-  display: grid;
-  place-items: center;
-  color: #a42f2b;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 0.92;
-}
-
-.detail-card__body > * {
-  animation: item-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--i, 0) * 55ms + 130ms);
-}
-
-@keyframes item-in {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: translate(var(--fx, 0px), var(--fy, 0px)) scale(0.12);
   }
 }
 
@@ -298,13 +271,10 @@
   color: color-mix(in srgb, var(--accent) 60%, #6b7280);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* No entrance animation: rest on the visible base state immediately. */
-  .detail-overlay,
-  .detail-overlay.is-closing,
-  .detail-card,
-  .detail-overlay.is-closing .detail-card,
-  .detail-card__body > * {
-    animation: none !important;
-  }
+/* Opt-out (?motion=0) only: rest on the visible base state with no animation. */
+[data-reduced-motion='true'] .detail-overlay__scrim,
+[data-reduced-motion='true'] .detail-overlay.is-closing .detail-overlay__scrim,
+[data-reduced-motion='true'] .detail-card,
+[data-reduced-motion='true'] .detail-overlay.is-closing .detail-card {
+  animation: none !important;
 }

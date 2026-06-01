@@ -88,7 +88,8 @@
   background:
     radial-gradient(circle at 50% 40%, rgba(5, 32, 21, 0.95), rgba(2, 7, 5, 0.985) 72%);
   backdrop-filter: blur(13px);
-  animation: scrim-in 0.34s ease both;
+  /* ease-in keeps the scrim faint early so the 3D card is visible rising. */
+  animation: scrim-in 0.72s ease-in both;
 }
 
 .detail-overlay.is-closing .detail-overlay__scrim {
@@ -157,33 +158,34 @@
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--accent) 50%, #999) transparent;
   transform-origin: center;
-  /* One continuous motion: grow out of the clicked card (--fx/--fy) to center. */
-  animation: card-fly 0.62s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* The 3D card supplies the big lift; the panel settles in over it as it rises. */
+  animation: panel-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: 0.16s;
 }
 
 .detail-overlay.is-closing .detail-card {
-  animation: card-fly-out 0.44s cubic-bezier(0.4, 0, 0.7, 0.4) both;
+  animation: panel-sink 0.4s cubic-bezier(0.4, 0, 0.7, 0.4) both;
 }
 
-@keyframes card-fly {
+@keyframes panel-rise {
   from {
     opacity: 0;
-    transform: translate(var(--fx, 0px), var(--fy, 0px)) scale(0.12);
+    transform: translateY(28px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translate(0px, 0px) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
-@keyframes card-fly-out {
+@keyframes panel-sink {
   from {
     opacity: 1;
-    transform: translate(0px, 0px) scale(1);
+    transform: translateY(0) scale(1);
   }
   to {
     opacity: 0;
-    transform: translate(var(--fx, 0px), var(--fy, 0px)) scale(0.12);
+    transform: translateY(28px) scale(0.96);
   }
 }
 

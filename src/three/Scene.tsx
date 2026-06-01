@@ -72,11 +72,12 @@ function CameraController() {
 interface SceneProps {
   dealt: boolean
   selectedId: string | null
+  closing: boolean
   reducedMotion: boolean
-  onSelect: (card: PortfolioCardData, origin: { x: number; y: number }) => void
+  onSelect: (card: PortfolioCardData) => void
 }
 
-export function Scene({ dealt, selectedId, reducedMotion, onSelect }: SceneProps) {
+export function Scene({ dealt, selectedId, closing, reducedMotion, onSelect }: SceneProps) {
   return (
     <>
       <color attach="background" args={['#05110c']} />
@@ -123,7 +124,7 @@ export function Scene({ dealt, selectedId, reducedMotion, onSelect }: SceneProps
           key={layout.card.id}
           layout={layout}
           dealt={dealt}
-          selected={selectedId === layout.card.id}
+          selected={selectedId === layout.card.id && !closing}
           anySelected={selectedId !== null}
           onSelect={onSelect}
         />

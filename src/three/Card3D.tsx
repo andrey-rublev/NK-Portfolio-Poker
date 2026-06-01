@@ -8,15 +8,19 @@ import type { PortfolioCardData } from '../data/portfolio'
 
 /** Flat on the felt, face-down. */
 const FLAT_X = -Math.PI / 2
+/** Where a selected card rises to — up off the table and toward the camera. */
+const FOCUS_POSITION: [number, number, number] = [0, 3, 4.6]
 /** Slow, gliding deal. */
 const DEAL_CONFIG = { mass: 1, tension: 90, friction: 24 }
+/** Snappier glide for the lift when a card is opened. */
+const LIFT_CONFIG = { mass: 1, tension: 120, friction: 20 }
 
 interface Card3DProps {
   layout: CardLayout
   dealt: boolean
   selected: boolean
   anySelected: boolean
-  onSelect: (card: PortfolioCardData, origin: { x: number; y: number }) => void
+  onSelect: (card: PortfolioCardData) => void
 }
 
 export function Card3D({ layout, dealt, selected, anySelected, onSelect }: Card3DProps) {
@@ -34,6 +38,11 @@ export function Card3D({ layout, dealt, selected, anySelected, onSelect }: Card3
   if (!dealt) {
     position = DECK_POSITION
     rotation = [FLAT_X, 0, 0]
+  } else if (selected) {
+    // Physically rise off the table and stand up to face the camera.
+    position = FOCUS_POSITION
+    rotation = [0, 0, 0]
+    scale = 1.7
   } else if (active) {
     // Lift toward the camera on hover so it reads as interactive.
     position = [rest[0], rest[1] + 0.35, rest[2] - 0.12]
@@ -45,8 +54,8 @@ export function Card3D({ layout, dealt, selected, anySelected, onSelect }: Card3
     position,
     rotation,
     scale,
-    delay: dealt ? layout.dealIndex * 230 : 0,
-    config: DEAL_CONFIG,
+    delay: dealt && !selected ? layout.dealIndex * 230 : 0,
+    config: selected ? LIFT_CONFIG : DEAL_CONFIG,
   })
 
   const onOver = (e: ThreeEvent<PointerEvent>) => {
@@ -63,7 +72,7 @@ export function Card3D({ layout, dealt, selected, anySelected, onSelect }: Card3
     if (!interactive) return
     e.stopPropagation()
     document.body.style.cursor = ''
-    onSelect(layout.card, { x: e.clientX, y: e.clientY })
+    onSelect(layout.card)
   }
 
   return (
@@ -72,9 +81,8 @@ export function Card3D({ layout, dealt, selected, anySelected, onSelect }: Card3
       rotation={spring.rotation as unknown as [number, number, number]}
       scale={spring.scale}
     >
-      {/* Hidden while its detail panel is open (the panel takes its place). */}
+      {/* Stays visible and rises when selected; the scrim veils it as the panel arrives. */}
       <mesh
-        visible={!selected}
         castShadow
         receiveShadow
         onPointerOver={onOver}

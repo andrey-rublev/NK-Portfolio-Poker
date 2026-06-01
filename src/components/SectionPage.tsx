@@ -10,11 +10,9 @@ interface SectionPageProps {
   card: PortfolioCardData
   onBack: () => void
   closing?: boolean
-  /** Screen point the card was clicked — the panel flies out from here. */
-  origin?: { x: number; y: number } | null
 }
 
-export function SectionPage({ card, onBack, closing = false, origin }: SectionPageProps) {
+export function SectionPage({ card, onBack, closing = false }: SectionPageProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onBack()
@@ -25,14 +23,10 @@ export function SectionPage({ card, onBack, closing = false, origin }: SectionPa
 
   const sourceNote = card.source ? SOURCE_LABELS[card.source] : undefined
 
-  // Offset from screen center to the clicked card, so the panel grows out of it.
-  const fx = origin ? `${origin.x - window.innerWidth / 2}px` : '0px'
-  const fy = origin ? `${origin.y - window.innerHeight / 2}px` : '0px'
-
   return (
     <section
       className={`detail-overlay${closing ? ' is-closing' : ''}`}
-      style={{ '--accent': card.accent, '--fx': fx, '--fy': fy } as CSSProperties}
+      style={{ '--accent': card.accent } as CSSProperties}
       aria-labelledby="detail-title"
     >
       <button className="detail-overlay__scrim" type="button" aria-label="Close" onClick={onBack} />

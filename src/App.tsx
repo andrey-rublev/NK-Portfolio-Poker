@@ -29,8 +29,6 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(getRouteCardId)
   const [dealt, setDealt] = useState(() => getRouteCardId() !== null)
   const [closing, setClosing] = useState(false)
-  // Screen point the selected card was clicked at — the panel flies from here.
-  const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null)
   const closeTimer = useRef<number | undefined>(undefined)
 
   const selectedCard = selectedId
@@ -55,9 +53,7 @@ function App() {
     const onPop = () => {
       window.clearTimeout(closeTimer.current)
       setClosing(false)
-      const next = getRouteCardId()
-      setSelectedId(next)
-      if (!next) setOrigin(null)
+      setSelectedId(getRouteCardId())
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -65,9 +61,8 @@ function App() {
 
   useEffect(() => () => window.clearTimeout(closeTimer.current), [])
 
-  const handleSelect = (card: PortfolioCardData, from: { x: number; y: number }) => {
+  const handleSelect = (card: PortfolioCardData) => {
     if (selectedId) return
-    setOrigin(from)
     setSelectedId(card.id)
     window.history.pushState({}, '', cardPath(card.id))
   }
@@ -81,7 +76,6 @@ function App() {
       () => {
         setSelectedId(null)
         setClosing(false)
-        setOrigin(null)
       },
       reducedMotion ? 0 : 460,
     )
@@ -98,6 +92,7 @@ function App() {
         <Scene
           dealt={dealt}
           selectedId={selectedId}
+          closing={closing}
           reducedMotion={reducedMotion}
           onSelect={handleSelect}
         />
@@ -121,7 +116,6 @@ function App() {
           card={selectedCard}
           onBack={handleBack}
           closing={closing}
-          origin={origin}
         />
       ) : null}
     </div>

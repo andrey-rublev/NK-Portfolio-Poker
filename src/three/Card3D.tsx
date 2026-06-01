@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useSpring, animated } from '@react-spring/three'
 import { createCardTexture } from './cardTextures'
@@ -25,7 +25,19 @@ interface Card3DProps {
 
 export function Card3D({ layout, dealt, selected, anySelected, onSelect }: Card3DProps) {
   const [hovered, setHovered] = useState(false)
+  // The per-card stagger applies only to the initial deal; once it's done,
+  // hover/open/close springs respond immediately (no leftover delay).
+  const [dealDone, setDealDone] = useState(false)
   const texture = useMemo(() => createCardTexture(layout.card), [layout.card])
+
+  useEffect(() => {
+    if (!dealt || dealDone) return
+    const id = window.setTimeout(
+      () => setDealDone(true),
+      layout.dealIndex * 230 + 1200,
+    )
+    return () => window.clearTimeout(id)
+  }, [dealt, dealDone, layout.dealIndex])
 
   const rest = layout.position
   const interactive = dealt && !anySelected
@@ -54,7 +66,8 @@ export function Card3D({ layout, dealt, selected, anySelected, onSelect }: Card3
     position,
     rotation,
     scale,
-    delay: dealt && !selected ? layout.dealIndex * 230 : 0,
+    // Stagger only during the initial deal-out.
+    delay: dealt && !dealDone && !selected ? layout.dealIndex * 230 : 0,
     config: selected ? LIFT_CONFIG : DEAL_CONFIG,
   })
 

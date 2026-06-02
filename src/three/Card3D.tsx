@@ -8,8 +8,8 @@ import type { CardSlot } from './layout'
 const FACE_DOWN_X = Math.PI / 2
 const FACE_UP_X = -Math.PI / 2
 /** Where a focused card flies — up in front of the camera, leaning back to read. */
-const FOCUS_Y = 2.7
-const FOCUS_Z = 5.7
+const FOCUS_Y = 3.4
+const FOCUS_Z = 5.5
 const DEAL_CONFIG = { mass: 1, tension: 90, friction: 24 }
 const FOCUS_CONFIG = { mass: 1, tension: 130, friction: 20 }
 

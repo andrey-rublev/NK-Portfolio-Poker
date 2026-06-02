@@ -1,16 +1,16 @@
-import { portfolioCards, tableSeats } from '../data/portfolio'
+import {
+  communitySections,
+  seatSections,
+  tableSeats,
+} from '../data/portfolio'
 import type { PortfolioCardData } from '../data/portfolio'
 
 /** World units. The felt sits at y = 0; camera looks down from +Z/+Y. */
 export const TABLE = {
-  /** Felt ellipse radii (x across, z depth). */
   rx: 6,
   rz: 4,
-  /** Felt top surface height. */
   topY: 0,
-  /** Thickness of the wooden skirt below the felt. */
   skirt: 0.9,
-  /** Padded rail tube radius. */
   railTube: 0.42,
 }
 
@@ -22,10 +22,6 @@ export const CARD = {
   restY: 0.05,
 }
 
-/**
- * Seat angles in degrees. 90 = far center (-Z), 270 = nearest the camera (+Z),
- * 0 = +X (right), 180 = -X (left). The camera sits to the south (+Z) looking north.
- */
 const SEAT_ANGLES: Record<string, number> = {
   'seat-north': 90,
   'seat-northwest': 143,
@@ -34,101 +30,109 @@ const SEAT_ANGLES: Record<string, number> = {
   'seat-southeast': 328,
 }
 
-/** How far out along the ellipse each seat's cards rest (1 = felt edge). */
 const SEAT_RADIUS_FACTOR = 0.7
 
-export interface CardLayout {
-  card: PortfolioCardData
-  seatId: string
-  /** Index of this card within its seat (0 or 1). */
-  cardIndex: number
-  /** Resting world position [x, y, z] on the felt. */
-  position: [number, number, number]
-  /** Resting yaw (radians) — small fan so a seat's two cards splay apart. */
-  yaw: number
-  /** Order the dealer flicks the cards out. */
-  dealIndex: number
-}
+/** Order the five seats are filled with sections / dealt. */
+const SEAT_ORDER = [
+  'seat-southwest',
+  'seat-northwest',
+  'seat-north',
+  'seat-northeast',
+  'seat-southeast',
+]
 
 function polar(angleDeg: number, factor: number): [number, number] {
   const a = (angleDeg * Math.PI) / 180
-  const x = TABLE.rx * factor * Math.cos(a)
-  const z = -TABLE.rz * factor * Math.sin(a)
-  return [x, z]
+  return [TABLE.rx * factor * Math.cos(a), -TABLE.rz * factor * Math.sin(a)]
+}
+
+export type CardRole = 'label' | 'info' | 'community'
+
+export interface CardSlot {
+  id: string
+  section: PortfolioCardData
+  role: CardRole
+  /** Cards sharing a hand flip together (seatId, or 'board' for community). */
+  handId: string
+  position: [number, number, number]
+  yaw: number
+  /** Order this card flies out of the deck during the initial deal. */
+  dealIndex: number
 }
 
 /**
- * Build the flat list of cards with their resting transforms. Two cards per
- * seat sit side by side, fanned slightly, with their tops pointing toward the
- * camera so every label reads upright.
+ * Five seat hands. Each seat shows ONE section across two cards: a labeled card
+ * (section name) and an info card (the details). Clicking either flips both.
  */
-export const cardLayouts: CardLayout[] = (() => {
-  const layouts: CardLayout[] = []
+export const seatCards: CardSlot[] = (() => {
+  const slots: CardSlot[] = []
+  const spread = CARD.w * 1.18
 
-  tableSeats.forEach((seat) => {
-    const angle = SEAT_ANGLES[seat.id] ?? 90
-    const [cx, cz] = polar(angle, SEAT_RADIUS_FACTOR)
-    // Spread the pair apart (along world X) so the two cards never overlap.
-    const spread = CARD.w * 1.08
-
-    seat.cards.forEach((card, i) => {
-      const offset = (i - (seat.cards.length - 1) / 2) * spread
-      layouts.push({
-        card,
-        seatId: seat.id,
-        cardIndex: i,
-        position: [cx + offset, CARD.restY, cz],
-        yaw: (i === 0 ? 1 : -1) * 0.04,
-        dealIndex: 0, // assigned below
-      })
+  seatSections.forEach((section, i) => {
+    const seatId = SEAT_ORDER[i] ?? `seat-${i}`
+    const [cx, cz] = polar(SEAT_ANGLES[seatId] ?? 90, SEAT_RADIUS_FACTOR)
+    slots.push({
+      id: `${seatId}-label`,
+      section,
+      role: 'label',
+      handId: seatId,
+      position: [cx - spread / 2, CARD.restY, cz],
+      yaw: 0.04,
+      dealIndex: i, // first round: one labeled card per seat
+    })
+    slots.push({
+      id: `${seatId}-info`,
+      section,
+      role: 'info',
+      handId: seatId,
+      position: [cx + spread / 2, CARD.restY, cz],
+      yaw: -0.04,
+      dealIndex: seatSections.length + i, // second round
     })
   })
 
-  // Deal order: round-robin so it looks like a real deal (one card per seat,
-  // then the second to each seat).
-  const bySeat = new Map<string, CardLayout[]>()
-  layouts.forEach((l) => {
-    const arr = bySeat.get(l.seatId) ?? []
-    arr.push(l)
-    bySeat.set(l.seatId, arr)
-  })
-  const seatOrder = tableSeats.map((s) => s.id)
-  let deal = 0
-  for (let round = 0; round < 2; round += 1) {
-    seatOrder.forEach((seatId) => {
-      const arr = bySeat.get(seatId)
-      if (arr && arr[round]) {
-        arr[round].dealIndex = deal
-        deal += 1
-      }
-    })
-  }
-
-  return layouts
+  return slots
 })()
 
-export const TOTAL_CARDS = portfolioCards.length
-
-/** Deck origin — in front of the dealer (camera side), where cards fly from. */
-export const DECK_POSITION: [number, number, number] = [0, CARD.restY, TABLE.rz * 0.42]
-
-/** Default camera position (widescreen) — close in so players are only half-visible. */
-export const CAMERA_HOME: [number, number, number] = [0, 7.1, 8.9]
-
-export interface SeatSpot {
-  seatId: string
-  /** Center of the seat's cards on the felt. */
-  x: number
-  z: number
-  angle: number
+export interface CommunitySlot extends CardSlot {
+  stage: 'flop' | 'turn' | 'river'
+  boardIndex: number
 }
 
-/** One anchor per seat — used to place chip stacks beside each player's cards. */
-export const seatSpots: SeatSpot[] = tableSeats.map((seat) => {
-  const angle = SEAT_ANGLES[seat.id] ?? 90
-  const [x, z] = polar(angle, SEAT_RADIUS_FACTOR)
-  return { seatId: seat.id, x, z, angle }
-})
+/** The five community cards, laid out in a row across the middle of the felt. */
+export const communityCards: CommunitySlot[] = communitySections.map(
+  (section, i) => {
+    const spacing = CARD.w * 1.14
+    const x = (i - (communitySections.length - 1) / 2) * spacing
+    return {
+      id: `community-${section.id}`,
+      section,
+      role: 'community',
+      handId: 'board',
+      position: [x, CARD.restY, -TABLE.rz * 0.12],
+      yaw: 0,
+      dealIndex: i,
+      stage: i < 3 ? 'flop' : i === 3 ? 'turn' : 'river',
+      boardIndex: i,
+    }
+  },
+)
+
+/** Deck origin — in front of the dealer (camera side), where cards fly from. */
+export const DECK_POSITION: [number, number, number] = [
+  TABLE.rx * 0.34,
+  CARD.restY,
+  TABLE.rz * 0.5,
+]
+
+/** Where burn cards get tossed, beside the deck. */
+export const BURN_POSITION: [number, number, number] = [
+  TABLE.rx * 0.34 - 0.5,
+  CARD.restY,
+  TABLE.rz * 0.5 - 0.3,
+]
+
+export const CAMERA_HOME: [number, number, number] = [0, 7.1, 8.9]
 
 export interface ChipSpot {
   seatId: string
@@ -137,24 +141,21 @@ export interface ChipSpot {
 }
 
 /** A chip stack beside each seat, just outside the cards toward the player. */
-export const chipSpots: ChipSpot[] = tableSeats.map((seat) => {
-  const angle = SEAT_ANGLES[seat.id] ?? 90
+export const chipSpots: ChipSpot[] = SEAT_ORDER.map((seatId) => {
+  const angle = SEAT_ANGLES[seatId] ?? 90
   const a = (angle * Math.PI) / 180
   const [bx, bz] = polar(angle, 0.86)
-  // Unit tangent along the ellipse, to shift the stack to one side of the cards.
   const tx = -TABLE.rx * Math.sin(a)
   const tz = -TABLE.rz * Math.cos(a)
   const tl = Math.hypot(tx, tz) || 1
-  return { seatId: seat.id, x: bx + (tx / tl) * 0.95, z: bz + (tz / tl) * 0.95 }
+  return { seatId, x: bx + (tx / tl) * 0.95, z: bz + (tz / tl) * 0.95 }
 })
 
 export interface PlayerSpot {
   seatId: string
   x: number
   z: number
-  /** Yaw so a model built facing +Z turns to face the table center. */
   faceYaw: number
-  /** Stable 0..1 used to vary skin/shirt per seat. */
   variant: number
 }
 

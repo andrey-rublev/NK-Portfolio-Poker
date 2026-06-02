@@ -1,85 +1,50 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Scene } from './three/Scene'
-import { CAMERA_HOME } from './three/layout'
+import { CAMERA_HOME, type CardSlot } from './three/layout'
 import { prefersReducedMotion } from './three/motion'
-import { SectionPage } from './components/SectionPage'
-import { owner, portfolioCards, lastDataUpdate } from './data/portfolio'
-import type { PortfolioCardData } from './data/portfolio'
+import { owner, lastDataUpdate } from './data/portfolio'
 import './ui.css'
 
-const BASE = import.meta.env.BASE_URL || '/'
-
-function getRouteCardId(): string | null {
-  let path = window.location.pathname
-  if (path.startsWith(BASE)) path = path.slice(BASE.length)
-  const slug = path.replace(/^\/+|\/+$/g, '')
-  return portfolioCards.some((card) => card.id === slug) ? slug : null
-}
-
-function cardPath(id: string) {
-  return `${BASE.replace(/\/$/, '')}/${id}`
-}
-
 function App() {
-  // Initial-only values: lazy state keeps them stable without reading refs in render.
-  // `reducedMotion` only governs *idle/ambient* loops now; the deal, fly-in, and
-  // flip always play (deep links skip the deal by starting dealt=true).
   const [reducedMotion] = useState(prefersReducedMotion)
-  const [selectedId, setSelectedId] = useState<string | null>(getRouteCardId)
-  const [dealt, setDealt] = useState(() => getRouteCardId() !== null)
-  const [closing, setClosing] = useState(false)
-  const closeTimer = useRef<number | undefined>(undefined)
+  const [dealt, setDealt] = useState(false)
+  const [revealedHands, setRevealedHands] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
+  const [boardStage, setBoardStage] = useState(0)
 
-  const selectedCard = selectedId
-    ? portfolioCards.find((card) => card.id === selectedId) ?? null
-    : null
-
-  // Make CSS animations follow our motion setting (the ?motion flag), not the
-  // OS prefers-reduced-motion, since animations are part of the experience.
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
   }, [reducedMotion])
 
-  // Kick off the deal once after mount.
   useEffect(() => {
     if (dealt) return
     const id = window.setTimeout(() => setDealt(true), 400)
     return () => window.clearTimeout(id)
   }, [dealt])
 
-  // Back / forward navigation — jump straight to the target state.
-  useEffect(() => {
-    const onPop = () => {
-      window.clearTimeout(closeTimer.current)
-      setClosing(false)
-      setSelectedId(getRouteCardId())
-    }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [])
-
-  useEffect(() => () => window.clearTimeout(closeTimer.current), [])
-
-  const handleSelect = (card: PortfolioCardData) => {
-    if (selectedId) return
-    setSelectedId(card.id)
-    window.history.pushState({}, '', cardPath(card.id))
+  const handleToggleHand = (slot: CardSlot) => {
+    setRevealedHands((prev) => {
+      const next = new Set(prev)
+      if (next.has(slot.handId)) next.delete(slot.handId)
+      else next.add(slot.handId)
+      return next
+    })
   }
 
-  const handleBack = () => {
-    if (!selectedId || closing) return
-    setClosing(true)
-    window.history.pushState({}, '', BASE)
-    window.clearTimeout(closeTimer.current)
-    closeTimer.current = window.setTimeout(
-      () => {
-        setSelectedId(null)
-        setClosing(false)
-      },
-      reducedMotion ? 0 : 460,
-    )
+  const handleDeckPress = () => {
+    setBoardStage((stage) => Math.min(3, stage + 1))
   }
+
+  const boardLabel =
+    boardStage === 0
+      ? 'Press the deck to deal the flop'
+      : boardStage === 1
+        ? 'Press the deck for the turn'
+        : boardStage === 2
+          ? 'Press the deck for the river'
+          : 'Click a hand to flip it'
 
   return (
     <div className="app-shell">
@@ -91,32 +56,24 @@ function App() {
       >
         <Scene
           dealt={dealt}
-          selectedId={selectedId}
-          closing={closing}
+          revealedHands={revealedHands}
+          boardStage={boardStage}
           reducedMotion={reducedMotion}
-          onSelect={handleSelect}
+          onToggleHand={handleToggleHand}
+          onDeckPress={handleDeckPress}
         />
       </Canvas>
 
-      <header className="scene-hud" aria-hidden={selectedCard ? true : undefined}>
+      <header className="scene-hud">
         <span className="scene-hud__kicker">{owner.tagline}</span>
         <strong className="scene-hud__name">{owner.name}</strong>
-        <span className="scene-hud__hint">Click a card to reveal a section</span>
+        <span className="scene-hud__hint">{boardLabel}</span>
       </header>
 
       {lastDataUpdate ? (
         <span className="data-stamp" aria-hidden="true">
           Updated {new Date(lastDataUpdate).toLocaleDateString()}
         </span>
-      ) : null}
-
-      {selectedCard ? (
-        <SectionPage
-          key={selectedCard.id}
-          card={selectedCard}
-          onBack={handleBack}
-          closing={closing}
-        />
       ) : null}
     </div>
   )

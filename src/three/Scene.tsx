@@ -1,49 +1,117 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PokerTable } from './PokerTable'
 import { Card3D } from './Card3D'
 import { Chips } from './Chips'
 import { Players } from './Player'
-import { cardLayouts, DECK_POSITION, CARD, CAMERA_HOME } from './layout'
+import {
+  seatCards,
+  communityCards,
+  DECK_POSITION,
+  BURN_POSITION,
+  CARD,
+  CAMERA_HOME,
+  type CardSlot,
+} from './layout'
+import { createCardFaces } from './cardTextures'
+import { createFloorTexture } from './floorTexture'
 import { prefersReducedMotion } from './motion'
-import type { PortfolioCardData } from '../data/portfolio'
 
 const LOOK_AT = new THREE.Vector3(0, 0.1, -0.2)
+const INTRO_SECONDS = 2.0
+const INTRO_START: [number, number, number] = [0, 17, 23]
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
-function Deck() {
+function Floor() {
+  const tex = useMemo(() => createFloorTexture(), [])
+  return (
+    <mesh rotation-x={-Math.PI / 2} position-y={-2.9} receiveShadow>
+      <planeGeometry args={[80, 80]} />
+      <meshStandardMaterial map={tex} roughness={0.95} metalness={0} />
+    </mesh>
+  )
+}
+
+function communityDealt(slot: CardSlot, boardStage: number): boolean {
+  const cs = slot as { stage?: string }
+  const need = cs.stage === 'flop' ? 1 : cs.stage === 'turn' ? 2 : 3
+  return boardStage >= need
+}
+
+function Deck({ boardStage, onPress }: { boardStage: number; onPress: () => void }) {
+  const back = useMemo(
+    () => createCardFaces(communityCards[0].section, 'community').back,
+    [],
+  )
+  const dealtCount = boardStage === 0 ? 0 : boardStage === 1 ? 4 : boardStage === 2 ? 6 : 8
+  const remaining = Math.max(4, 12 - dealtCount)
+
   return (
     <group position={DECK_POSITION}>
-      {Array.from({ length: 7 }).map((_, i) => (
+      {Array.from({ length: remaining }).map((_, i) => (
         <mesh
           key={i}
-          position-y={i * CARD.thickness * 1.1}
+          position-y={i * CARD.thickness * 1.04}
           rotation-x={-Math.PI / 2}
-          rotation-z={(i % 2 ? 1 : -1) * 0.015}
-          castShadow
+          rotation-z={(i % 2 ? 1 : -1) * 0.012}
         >
           <boxGeometry args={[CARD.w, CARD.h, CARD.thickness]} />
-          <meshStandardMaterial color="#0d2c20" roughness={0.6} />
+          <meshStandardMaterial attach="material-0" color="#efe6d2" roughness={0.7} />
+          <meshStandardMaterial attach="material-1" color="#efe6d2" roughness={0.7} />
+          <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
+          <meshStandardMaterial attach="material-3" color="#efe6d2" roughness={0.7} />
+          <meshStandardMaterial attach="material-4" map={back} roughness={0.6} />
+          <meshStandardMaterial attach="material-5" color="#efe6d2" roughness={0.7} />
         </mesh>
       ))}
-      {/* Dealer button */}
-      <mesh position={[CARD.w * 0.95, 0.03, 0.25]} rotation-x={-Math.PI / 2} castShadow>
-        <cylinderGeometry args={[0.17, 0.17, 0.05, 28]} />
-        <meshStandardMaterial color="#f3ecda" roughness={0.4} metalness={0.1} />
+      {/* Click target covering the deck */}
+      <mesh
+        position-y={remaining * CARD.thickness * 1.04 + 0.2}
+        rotation-x={-Math.PI / 2}
+        onClick={(e) => {
+          e.stopPropagation()
+          onPress()
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation()
+          document.body.style.cursor = 'pointer'
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = ''
+        }}
+      >
+        <boxGeometry args={[CARD.w + 0.2, CARD.h + 0.2, 0.4]} />
+        <meshStandardMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
   )
 }
 
-const INTRO_SECONDS = 2.0
-const INTRO_START: [number, number, number] = [0, 17, 23]
-const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+function BurnPile({ boardStage }: { boardStage: number }) {
+  const back = useMemo(
+    () => createCardFaces(communityCards[0].section, 'community').back,
+    [],
+  )
+  return (
+    <group position={BURN_POSITION}>
+      {Array.from({ length: boardStage }).map((_, i) => (
+        <mesh
+          key={i}
+          position-y={i * CARD.thickness * 1.04}
+          rotation-x={-Math.PI / 2}
+          rotation-z={(i % 2 ? 1 : -1) * 0.2 + 0.3}
+        >
+          <boxGeometry args={[CARD.w, CARD.h, CARD.thickness]} />
+          <meshStandardMaterial attach="material-4" map={back} roughness={0.6} />
+          <meshStandardMaterial attach="material-5" color="#efe6d2" roughness={0.7} />
+          <meshStandardMaterial color="#efe6d2" roughness={0.7} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
 
-/**
- * A one-time cinematic fly-in over the table at load, then the camera holds
- * still — no mouse parallax, no idle drift. Pulls back on narrower/squarer
- * screens so all ten cards stay in frame.
- */
 function CameraController() {
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
@@ -54,10 +122,8 @@ function CameraController() {
     const extra = Math.max(0, 1.4 - aspect)
     const homeY = CAMERA_HOME[1] + extra * 3.5
     const homeZ = CAMERA_HOME[2] + extra * 10.5
-
     const t = state.clock.elapsedTime
     const e = reducedMotion.current ? 1 : easeOutCubic(Math.min(1, t / INTRO_SECONDS))
-
     camera.position.set(
       CAMERA_HOME[0],
       THREE.MathUtils.lerp(INTRO_START[1], homeY, e),
@@ -65,27 +131,33 @@ function CameraController() {
     )
     camera.lookAt(LOOK_AT)
   })
-
   return null
 }
 
 interface SceneProps {
   dealt: boolean
-  selectedId: string | null
-  closing: boolean
+  revealedHands: ReadonlySet<string>
+  boardStage: number
   reducedMotion: boolean
-  onSelect: (card: PortfolioCardData) => void
+  onToggleHand: (slot: CardSlot) => void
+  onDeckPress: () => void
 }
 
-export function Scene({ dealt, selectedId, closing, reducedMotion, onSelect }: SceneProps) {
+export function Scene({
+  dealt,
+  revealedHands,
+  boardStage,
+  reducedMotion,
+  onToggleHand,
+  onDeckPress,
+}: SceneProps) {
   return (
     <>
-      <color attach="background" args={['#05110c']} />
-      <fog attach="fog" args={['#05110c', 17, 36]} />
+      <color attach="background" args={['#160a10']} />
+      <fog attach="fog" args={['#160a10', 20, 44]} />
 
       <ambientLight intensity={0.28} />
       <hemisphereLight args={['#9fc8b4', '#140d07', 0.32]} />
-      {/* Overhead poker lamp: a contained warm pool, dimmer so the felt isn't blown out. */}
       <spotLight
         position={[0, 13, 1.5]}
         angle={0.58}
@@ -95,7 +167,6 @@ export function Scene({ dealt, selectedId, closing, reducedMotion, onSelect }: S
         decay={2}
         color="#ffeccb"
       />
-      {/* Shadow caster: directional gives uniform shadow precision. */}
       <directionalLight
         position={[5, 13, 7]}
         intensity={1.25}
@@ -114,19 +185,32 @@ export function Scene({ dealt, selectedId, closing, reducedMotion, onSelect }: S
       <pointLight position={[-9, 5, 9]} intensity={20} color="#ffd9a0" />
       <pointLight position={[9, 4, 6]} intensity={12} color="#9fd8ff" />
 
+      <Floor />
       <PokerTable />
-      <Deck />
       <Chips />
       <Players reducedMotion={reducedMotion} />
+      <Deck boardStage={boardStage} onPress={onDeckPress} />
+      <BurnPile boardStage={boardStage} />
 
-      {cardLayouts.map((layout) => (
+      {seatCards.map((slot) => (
         <Card3D
-          key={layout.card.id}
-          layout={layout}
+          key={slot.id}
+          slot={slot}
           dealt={dealt}
-          selected={selectedId === layout.card.id && !closing}
-          anySelected={selectedId !== null}
-          onSelect={onSelect}
+          revealed={revealedHands.has(slot.handId)}
+          interactive
+          onToggle={onToggleHand}
+        />
+      ))}
+
+      {communityCards.map((slot) => (
+        <Card3D
+          key={slot.id}
+          slot={slot}
+          dealt={communityDealt(slot, boardStage)}
+          revealed
+          interactive={false}
+          onToggle={onToggleHand}
         />
       ))}
 

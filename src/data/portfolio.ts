@@ -85,5 +85,32 @@ export const portfolioCards: PortfolioCardData[] = tableSeats.flatMap(
   (seat) => seat.cards,
 )
 
+const byId = new Map(portfolioCards.map((card) => [card.id, card]))
+const pickSections = (ids: string[]): PortfolioCardData[] =>
+  ids
+    .map((id) => byId.get(id))
+    .filter((card): card is PortfolioCardData => Boolean(card))
+
+/**
+ * Marquee sections revealed on the community board, in deal order:
+ * flop = [about, experience, projects], turn = [research], river = [contact].
+ */
+export const communitySections: PortfolioCardData[] = pickSections([
+  'about',
+  'work',
+  'projects',
+  'research',
+  'contact',
+])
+
+/** The five seat "hands" — each shown across a labeled card + an info card. */
+export const seatSections: PortfolioCardData[] = pickSections([
+  'education',
+  'skills',
+  'hobbies',
+  'certifications',
+  'awards',
+])
+
 export const lastDataUpdate: string | null =
   overrides._meta?.lastUpdated ?? null

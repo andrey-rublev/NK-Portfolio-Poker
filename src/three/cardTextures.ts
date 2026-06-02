@@ -162,18 +162,32 @@ function drawCommunityFace(section: PortfolioCardData): HTMLCanvasElement {
   return c
 }
 
-/** Crimson playing-card back, optionally with the section name in the medallion. */
-function drawBack(label?: string, accent = '#d8a32b'): HTMLCanvasElement {
+/** A single ornate red Bicycle-style back, identical on every card. */
+function drawBack(): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
-  const grad = ctx.createLinearGradient(0, 0, 0, H)
-  grad.addColorStop(0, '#7d2231')
-  grad.addColorStop(1, '#4d101b')
-  ctx.fillStyle = grad
+  const cx = W / 2
+  const cy = H / 2
+
+  // Crimson field
+  ctx.fillStyle = '#b01e2e'
   ctx.fillRect(0, 0, W, H)
 
-  ctx.strokeStyle = 'rgba(255,240,224,0.12)'
-  ctx.lineWidth = 2
-  for (let i = -H; i < W; i += 18) {
+  // White border with rounded corners + thin inner line
+  ctx.strokeStyle = '#fbf6ec'
+  ctx.lineWidth = 16
+  roundedRect(ctx, 24, 24, W - 48, H - 48, 30)
+  ctx.stroke()
+  ctx.lineWidth = 3
+  roundedRect(ctx, 46, 46, W - 92, H - 92, 22)
+  ctx.stroke()
+
+  // Dense guilloché lattice inside the border
+  ctx.save()
+  roundedRect(ctx, 52, 52, W - 104, H - 104, 18)
+  ctx.clip()
+  ctx.strokeStyle = 'rgba(255,246,236,0.32)'
+  ctx.lineWidth = 1.4
+  for (let i = -H; i < W; i += 13) {
     ctx.beginPath()
     ctx.moveTo(i, 0)
     ctx.lineTo(i + H, H)
@@ -183,36 +197,43 @@ function drawBack(label?: string, accent = '#d8a32b'): HTMLCanvasElement {
     ctx.lineTo(i, H)
     ctx.stroke()
   }
-
-  ctx.strokeStyle = '#f3e9d6'
-  ctx.lineWidth = 12
-  roundedRect(ctx, 26, 26, W - 52, H - 52, 26)
-  ctx.stroke()
-
-  if (label) {
-    ctx.save()
-    ctx.translate(W / 2, H / 2)
-    ctx.fillStyle = '#f5ecda'
+  // Concentric ornamental rings around the medallion
+  for (let r = 250; r > 140; r -= 16) {
+    ctx.strokeStyle = 'rgba(255,246,236,0.20)'
     ctx.beginPath()
-    ctx.ellipse(0, 0, 180, 130, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.strokeStyle = accent
-    ctx.lineWidth = 6
-    ctx.beginPath()
-    ctx.ellipse(0, 0, 180, 130, 0, 0, Math.PI * 2)
+    ctx.ellipse(cx, cy, r * 0.62, r, 0, 0, Math.PI * 2)
     ctx.stroke()
-    let size = 66
-    const text = label.toUpperCase()
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    do {
-      ctx.font = `800 ${size}px "Space Grotesk", system-ui, sans-serif`
-      size -= 2
-    } while (ctx.measureText(text).width > 300 && size > 24)
-    ctx.fillStyle = '#4d101b'
-    ctx.fillText(text, 0, 0)
-    ctx.restore()
   }
+  ctx.restore()
+
+  // Central medallion (white oval with a small red filigree star)
+  ctx.fillStyle = '#fbf6ec'
+  ctx.beginPath()
+  ctx.ellipse(cx, cy, 92, 132, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.strokeStyle = '#b01e2e'
+  ctx.lineWidth = 5
+  ctx.beginPath()
+  ctx.ellipse(cx, cy, 92, 132, 0, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.strokeStyle = '#b01e2e'
+  ctx.lineWidth = 3
+  for (let k = 0; k < 12; k += 1) {
+    ctx.rotate((Math.PI * 2) / 12)
+    ctx.beginPath()
+    ctx.moveTo(0, 0)
+    ctx.quadraticCurveTo(22, 40, 0, 96)
+    ctx.quadraticCurveTo(-22, 40, 0, 0)
+    ctx.stroke()
+  }
+  ctx.fillStyle = '#b01e2e'
+  ctx.beginPath()
+  ctx.arc(0, 0, 16, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
   return c
 }
 
@@ -220,28 +241,30 @@ interface Faces {
   front: THREE.Texture
   back: THREE.Texture
 }
-const cache = new Map<string, Faces>()
+let sharedBack: THREE.Texture | null = null
+const cache = new Map<string, THREE.Texture>()
+
+/** The single shared card back, used by every card and the deck. */
+export function getSharedBack(): THREE.Texture {
+  if (!sharedBack) sharedBack = toTex(drawBack())
+  return sharedBack
+}
 
 export function createCardFaces(
   section: PortfolioCardData,
   role: CardRole,
 ): Faces {
   const key = `${section.id}:${role}`
-  const hit = cache.get(key)
-  if (hit) return hit
-
-  let frontCanvas: HTMLCanvasElement
-  if (role === 'label') frontCanvas = drawLabelFace(section)
-  else if (role === 'info') frontCanvas = drawInfoFace(section)
-  else frontCanvas = drawCommunityFace(section)
-
-  // Only the labeled seat card carries the section name on its back.
-  const backCanvas = drawBack(
-    role === 'label' ? section.label : undefined,
-    section.accent,
-  )
-
-  const faces = { front: toTex(frontCanvas), back: toTex(backCanvas) }
-  cache.set(key, faces)
-  return faces
+  let front = cache.get(key)
+  if (!front) {
+    const frontCanvas =
+      role === 'label'
+        ? drawLabelFace(section)
+        : role === 'info'
+          ? drawInfoFace(section)
+          : drawCommunityFace(section)
+    front = toTex(frontCanvas)
+    cache.set(key, front)
+  }
+  return { front, back: getSharedBack() }
 }

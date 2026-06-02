@@ -9,9 +9,8 @@ import './ui.css'
 function App() {
   const [reducedMotion] = useState(prefersReducedMotion)
   const [dealt, setDealt] = useState(false)
-  const [revealedHands, setRevealedHands] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  )
+  // The one hand/community card currently lifted to the camera (null = none).
+  const [focusedKey, setFocusedKey] = useState<string | null>(null)
   const [boardStage, setBoardStage] = useState(0)
 
   useEffect(() => {
@@ -24,27 +23,24 @@ function App() {
     return () => window.clearTimeout(id)
   }, [dealt])
 
-  const handleToggleHand = (slot: CardSlot) => {
-    setRevealedHands((prev) => {
-      const next = new Set(prev)
-      if (next.has(slot.handId)) next.delete(slot.handId)
-      else next.add(slot.handId)
-      return next
-    })
+  const handleToggle = (slot: CardSlot) => {
+    const key = slot.role === 'community' ? slot.id : slot.handId
+    setFocusedKey((prev) => (prev === key ? null : key))
   }
 
   const handleDeckPress = () => {
     setBoardStage((stage) => Math.min(3, stage + 1))
   }
 
-  const boardLabel =
-    boardStage === 0
-      ? 'Press the deck to deal the flop'
+  const boardLabel = focusedKey
+    ? 'Click the card again to put it back'
+    : boardStage === 0
+      ? 'Click a hand to look · press the deck to deal the flop'
       : boardStage === 1
         ? 'Press the deck for the turn'
         : boardStage === 2
           ? 'Press the deck for the river'
-          : 'Click a hand to flip it'
+          : 'Click any card to look'
 
   return (
     <div className="app-shell">
@@ -56,10 +52,10 @@ function App() {
       >
         <Scene
           dealt={dealt}
-          revealedHands={revealedHands}
+          focusedKey={focusedKey}
           boardStage={boardStage}
           reducedMotion={reducedMotion}
-          onToggleHand={handleToggleHand}
+          onToggle={handleToggle}
           onDeckPress={handleDeckPress}
         />
       </Canvas>

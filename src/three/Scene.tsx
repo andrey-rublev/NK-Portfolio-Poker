@@ -14,8 +14,9 @@ import {
   CAMERA_HOME,
   type CardSlot,
 } from './layout'
-import { createCardFaces } from './cardTextures'
+import { getSharedBack } from './cardTextures'
 import { createFloorTexture } from './floorTexture'
+import { Nameplates } from './Nameplates'
 import { prefersReducedMotion } from './motion'
 
 const LOOK_AT = new THREE.Vector3(0, 0.1, -0.2)
@@ -40,10 +41,7 @@ function communityDealt(slot: CardSlot, boardStage: number): boolean {
 }
 
 function Deck({ boardStage, onPress }: { boardStage: number; onPress: () => void }) {
-  const back = useMemo(
-    () => createCardFaces(communityCards[0].section, 'community').back,
-    [],
-  )
+  const back = useMemo(() => getSharedBack(), [])
   const dealtCount = boardStage === 0 ? 0 : boardStage === 1 ? 4 : boardStage === 2 ? 6 : 8
   const remaining = Math.max(4, 12 - dealtCount)
 
@@ -89,10 +87,8 @@ function Deck({ boardStage, onPress }: { boardStage: number; onPress: () => void
 }
 
 function BurnPile({ boardStage }: { boardStage: number }) {
-  const back = useMemo(
-    () => createCardFaces(communityCards[0].section, 'community').back,
-    [],
-  )
+  const back = useMemo(() => getSharedBack(), [])
+  // Face-down (back pattern up) under the pot.
   return (
     <group position={BURN_POSITION}>
       {Array.from({ length: boardStage }).map((_, i) => (
@@ -100,7 +96,7 @@ function BurnPile({ boardStage }: { boardStage: number }) {
           key={i}
           position-y={i * CARD.thickness * 1.04}
           rotation-x={-Math.PI / 2}
-          rotation-z={(i % 2 ? 1 : -1) * 0.2 + 0.3}
+          rotation-z={(i % 2 ? 1 : -1) * 0.18 + 0.25}
         >
           <boxGeometry args={[CARD.w, CARD.h, CARD.thickness]} />
           <meshStandardMaterial attach="material-4" map={back} roughness={0.6} />
@@ -136,19 +132,19 @@ function CameraController() {
 
 interface SceneProps {
   dealt: boolean
-  revealedHands: ReadonlySet<string>
+  focusedKey: string | null
   boardStage: number
   reducedMotion: boolean
-  onToggleHand: (slot: CardSlot) => void
+  onToggle: (slot: CardSlot) => void
   onDeckPress: () => void
 }
 
 export function Scene({
   dealt,
-  revealedHands,
+  focusedKey,
   boardStage,
   reducedMotion,
-  onToggleHand,
+  onToggle,
   onDeckPress,
 }: SceneProps) {
   return (
@@ -189,6 +185,7 @@ export function Scene({
       <PokerTable />
       <Chips />
       <Players reducedMotion={reducedMotion} />
+      <Nameplates />
       <Deck boardStage={boardStage} onPress={onDeckPress} />
       <BurnPile boardStage={boardStage} />
 
@@ -197,22 +194,25 @@ export function Scene({
           key={slot.id}
           slot={slot}
           dealt={dealt}
-          revealed={revealedHands.has(slot.handId)}
+          focused={focusedKey === slot.handId}
           interactive
-          onToggle={onToggleHand}
+          onToggle={onToggle}
         />
       ))}
 
-      {communityCards.map((slot) => (
-        <Card3D
-          key={slot.id}
-          slot={slot}
-          dealt={communityDealt(slot, boardStage)}
-          revealed
-          interactive={false}
-          onToggle={onToggleHand}
-        />
-      ))}
+      {communityCards.map((slot) => {
+        const isDealt = communityDealt(slot, boardStage)
+        return (
+          <Card3D
+            key={slot.id}
+            slot={slot}
+            dealt={isDealt}
+            focused={focusedKey === slot.id}
+            interactive={isDealt}
+            onToggle={onToggle}
+          />
+        )
+      })}
 
       <CameraController />
     </>

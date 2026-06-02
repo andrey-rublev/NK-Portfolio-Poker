@@ -118,19 +118,29 @@ export const communityCards: CommunitySlot[] = communitySections.map(
   },
 )
 
-/** Deck origin — in front of the dealer (camera side), where cards fly from. */
+/** Deck origin — front-center toward the dealer, clear of every seat and stack. */
 export const DECK_POSITION: [number, number, number] = [
-  TABLE.rx * 0.34,
+  0,
   CARD.restY,
-  TABLE.rz * 0.5,
+  TABLE.rz * 0.66,
 ]
 
-/** Where burn cards get tossed, beside the deck. */
-export const BURN_POSITION: [number, number, number] = [
-  TABLE.rx * 0.34 - 0.5,
-  CARD.restY,
-  TABLE.rz * 0.5 - 0.3,
-]
+/** Burn cards stack face-down under the pot, in the middle of the felt. */
+export const BURN_POSITION: [number, number, number] = [0, CARD.restY, 0.92]
+
+export interface SeatAnchor {
+  seatId: string
+  section: PortfolioCardData
+  x: number
+  z: number
+}
+
+/** Nameplate anchor in front of each player (the section is that seat's "name"). */
+export const seatAnchors: SeatAnchor[] = seatSections.map((section, i) => {
+  const seatId = SEAT_ORDER[i] ?? `seat-${i}`
+  const [x, z] = polar(SEAT_ANGLES[seatId] ?? 90, 0.99)
+  return { seatId, section, x, z }
+})
 
 export const CAMERA_HOME: [number, number, number] = [0, 7.1, 8.9]
 

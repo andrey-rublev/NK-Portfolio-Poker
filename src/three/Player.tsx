@@ -32,41 +32,44 @@ function PlayerFigure({
   return (
     <group position={[spot.x, 0, spot.z]} rotation-y={spot.faceYaw}>
       <group ref={ref}>
-        {/* Torso */}
-        <mesh position={[0, 0.98, 0]} rotation-x={0.16} castShadow receiveShadow>
-          <capsuleGeometry args={[0.47, 0.64, 8, 20]} />
+        {/* Tapered torso (waist narrower than chest) */}
+        <mesh position={[0, 0.82, 0]} rotation-x={0.14} castShadow receiveShadow>
+          <cylinderGeometry args={[0.3, 0.25, 0.72, 24]} />
+          <meshStandardMaterial color={shirt} roughness={0.85} />
+        </mesh>
+        {/* Shoulders */}
+        <mesh position={[0, 1.16, 0.02]} rotation-z={Math.PI / 2} castShadow>
+          <capsuleGeometry args={[0.145, 0.4, 6, 16]} />
           <meshStandardMaterial color={shirt} roughness={0.85} />
         </mesh>
         {/* Neck */}
-        <mesh position={[0, 1.5, 0.05]} castShadow>
-          <cylinderGeometry args={[0.13, 0.17, 0.22, 16]} />
+        <mesh position={[0, 1.31, 0.03]} castShadow>
+          <cylinderGeometry args={[0.085, 0.1, 0.16, 14]} />
           <meshStandardMaterial color={skin} roughness={0.7} />
         </mesh>
-        {/* Head */}
-        <mesh position={[0, 1.78, 0.07]} castShadow>
-          <sphereGeometry args={[0.3, 28, 28]} />
+        {/* Head (smaller, more in proportion) */}
+        <mesh position={[0, 1.52, 0.05]} scale={[1, 1.12, 1]} castShadow>
+          <sphereGeometry args={[0.2, 28, 28]} />
           <meshStandardMaterial color={skin} roughness={0.62} />
         </mesh>
         {/* Hair cap */}
-        <mesh position={[0, 1.82, 0.03]} castShadow>
-          <sphereGeometry args={[0.315, 24, 24, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
+        <mesh position={[0, 1.56, 0.02]} scale={[1, 1.05, 1]} castShadow>
+          <sphereGeometry args={[0.212, 24, 24, 0, Math.PI * 2, 0, Math.PI * 0.6]} />
           <meshStandardMaterial color={hair} roughness={0.9} />
         </mesh>
         {/* Arms reaching forward onto the table, hand fixed to the arm's end */}
         {[-1, 1].map((side) => (
           <group
             key={side}
-            position={[side * 0.4, 1.32, 0.12]}
-            rotation={[-0.95, 0, side * 0.16]}
+            position={[side * 0.34, 1.14, 0.08]}
+            rotation={[-0.95, 0, side * 0.12]}
           >
-            {/* upper arm + forearm */}
-            <mesh position={[0, -0.4, 0]} castShadow>
-              <capsuleGeometry args={[0.13, 0.56, 6, 14]} />
+            <mesh position={[0, -0.32, 0]} castShadow>
+              <capsuleGeometry args={[0.095, 0.5, 6, 14]} />
               <meshStandardMaterial color={shirt} roughness={0.85} />
             </mesh>
-            {/* hand at the end of the arm */}
-            <mesh position={[0, -0.82, 0]} castShadow>
-              <sphereGeometry args={[0.14, 16, 16]} />
+            <mesh position={[0, -0.64, 0]} castShadow>
+              <sphereGeometry args={[0.11, 16, 16]} />
               <meshStandardMaterial color={skin} roughness={0.7} />
             </mesh>
           </group>

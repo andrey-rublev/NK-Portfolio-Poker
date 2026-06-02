@@ -26,7 +26,7 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 function Floor() {
   const tex = useMemo(() => createFloorTexture(), [])
   return (
-    <mesh rotation-x={-Math.PI / 2} position-y={-2.9} receiveShadow>
+    <mesh rotation-x={-Math.PI / 2} position-y={-3.7} receiveShadow>
       <planeGeometry args={[80, 80]} />
       <meshStandardMaterial map={tex} roughness={0.95} metalness={0} />
     </mesh>

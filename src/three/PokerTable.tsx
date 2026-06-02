@@ -46,6 +46,16 @@ export function PokerTable() {
     return new THREE.TubeGeometry(curve, 200, 0.018, 12, true)
   }, [])
 
+  // White betting line — chips pushed across it are "in the pot".
+  const bettingLineGeometry = useMemo(() => {
+    const curve = new EllipseCurve3D(
+      TABLE.rx * 0.46,
+      TABLE.rz * 0.46,
+      TABLE.topY + 0.013,
+    )
+    return new THREE.TubeGeometry(curve, 200, 0.02, 10, true)
+  }, [])
+
   return (
     <group>
       {/* Felt playing surface */}
@@ -59,7 +69,7 @@ export function PokerTable() {
         <meshStandardMaterial map={felt} roughness={0.95} metalness={0.02} />
       </mesh>
 
-      {/* Subtle gold accent ring ("betting line") */}
+      {/* Gold accent ring near the rail */}
       <mesh geometry={trimGeometry}>
         <meshStandardMaterial
           color="#e9c877"
@@ -67,6 +77,11 @@ export function PokerTable() {
           roughness={0.5}
           metalness={0.4}
         />
+      </mesh>
+
+      {/* White betting line */}
+      <mesh geometry={bettingLineGeometry}>
+        <meshStandardMaterial color="#f3efe6" emissive="#2a2a26" roughness={0.6} />
       </mesh>
 
       {/* Wooden skirt below the felt (top dropped below the felt to avoid z-fighting) */}
@@ -89,16 +104,6 @@ export function PokerTable() {
       <mesh position-y={TABLE.topY - TABLE.skirt - 1.4} castShadow>
         <cylinderGeometry args={[1.6, 2.2, 2.8, 48]} />
         <meshStandardMaterial color="#241309" roughness={0.7} metalness={0.1} />
-      </mesh>
-
-      {/* Floor to catch shadows */}
-      <mesh
-        rotation-x={-Math.PI / 2}
-        position-y={TABLE.topY - TABLE.skirt - 2.8}
-        receiveShadow
-      >
-        <circleGeometry args={[26, 64]} />
-        <meshStandardMaterial color="#06140e" roughness={1} metalness={0} />
       </mesh>
     </group>
   )

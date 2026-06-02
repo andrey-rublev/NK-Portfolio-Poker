@@ -140,16 +140,19 @@ export interface ChipSpot {
   z: number
 }
 
-/** A chip stack beside each seat, just outside the cards toward the player. */
+/** A chip stack beside each seat, kept inside the felt so nothing clips the rail. */
 export const chipSpots: ChipSpot[] = SEAT_ORDER.map((seatId) => {
   const angle = SEAT_ANGLES[seatId] ?? 90
   const a = (angle * Math.PI) / 180
-  const [bx, bz] = polar(angle, 0.86)
+  const [bx, bz] = polar(angle, 0.78)
   const tx = -TABLE.rx * Math.sin(a)
   const tz = -TABLE.rz * Math.cos(a)
   const tl = Math.hypot(tx, tz) || 1
-  return { seatId, x: bx + (tx / tl) * 0.95, z: bz + (tz / tl) * 0.95 }
+  return { seatId, x: bx + (tx / tl) * 0.62, z: bz + (tz / tl) * 0.62 }
 })
+
+/** Blinds + a bet stack sit on the betting line in front of two seats. */
+export const BETTING_LINE_FACTOR = 0.46
 
 export interface PlayerSpot {
   seatId: string

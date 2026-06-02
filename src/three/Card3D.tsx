@@ -45,10 +45,16 @@ export function Card3D({ slot, dealt, revealed, interactive, onToggle }: Card3DP
     // Community cards lie face-up flat on the board.
     rotation = [-Math.PI / 2, 0, 0]
   } else if (revealed) {
-    // Seat cards flip up off the table and lean toward the camera to read.
-    position = [rest[0], rest[1] + 0.7, rest[2] + 0.5]
-    rotation = [-0.5, slot.yaw * 0.3, 0]
-    scale = 1.5
+    // Seat cards flip up, slide toward the middle (so they stay on-screen),
+    // and lean toward the camera to read.
+    const len = Math.hypot(rest[0], rest[2]) || 1
+    position = [
+      rest[0] - (rest[0] / len) * 1.2,
+      rest[1] + 0.78,
+      rest[2] - (rest[2] / len) * 1.2 + 0.35,
+    ]
+    rotation = [-0.5, 0, 0]
+    scale = 1.4
   } else if (hovered && interactive) {
     position = [rest[0], rest[1] + 0.28, rest[2] - 0.1]
     rotation = [FACE_DOWN_X - 0.32, slot.yaw, 0]

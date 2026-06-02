@@ -91,25 +91,25 @@ const pickSections = (ids: string[]): PortfolioCardData[] =>
     .map((id) => byId.get(id))
     .filter((card): card is PortfolioCardData => Boolean(card))
 
-/**
- * Marquee sections revealed on the community board, in deal order:
- * flop = [about, experience, projects], turn = [research], river = [contact].
- */
-export const communitySections: PortfolioCardData[] = pickSections([
+/** The five seat "hands" — the most important sections, always available to flip. */
+export const seatSections: PortfolioCardData[] = pickSections([
   'about',
   'work',
   'projects',
-  'research',
-  'contact',
+  'skills',
+  'education',
 ])
 
-/** The five seat "hands" — each shown across a labeled card + an info card. */
-export const seatSections: PortfolioCardData[] = pickSections([
-  'education',
-  'skills',
-  'hobbies',
+/**
+ * Supporting sections revealed on the community board, in deal order:
+ * flop = [research, certifications, awards], turn = [hobbies], river = [contact].
+ */
+export const communitySections: PortfolioCardData[] = pickSections([
+  'research',
   'certifications',
   'awards',
+  'hobbies',
+  'contact',
 ])
 
 export const lastDataUpdate: string | null =

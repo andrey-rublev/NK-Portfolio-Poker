@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { Scene } from './three/Scene'
 import { CAMERA_HOME, type CardSlot } from './three/layout'
 import { prefersReducedMotion } from './three/motion'
-import { owner, lastDataUpdate } from './data/portfolio'
+import { owner } from './data/portfolio'
 import './ui.css'
 
 function App() {
@@ -65,12 +65,6 @@ function App() {
         <strong className="scene-hud__name">{owner.name}</strong>
         <span className="scene-hud__hint">{boardLabel}</span>
       </header>
-
-      {lastDataUpdate ? (
-        <span className="data-stamp" aria-hidden="true">
-          Updated {new Date(lastDataUpdate).toLocaleDateString()}
-        </span>
-      ) : null}
     </div>
   )
 }

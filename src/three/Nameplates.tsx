@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import { seatAnchors } from './layout'
 
-const W = 360
-const Ht = 110
+const W = 420
+const Ht = 132
 
 function roundedRect(
   ctx: CanvasRenderingContext2D,
@@ -27,24 +27,42 @@ function plateTexture(name: string, accent: string): THREE.Texture {
   c.width = W
   c.height = Ht
   const ctx = c.getContext('2d')!
+  const pad = 10
+  const h = Ht - pad * 2
 
-  roundedRect(ctx, 6, 24, W - 12, Ht - 48, (Ht - 48) / 2)
-  ctx.fillStyle = 'rgba(10, 9, 8, 0.9)'
+  // Brushed dark plate with a subtle vertical sheen
+  const grad = ctx.createLinearGradient(0, pad, 0, pad + h)
+  grad.addColorStop(0, '#22262b')
+  grad.addColorStop(0.5, '#15181c')
+  grad.addColorStop(1, '#0c0e11')
+  roundedRect(ctx, pad, pad, W - pad * 2, h, h / 2)
+  ctx.fillStyle = grad
   ctx.fill()
-  ctx.lineWidth = 3
+  // Accent ring + inner hairline
+  ctx.lineWidth = 4
   ctx.strokeStyle = accent
   ctx.stroke()
+  ctx.lineWidth = 1.5
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'
+  roundedRect(ctx, pad + 6, pad + 6, W - pad * 2 - 12, h - 12, (h - 12) / 2)
+  ctx.stroke()
+
+  // Accent dot on the left, like a dealer plaque
+  ctx.fillStyle = accent
+  ctx.beginPath()
+  ctx.arc(pad + 34, Ht / 2, 9, 0, Math.PI * 2)
+  ctx.fill()
 
   const label = name.toUpperCase()
-  let size = 46
+  let size = 50
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   do {
     ctx.font = `700 ${size}px "Space Grotesk", system-ui, sans-serif`
     size -= 2
-  } while (ctx.measureText(label).width > W - 60 && size > 16)
-  ctx.fillStyle = '#fff3df'
-  ctx.fillText(label, W / 2, Ht / 2)
+  } while (ctx.measureText(label).width > W - 110 && size > 18)
+  ctx.fillStyle = '#fff4e0'
+  ctx.fillText(label, W / 2 + 14, Ht / 2 + 2)
 
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
@@ -56,24 +74,18 @@ function plateTexture(name: string, accent: string): THREE.Texture {
 function Plate({ name, accent, x, z }: { name: string; accent: string; x: number; z: number }) {
   const tex = useMemo(() => plateTexture(name, accent), [name, accent])
   return (
-    <sprite position={[x, 0.5, z]} scale={[1.5, 0.46, 1]}>
+    <sprite position={[x, 0.82, z]} scale={[1.62, 0.51, 1]}>
       <spriteMaterial map={tex} transparent depthWrite={false} />
     </sprite>
   )
 }
 
-/** A nameplate in front of each player showing that seat's section. */
+/** A floating nameplate in front of each player showing that seat's section. */
 export function Nameplates() {
   return (
     <>
       {seatAnchors.map((a) => (
-        <Plate
-          key={a.seatId}
-          name={a.section.label}
-          accent={a.section.accent}
-          x={a.x}
-          z={a.z}
-        />
+        <Plate key={a.seatId} name={a.section.label} accent={a.section.accent} x={a.x} z={a.z} />
       ))}
     </>
   )

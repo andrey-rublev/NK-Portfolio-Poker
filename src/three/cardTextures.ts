@@ -37,7 +37,6 @@ function roundedRect(
   ctx.closePath()
 }
 
-/** Wrap text to a width, returning lines; draws and returns the new y. */
 function drawWrapped(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -45,6 +44,7 @@ function drawWrapped(
   y: number,
   maxW: number,
   lineH: number,
+  maxY = H - 40,
 ): number {
   const words = text.split(/\s+/)
   let line = ''
@@ -52,6 +52,7 @@ function drawWrapped(
   for (const word of words) {
     const test = line ? `${line} ${word}` : word
     if (ctx.measureText(test).width > maxW && line) {
+      if (cy > maxY) return cy
       ctx.fillText(line, x, cy)
       line = word
       cy += lineH
@@ -59,14 +60,14 @@ function drawWrapped(
       line = test
     }
   }
-  if (line) {
+  if (line && cy <= maxY) {
     ctx.fillText(line, x, cy)
     cy += lineH
   }
   return cy
 }
 
-function paperBackground(ctx: CanvasRenderingContext2D, accent: string) {
+function paper(ctx: CanvasRenderingContext2D, accent: string) {
   const grad = ctx.createLinearGradient(0, 0, 0, H)
   grad.addColorStop(0, '#fffdf7')
   grad.addColorStop(1, '#f1e7d4')
@@ -78,101 +79,129 @@ function paperBackground(ctx: CanvasRenderingContext2D, accent: string) {
   ctx.stroke()
 }
 
-/** The big "labeled" face of a seat hand: section name + title. */
-function drawLabelFace(section: PortfolioCardData): HTMLCanvasElement {
+/** Left card of a seat hand: small heading at the top, then content. */
+function drawHandLeft(s: PortfolioCardData): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
-  paperBackground(ctx, section.accent)
+  paper(ctx, s.accent)
+  const pad = 54
+  let y = 64
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
 
-  ctx.textAlign = 'center'
-  // Accent bar
-  ctx.fillStyle = section.accent
-  ctx.fillRect(W / 2 - 70, 150, 140, 12)
+  ctx.fillStyle = s.accent
+  ctx.font = '800 30px "Space Grotesk", system-ui, sans-serif'
+  ctx.fillText(s.label.toUpperCase(), pad, y)
+  y += 44
 
-  // Big label, auto-fit
-  let size = 110
-  const label = section.label.toUpperCase()
-  do {
-    ctx.font = `800 ${size}px "Space Grotesk", system-ui, sans-serif`
-    size -= 3
-  } while (ctx.measureText(label).width > W - 110 && size > 36)
   ctx.fillStyle = '#15202b'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(label, W / 2, H / 2 - 20)
+  ctx.font = '700 50px "Cormorant Garamond", Georgia, serif'
+  y = drawWrapped(ctx, s.title, pad, y, W - pad * 2, 52) + 18
 
-  // Title beneath
-  ctx.fillStyle = '#5b4a35'
-  ctx.font = '600 38px "Cormorant Garamond", Georgia, serif'
-  drawWrapped(ctx, section.title, W / 2, H / 2 + 90, W - 120, 46)
+  ctx.fillStyle = '#3a4452'
+  ctx.font = '500 29px "Space Grotesk", system-ui, sans-serif'
+  drawWrapped(ctx, s.detail, pad, y, W - pad * 2, 39)
   return c
 }
 
-/** The "info" face of a seat hand: details + bullets. */
-function drawInfoFace(section: PortfolioCardData): HTMLCanvasElement {
+/** Right card of a seat hand: the bullets, tags and links. */
+function drawHandRight(s: PortfolioCardData): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
-  paperBackground(ctx, section.accent)
-
+  paper(ctx, s.accent)
+  const pad = 54
+  let y = 64
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
-  const pad = 56
-  let y = 70
-
-  ctx.fillStyle = section.accent
-  ctx.font = '800 30px "Space Grotesk", system-ui, sans-serif'
-  ctx.fillText(section.label.toUpperCase(), pad, y)
-  y += 52
-
-  ctx.fillStyle = '#3a4452'
-  ctx.font = '500 30px "Space Grotesk", system-ui, sans-serif'
-  y = drawWrapped(ctx, section.detail, pad, y, W - pad * 2, 40) + 18
 
   ctx.fillStyle = '#15202b'
-  ctx.font = '500 29px "Space Grotesk", system-ui, sans-serif'
-  for (const bullet of section.bullets) {
-    if (y > H - 90) break
-    ctx.fillStyle = section.accent
+  ctx.font = '500 28px "Space Grotesk", system-ui, sans-serif'
+  for (const bullet of s.bullets) {
+    if (y > H - 150) break
+    ctx.fillStyle = s.accent
     ctx.fillText('•', pad, y)
     ctx.fillStyle = '#15202b'
-    y = drawWrapped(ctx, bullet, pad + 28, y, W - pad * 2 - 28, 38) + 12
+    y = drawWrapped(ctx, bullet, pad + 26, y, W - pad * 2 - 26, 36, H - 150) + 12
+  }
+
+  if (s.actions?.length) {
+    y += 6
+    ctx.fillStyle = s.accent
+    ctx.font = '700 24px "Space Grotesk", system-ui, sans-serif'
+    for (const a of s.actions) {
+      if (y > H - 70) break
+      ctx.fillText(`→ ${a.label}`, pad, y)
+      y += 34
+    }
   }
   return c
 }
 
-/** A community card: label + title + the first key point. */
-function drawCommunityFace(section: PortfolioCardData): HTMLCanvasElement {
+/** Community card "cover": a big centered section name to read on the board. */
+function drawCommunityCover(s: PortfolioCardData): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
-  paperBackground(ctx, section.accent)
-
+  paper(ctx, s.accent)
   ctx.textAlign = 'center'
-  ctx.textBaseline = 'top'
-  let y = 70
+  ctx.textBaseline = 'middle'
 
-  ctx.fillStyle = section.accent
-  ctx.font = '800 34px "Space Grotesk", system-ui, sans-serif'
-  ctx.fillText(section.label.toUpperCase(), W / 2, y)
-  y += 64
-
+  let size = 100
+  const label = s.label.toUpperCase()
+  do {
+    ctx.font = `800 ${size}px "Space Grotesk", system-ui, sans-serif`
+    size -= 3
+  } while (ctx.measureText(label).width > W - 110 && size > 34)
   ctx.fillStyle = '#15202b'
-  ctx.font = '700 56px "Cormorant Garamond", Georgia, serif'
-  y = drawWrapped(ctx, section.title, W / 2, y, W - 90, 60) + 24
+  ctx.fillText(label, W / 2, H / 2 - 18)
 
-  ctx.textAlign = 'left'
-  ctx.fillStyle = '#3a4452'
-  ctx.font = '500 28px "Space Grotesk", system-ui, sans-serif'
-  drawWrapped(ctx, section.teaser, 56, y, W - 112, 38)
+  ctx.fillStyle = s.accent
+  ctx.fillRect(W / 2 - 80, H / 2 + 44, 160, 10)
+
+  ctx.fillStyle = '#5b4a35'
+  ctx.font = '600 36px "Cormorant Garamond", Georgia, serif'
+  drawWrapped(ctx, s.title, W / 2, H / 2 + 78, W - 120, 44)
   return c
 }
 
-/** A single ornate red Bicycle-style back, identical on every card. */
+/** Community card content (after click): small heading at top + content. */
+function drawCommunityContent(s: PortfolioCardData): HTMLCanvasElement {
+  const { c, ctx } = canvas2d()
+  paper(ctx, s.accent)
+  const pad = 50
+  let y = 56
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+
+  ctx.fillStyle = s.accent
+  ctx.font = '800 28px "Space Grotesk", system-ui, sans-serif'
+  ctx.fillText(s.label.toUpperCase(), pad, y)
+  y += 42
+
+  ctx.fillStyle = '#15202b'
+  ctx.font = '700 44px "Cormorant Garamond", Georgia, serif'
+  y = drawWrapped(ctx, s.title, pad, y, W - pad * 2, 46) + 14
+
+  ctx.fillStyle = '#3a4452'
+  ctx.font = '500 27px "Space Grotesk", system-ui, sans-serif'
+  y = drawWrapped(ctx, s.detail, pad, y, W - pad * 2, 36) + 14
+
+  ctx.font = '500 26px "Space Grotesk", system-ui, sans-serif'
+  for (const bullet of s.bullets) {
+    if (y > H - 70) break
+    ctx.fillStyle = s.accent
+    ctx.fillText('•', pad, y)
+    ctx.fillStyle = '#15202b'
+    y = drawWrapped(ctx, bullet, pad + 24, y, W - pad * 2 - 24, 34, H - 70) + 10
+  }
+  return c
+}
+
+/** One ornate red Bicycle-style back, identical on every card. */
 function drawBack(): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
   const cx = W / 2
   const cy = H / 2
 
-  // Crimson field
   ctx.fillStyle = '#b01e2e'
   ctx.fillRect(0, 0, W, H)
 
-  // White border with rounded corners + thin inner line
   ctx.strokeStyle = '#fbf6ec'
   ctx.lineWidth = 16
   roundedRect(ctx, 24, 24, W - 48, H - 48, 30)
@@ -181,7 +210,6 @@ function drawBack(): HTMLCanvasElement {
   roundedRect(ctx, 46, 46, W - 92, H - 92, 22)
   ctx.stroke()
 
-  // Dense guilloché lattice inside the border
   ctx.save()
   roundedRect(ctx, 52, 52, W - 104, H - 104, 18)
   ctx.clip()
@@ -197,7 +225,6 @@ function drawBack(): HTMLCanvasElement {
     ctx.lineTo(i, H)
     ctx.stroke()
   }
-  // Concentric ornamental rings around the medallion
   for (let r = 250; r > 140; r -= 16) {
     ctx.strokeStyle = 'rgba(255,246,236,0.20)'
     ctx.beginPath()
@@ -206,7 +233,6 @@ function drawBack(): HTMLCanvasElement {
   }
   ctx.restore()
 
-  // Central medallion (white oval with a small red filigree star)
   ctx.fillStyle = '#fbf6ec'
   ctx.beginPath()
   ctx.ellipse(cx, cy, 92, 132, 0, 0, Math.PI * 2)
@@ -233,38 +259,39 @@ function drawBack(): HTMLCanvasElement {
   ctx.arc(0, 0, 16, 0, Math.PI * 2)
   ctx.fill()
   ctx.restore()
-
   return c
 }
 
 interface Faces {
   front: THREE.Texture
   back: THREE.Texture
+  cover?: THREE.Texture
 }
 let sharedBack: THREE.Texture | null = null
-const cache = new Map<string, THREE.Texture>()
+const cache = new Map<string, Faces>()
 
-/** The single shared card back, used by every card and the deck. */
 export function getSharedBack(): THREE.Texture {
   if (!sharedBack) sharedBack = toTex(drawBack())
   return sharedBack
 }
 
-export function createCardFaces(
-  section: PortfolioCardData,
-  role: CardRole,
-): Faces {
+export function createCardFaces(section: PortfolioCardData, role: CardRole): Faces {
   const key = `${section.id}:${role}`
-  let front = cache.get(key)
-  if (!front) {
-    const frontCanvas =
-      role === 'label'
-        ? drawLabelFace(section)
-        : role === 'info'
-          ? drawInfoFace(section)
-          : drawCommunityFace(section)
-    front = toTex(frontCanvas)
-    cache.set(key, front)
+  const hit = cache.get(key)
+  if (hit) return hit
+
+  let faces: Faces
+  if (role === 'label') {
+    faces = { front: toTex(drawHandLeft(section)), back: getSharedBack() }
+  } else if (role === 'info') {
+    faces = { front: toTex(drawHandRight(section)), back: getSharedBack() }
+  } else {
+    faces = {
+      front: toTex(drawCommunityContent(section)),
+      cover: toTex(drawCommunityCover(section)),
+      back: getSharedBack(),
+    }
   }
-  return { front, back: getSharedBack() }
+  cache.set(key, faces)
+  return faces
 }

@@ -138,7 +138,7 @@ export interface SeatAnchor {
 /** Nameplate anchor in front of each player (the section is that seat's "name"). */
 export const seatAnchors: SeatAnchor[] = seatSections.map((section, i) => {
   const seatId = SEAT_ORDER[i] ?? `seat-${i}`
-  const [x, z] = polar(SEAT_ANGLES[seatId] ?? 90, 0.99)
+  const [x, z] = polar(SEAT_ANGLES[seatId] ?? 90, 0.86)
   return { seatId, section, x, z }
 })
 
@@ -150,15 +150,15 @@ export interface ChipSpot {
   z: number
 }
 
-/** A chip stack beside each seat, kept inside the felt so nothing clips the rail. */
+/** A chip stack out in front of each player, well clear of the cards. */
 export const chipSpots: ChipSpot[] = SEAT_ORDER.map((seatId) => {
   const angle = SEAT_ANGLES[seatId] ?? 90
   const a = (angle * Math.PI) / 180
-  const [bx, bz] = polar(angle, 0.78)
+  const [bx, bz] = polar(angle, 0.92)
   const tx = -TABLE.rx * Math.sin(a)
   const tz = -TABLE.rz * Math.cos(a)
   const tl = Math.hypot(tx, tz) || 1
-  return { seatId, x: bx + (tx / tl) * 0.62, z: bz + (tz / tl) * 0.62 }
+  return { seatId, x: bx + (tx / tl) * 0.42, z: bz + (tz / tl) * 0.42 }
 })
 
 /** Blinds + a bet stack sit on the betting line in front of two seats. */

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { PortfolioCardData } from '../data/portfolio'
+import type { CardGroup, PortfolioCardData } from '../data/portfolio'
 import type { CardRole } from './layout'
 
 const W = 512
@@ -37,34 +37,144 @@ function roundedRect(
   ctx.closePath()
 }
 
-function drawWrapped(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxW: number,
-  lineH: number,
-  maxY = H - 40,
-): number {
+type Ctx = CanvasRenderingContext2D
+
+const PAD = 46
+const CONTENT_W = W - PAD * 2
+const BULLET_INDENT = 28
+const SUB_FONT = '800 28px "Space Grotesk", system-ui, sans-serif'
+const BULLET_FONT = '500 25px "Space Grotesk", system-ui, sans-serif'
+const SUB_LH = 33
+const BULLET_LH = 31
+const BULLET_GAP = 10
+const GROUP_GAP = 18
+const BODY = '#28323e'
+
+function wrapLines(ctx: Ctx, text: string, maxW: number): string[] {
   const words = text.split(/\s+/)
+  const lines: string[] = []
   let line = ''
-  let cy = y
   for (const word of words) {
     const test = line ? `${line} ${word}` : word
-    if (ctx.measureText(test).width > maxW && line) {
-      if (cy > maxY) return cy
-      ctx.fillText(line, x, cy)
+    if (line && ctx.measureText(test).width > maxW) {
+      lines.push(line)
       line = word
-      cy += lineH
     } else {
       line = test
     }
   }
-  if (line && cy <= maxY) {
-    ctx.fillText(line, x, cy)
-    cy += lineH
+  if (line) lines.push(line)
+  return lines
+}
+
+interface Item {
+  kind: 'sub' | 'bullet'
+  lines: string[]
+  /** Marks the first item of a group, used as a preferred page break. */
+  groupStart: boolean
+}
+
+function buildItems(ctx: Ctx, groups: CardGroup[]): Item[] {
+  const items: Item[] = []
+  for (const group of groups) {
+    if (group.heading) {
+      ctx.font = SUB_FONT
+      items.push({ kind: 'sub', lines: wrapLines(ctx, group.heading, CONTENT_W), groupStart: true })
+    }
+    group.bullets.forEach((b, i) => {
+      ctx.font = BULLET_FONT
+      items.push({
+        kind: 'bullet',
+        lines: wrapLines(ctx, b, CONTENT_W - BULLET_INDENT),
+        groupStart: i === 0 && !group.heading,
+      })
+    })
   }
-  return cy
+  return items
+}
+
+function itemHeight(it: Item): number {
+  return it.kind === 'sub'
+    ? GROUP_GAP + it.lines.length * SUB_LH
+    : it.lines.length * BULLET_LH + BULLET_GAP
+}
+
+/** Draw items [from, to) starting at y; returns the y below the last one. */
+function drawItems(
+  ctx: Ctx,
+  items: Item[],
+  from: number,
+  to: number,
+  startY: number,
+  accent: string,
+): number {
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+  let y = startY
+  for (let i = from; i < to; i += 1) {
+    const it = items[i]
+    if (it.kind === 'sub') {
+      if (i !== from) y += GROUP_GAP
+      ctx.font = SUB_FONT
+      ctx.fillStyle = accent
+      for (const ln of it.lines) {
+        ctx.fillText(ln, PAD, y)
+        y += SUB_LH
+      }
+      y += 4
+    } else {
+      ctx.font = BULLET_FONT
+      ctx.fillStyle = accent
+      ctx.fillText('•', PAD, y)
+      ctx.fillStyle = BODY
+      for (const ln of it.lines) {
+        ctx.fillText(ln, PAD + BULLET_INDENT, y)
+        y += BULLET_LH
+      }
+      y += BULLET_GAP
+    }
+  }
+  return y
+}
+
+function headerFont(ctx: Ctx, size: number): Ctx {
+  ctx.font = `900 ${size}px "Space Grotesk", system-ui, sans-serif`
+  return ctx
+}
+
+/** The section header at the top of a card; returns the y below it. */
+function drawHeader(ctx: Ctx, label: string, accent: string): number {
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+  const tokens = labelTokens(label)
+  const widest = (lns: string[]) => Math.max(...lns.map((l) => ctx.measureText(l).width))
+  let size = 46
+  let lines = wrapBig(headerFont(ctx, size), tokens, CONTENT_W)
+  while ((lines.length > 2 || widest(lines) > CONTENT_W) && size > 26) {
+    size -= 2
+    lines = wrapBig(headerFont(ctx, size), tokens, CONTENT_W)
+  }
+  let y = 52
+  ctx.fillStyle = accent
+  for (const ln of lines) {
+    ctx.fillText(ln, PAD, y)
+    y += size * 1.02
+  }
+  ctx.fillRect(PAD, y + 2, 64, 6)
+  return y + 24
+}
+
+function drawActions(ctx: Ctx, actions: { label: string }[], startY: number, accent: string): void {
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+  ctx.font = '700 23px "Space Grotesk", system-ui, sans-serif'
+  ctx.fillStyle = accent
+  let y = startY
+  for (const a of actions) {
+    if (y > H - 46) break
+    ctx.fillText(`→ ${a.label}`, PAD, y)
+    y += 32
+  }
 }
 
 function paper(ctx: CanvasRenderingContext2D, accent: string) {
@@ -79,127 +189,133 @@ function paper(ctx: CanvasRenderingContext2D, accent: string) {
   ctx.stroke()
 }
 
-/** Left card of a seat hand: small heading at the top, then content. */
-function drawHandLeft(s: PortfolioCardData): HTMLCanvasElement {
-  const { c, ctx } = canvas2d()
-  paper(ctx, s.accent)
-  const pad = 54
-  let y = 64
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'top'
-
-  ctx.fillStyle = s.accent
-  ctx.font = '800 30px "Space Grotesk", system-ui, sans-serif'
-  ctx.fillText(s.label.toUpperCase(), pad, y)
-  y += 44
-
-  ctx.fillStyle = '#15202b'
-  ctx.font = '700 50px "Cormorant Garamond", Georgia, serif'
-  y = drawWrapped(ctx, s.title, pad, y, W - pad * 2, 52) + 18
-
-  ctx.fillStyle = '#3a4452'
-  ctx.font = '500 29px "Space Grotesk", system-ui, sans-serif'
-  drawWrapped(ctx, s.detail, pad, y, W - pad * 2, 39)
-  return c
+interface Spread {
+  left: HTMLCanvasElement
+  right: HTMLCanvasElement
 }
 
-/** Right card of a seat hand: the bullets, tags and links. */
-function drawHandRight(s: PortfolioCardData): HTMLCanvasElement {
-  const { c, ctx } = canvas2d()
-  paper(ctx, s.accent)
-  const pad = 54
-  let y = 64
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'top'
+/**
+ * A seat hand's two cards as one spread: the left card carries the section
+ * header then content; the content then flows onto the right card. The split is
+ * chosen to balance the two cards, prefers group boundaries, never orphans a
+ * sub-heading, and keeps each side within the card.
+ */
+function buildHandSpread(s: PortfolioCardData): Spread {
+  const left = canvas2d()
+  const right = canvas2d()
+  paper(left.ctx, s.accent)
+  paper(right.ctx, s.accent)
 
-  ctx.fillStyle = '#15202b'
-  ctx.font = '500 28px "Space Grotesk", system-ui, sans-serif'
-  for (const bullet of s.bullets) {
-    if (y > H - 150) break
-    ctx.fillStyle = s.accent
-    ctx.fillText('•', pad, y)
-    ctx.fillStyle = '#15202b'
-    y = drawWrapped(ctx, bullet, pad + 26, y, W - pad * 2 - 26, 36, H - 150) + 12
-  }
+  const items = buildItems(left.ctx, s.groups)
+  const heights = items.map(itemHeight)
+  const sum = (a: number, b: number) => heights.slice(a, b).reduce((x, y) => x + y, 0)
 
-  if (s.actions?.length) {
-    y += 6
-    ctx.fillStyle = s.accent
-    ctx.font = '700 24px "Space Grotesk", system-ui, sans-serif'
-    for (const a of s.actions) {
-      if (y > H - 70) break
-      ctx.fillText(`→ ${a.label}`, pad, y)
-      y += 34
+  const yLeft = drawHeader(left.ctx, s.label, s.accent)
+  const yRight = 52
+  const leftCap = H - 46 - yLeft
+  const rightCap = H - 46 - yRight - (s.actions?.length ? 44 : 0)
+
+  let bestK = -1
+  let bestScore = Infinity
+  for (let k = 0; k <= items.length; k += 1) {
+    if (k > 0 && items[k - 1].kind === 'sub') continue // never orphan a heading
+    const lh = sum(0, k)
+    const rh = sum(k, items.length)
+    if (lh > leftCap || rh > rightCap) continue
+    const boundary =
+      k === 0 || k === items.length || items[k].kind === 'sub' || items[k].groupStart
+    const score = Math.abs(lh - rh) + (boundary ? 0 : 90)
+    if (score < bestScore) {
+      bestScore = score
+      bestK = k
     }
   }
-  return c
+  if (bestK < 0) {
+    // Fallback: fill the left card, overflow onto the right.
+    let acc = 0
+    bestK = 0
+    for (let i = 0; i < items.length; i += 1) {
+      if (acc + heights[i] > leftCap) break
+      acc += heights[i]
+      bestK = i + 1
+    }
+    // Never end the left card on a heading — push it to the right card.
+    while (bestK > 0 && items[bestK - 1].kind === 'sub') bestK -= 1
+  }
+
+  drawItems(left.ctx, items, 0, bestK, yLeft, s.accent)
+  const yEnd = drawItems(right.ctx, items, bestK, items.length, yRight, s.accent)
+  if (s.actions?.length) drawActions(right.ctx, s.actions, yEnd + 8, s.accent)
+  return { left: left.c, right: right.c }
 }
 
-/** Community card "cover": a big centered section name to read on the board. */
+/** Tokens for the big cover label, breaking at spaces and after hyphens. */
+function labelTokens(label: string): string[] {
+  return label
+    .toUpperCase()
+    .split(/\s+/)
+    .flatMap((w) => (w.includes('-') ? w.split(/(?<=-)/) : [w]))
+}
+
+function wrapBig(ctx: Ctx, tokens: string[], maxW: number): string[] {
+  const lines: string[] = []
+  let line = ''
+  for (const tok of tokens) {
+    const sep = line && !line.endsWith('-') ? ' ' : ''
+    const test = line + sep + tok
+    if (line && ctx.measureText(test).width > maxW) {
+      lines.push(line)
+      line = tok
+    } else {
+      line = test
+    }
+  }
+  if (line) lines.push(line)
+  return lines
+}
+
+/** Community "cover" shown on the board: the section name, wrapped big. */
 function drawCommunityCover(s: PortfolioCardData): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
   paper(ctx, s.accent)
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  // Shrink-to-fit, but stay big and bold so the label reads on the felt.
-  let size = 150
-  const label = s.label.toUpperCase()
-  do {
+  const tokens = labelTokens(s.label)
+  const maxW = W - 64
+  let size = 140
+  let lines: string[] = []
+  for (; size >= 54; size -= 4) {
     ctx.font = `900 ${size}px "Space Grotesk", system-ui, sans-serif`
-    size -= 2
-  } while (ctx.measureText(label).width > W - 44 && size > 64)
+    lines = wrapBig(ctx, tokens, maxW)
+    const widest = Math.max(...lines.map((l) => ctx.measureText(l).width))
+    if (widest <= maxW && lines.length * size * 1.02 <= H - 150) break
+  }
 
-  const midY = H / 2 - 6
-  // Crisp pure-black word with a thin dark outline so light can't wash it out.
+  const lh = size * 1.02
+  let y = H / 2 - ((lines.length - 1) * lh) / 2 - 6
   ctx.lineJoin = 'round'
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)'
-  ctx.lineWidth = 6
-  ctx.strokeText(label, W / 2, midY)
-  ctx.fillStyle = '#000000'
-  ctx.fillText(label, W / 2, midY)
-
-  // Accent rule under the word.
+  for (const ln of lines) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'
+    ctx.lineWidth = Math.max(4, size * 0.05)
+    ctx.strokeText(ln, W / 2, y)
+    ctx.fillStyle = '#000000'
+    ctx.fillText(ln, W / 2, y)
+    y += lh
+  }
   ctx.fillStyle = s.accent
-  ctx.fillRect(W / 2 - 104, midY + size * 0.58, 208, 12)
-
-  // Smaller serif title beneath, so the big label clearly dominates.
-  ctx.fillStyle = '#241d12'
-  ctx.font = '700 38px "Cormorant Garamond", Georgia, serif'
-  drawWrapped(ctx, s.title, W / 2, midY + size * 0.58 + 44, W - 96, 44)
+  ctx.fillRect(W / 2 - 90, y - lh / 2 + size * 0.46, 180, 12)
   return c
 }
 
-/** Community card content (after click): small heading at top + content. */
+/** Community content (after click): header at top, then the grouped bullets. */
 function drawCommunityContent(s: PortfolioCardData): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
   paper(ctx, s.accent)
-  const pad = 50
-  let y = 56
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'top'
-
-  ctx.fillStyle = s.accent
-  ctx.font = '800 28px "Space Grotesk", system-ui, sans-serif'
-  ctx.fillText(s.label.toUpperCase(), pad, y)
-  y += 42
-
-  ctx.fillStyle = '#15202b'
-  ctx.font = '700 44px "Cormorant Garamond", Georgia, serif'
-  y = drawWrapped(ctx, s.title, pad, y, W - pad * 2, 46) + 14
-
-  ctx.fillStyle = '#3a4452'
-  ctx.font = '500 27px "Space Grotesk", system-ui, sans-serif'
-  y = drawWrapped(ctx, s.detail, pad, y, W - pad * 2, 36) + 14
-
-  ctx.font = '500 24px "Space Grotesk", system-ui, sans-serif'
-  for (const bullet of s.bullets) {
-    if (y > H - 60) break
-    ctx.fillStyle = s.accent
-    ctx.fillText('•', pad, y)
-    ctx.fillStyle = '#15202b'
-    y = drawWrapped(ctx, bullet, pad + 24, y, W - pad * 2 - 24, 31, H - 60) + 9
-  }
+  const items = buildItems(ctx, s.groups)
+  const y0 = drawHeader(ctx, s.label, s.accent)
+  const yEnd = drawItems(ctx, items, 0, items.length, y0, s.accent)
+  if (s.actions?.length) drawActions(ctx, s.actions, yEnd + 8, s.accent)
   return c
 }
 
@@ -345,10 +461,20 @@ interface Faces {
 }
 let sharedBack: THREE.Texture | null = null
 const cache = new Map<string, Faces>()
+const spreadCache = new Map<string, Spread>()
 
 export function getSharedBack(): THREE.Texture {
   if (!sharedBack) sharedBack = toTex(drawBack())
   return sharedBack
+}
+
+function getSpread(section: PortfolioCardData): Spread {
+  let sp = spreadCache.get(section.id)
+  if (!sp) {
+    sp = buildHandSpread(section)
+    spreadCache.set(section.id, sp)
+  }
+  return sp
 }
 
 export function createCardFaces(section: PortfolioCardData, role: CardRole): Faces {
@@ -358,9 +484,9 @@ export function createCardFaces(section: PortfolioCardData, role: CardRole): Fac
 
   let faces: Faces
   if (role === 'label') {
-    faces = { front: toTex(drawHandLeft(section)), back: getSharedBack() }
+    faces = { front: toTex(getSpread(section).left), back: getSharedBack() }
   } else if (role === 'info') {
-    faces = { front: toTex(drawHandRight(section)), back: getSharedBack() }
+    faces = { front: toTex(getSpread(section).right), back: getSharedBack() }
   } else {
     faces = {
       front: toTex(drawCommunityContent(section)),

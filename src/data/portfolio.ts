@@ -8,14 +8,17 @@ export interface CardAction {
   href: string
 }
 
+/** A titled cluster of bullets within a card (e.g. one job, one project). */
+export interface CardGroup {
+  heading?: string
+  bullets: string[]
+}
+
 export interface PortfolioCardData {
   id: string
   label: string
-  title: string
-  teaser: string
-  detail: string
-  bullets: string[]
-  tags: string[]
+  /** Header + sub-headed bullet groups rendered on the card. */
+  groups: CardGroup[]
   accent: string
   suit: Suit
   rank: string
@@ -37,10 +40,7 @@ export interface PortfolioOwner {
 
 /** Fields the fetch pipeline is allowed to overwrite. Identity/layout fields are not. */
 type CardOverride = Partial<
-  Pick<
-    PortfolioCardData,
-    'label' | 'title' | 'teaser' | 'detail' | 'bullets' | 'tags' | 'actions' | 'source'
-  >
+  Pick<PortfolioCardData, 'label' | 'groups' | 'actions' | 'source'>
 >
 
 interface OverridesFile {
@@ -65,8 +65,7 @@ function mergeCard(base: PortfolioCardData): PortfolioCardData {
     ...base,
     ...override,
     // Arrays replace wholesale when provided, otherwise keep the base value.
-    bullets: override.bullets ?? base.bullets,
-    tags: override.tags ?? base.tags,
+    groups: override.groups ?? base.groups,
     actions: override.actions ?? base.actions,
     source: override.source ?? base.source ?? 'manual',
   }

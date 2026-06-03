@@ -15,11 +15,19 @@
         {
           "id": "hobbies",
           "label": "Hobbies",
-          "title": "Tennis · Robotics · Camping",
-          "teaser": "Tennis, programming, robotics, volunteering, camping, exploring, tinkering.",
-          "detail": "Tennis, Programming, Robotics, Volunteering, Camping, Exploring, Tinkering.",
-          "bullets": [],
-          "tags": ["Tennis", "Robotics", "Camping", "Tinkering"],
+          "groups": [
+            {
+              "bullets": [
+                "Tennis",
+                "Programming",
+                "Robotics",
+                "Volunteering",
+                "Camping",
+                "Exploring",
+                "Tinkering"
+              ]
+            }
+          ],
           "accent": "#7fe0a9",
           "suit": "clubs",
           "rank": "6"
@@ -27,15 +35,16 @@
         {
           "id": "contact",
           "label": "Contact",
-          "title": "Get in Touch",
-          "teaser": "Email, call, or connect on LinkedIn.",
-          "detail": "Reach me by email, phone, or on LinkedIn.",
-          "bullets": [
-            "nikhilkolli1@gmail.com",
-            "(346) 457-8061",
-            "linkedin.com/in/nikhilxkolli"
+          "groups": [
+            {
+              "bullets": [
+                "nikhilkolli1@gmail.com",
+                "(346) 457-8061",
+                "Katy, Texas, United States",
+                "linkedin.com/in/nikhilxkolli"
+              ]
+            }
           ],
-          "tags": ["Email", "Phone", "LinkedIn"],
           "accent": "#ff9178",
           "suit": "hearts",
           "rank": "5",
@@ -53,15 +62,16 @@
         {
           "id": "about",
           "label": "About",
-          "title": "Computer Engineering @ Purdue",
-          "teaser": "Computer Engineering sophomore at Purdue focused on AI, software, and problem-solving.",
-          "detail": "Computer Engineering sophomore at Purdue with a strong foundation in AI, software development, and problem-solving.",
-          "bullets": [
-            "Passionate about building and testing real systems with machine learning, quantum computing, and full-stack development.",
-            "Hands-on experience turning ideas into user-focused applications and technical projects.",
-            "Applies technical depth and a builder's mindset to solve meaningful problems in fast-moving environments."
+          "groups": [
+            {
+              "bullets": [
+                "Computer Engineering sophomore at Purdue with a strong foundation in AI, software development, and problem-solving.",
+                "Passionate about building and testing real systems with machine learning, quantum computing, and full-stack development.",
+                "Hands-on experience turning ideas into user-focused applications and technical projects.",
+                "Applies technical depth and a builder's mindset to solve meaningful problems in fast-moving environments."
+              ]
+            }
           ],
-          "tags": ["Purdue", "AI", "Software", "Quantum"],
           "accent": "#7dc5ff",
           "suit": "spades",
           "rank": "A"
@@ -69,15 +79,22 @@
         {
           "id": "education",
           "label": "Education",
-          "title": "Purdue University",
-          "teaser": "Computer Engineering at Purdue, graduating May 2029.",
-          "detail": "Bachelor of Engineering in Computer Engineering, graduating May 2029.",
-          "bullets": [
-            "Purdue University, West Lafayette — Computer Engineering, GPA 3.96.",
-            "Obra D. Tompkins High School, Katy, TX — Weighted GPA 4.6154, Class Rank 67/725 (Top 9.24%).",
-            "STEM diploma, graduated May 2025."
+          "groups": [
+            {
+              "heading": "Purdue University",
+              "bullets": [
+                "B.E. Computer Engineering — GPA 3.96.",
+                "West Lafayette; graduating May 2029."
+              ]
+            },
+            {
+              "heading": "Obra D. Tompkins High School",
+              "bullets": [
+                "Weighted GPA 4.6154; Unweighted 3.8077.",
+                "Class Rank 67/725 (Top 9.24%); STEM diploma, May 2025."
+              ]
+            }
           ],
-          "tags": ["Purdue", "GPA 3.96", "STEM"],
           "accent": "#6ddbcf",
           "suit": "clubs",
           "rank": "8"
@@ -90,15 +107,29 @@
         {
           "id": "work",
           "label": "Experience",
-          "title": "Mercor · Purdue · RealTalk",
-          "teaser": "Software Engineer at Mercor, quantum researcher at Purdue, co-founder of RealTalk.",
-          "detail": "Software Engineer at Mercor, quantum ML/error researcher at Purdue, and co-founder of RealTalk.",
-          "bullets": [
-            "Mercor — Software Engineer (Jan 2026–present): RL environments & LLM evaluation for multi-agent AI.",
-            "Purdue — Quantum researcher (Aug 2025–May 2026): hybrid quantum-classical models; 4M+ cipher samples.",
-            "RealTalk — Co-Founder (2024–25): AI hiring assistant; React/Vite + FastAPI/AWS, custom AI models."
+          "groups": [
+            {
+              "heading": "Mercor — Software Engineer (Jan 2026–Present)",
+              "bullets": [
+                "Built RL environments for multi-agent, customer-facing AI with failure-mode benchmarking.",
+                "Built LLM evaluation frameworks with rubric scoring for accuracy, alignment, tone, and reasoning."
+              ]
+            },
+            {
+              "heading": "Purdue — Quantum Researcher (Aug 2025–May 2026)",
+              "bullets": [
+                "Python/PennyLane simulations of NISQ noise; zero-noise extrapolation to improve accuracy.",
+                "Trained a hybrid quantum-classical model to classify and decode ciphers on a 4M+ sample dataset."
+              ]
+            },
+            {
+              "heading": "RealTalk — Co-Founder (2024–2025)",
+              "bullets": [
+                "Front end in TypeScript/React/Vite; backend with FastAPI on AWS, OpenAI API, Whisper, MySQL.",
+                "Shipped the MVP with custom AI models that review and improve resumes and interviews."
+              ]
+            }
           ],
-          "tags": ["Mercor", "Purdue", "RealTalk", "AI"],
           "accent": "#ff8e79",
           "suit": "hearts",
           "rank": "K"
@@ -106,15 +137,23 @@
         {
           "id": "projects",
           "label": "Projects",
-          "title": "Selected Projects",
-          "teaser": "Gradus and recent Devpost projects.",
-          "detail": "Gradus, plus recent projects on Devpost.",
-          "bullets": [
-            "Gradus (Founding President) — academic tracking app in Flutter, Dart/Python; beta 10.0.0 in 176 countries.",
-            "Raize — Spacial Intelligence for Disaster Zones.",
-            "Vigil — Waze for emergencies."
+          "groups": [
+            {
+              "heading": "Gradus — Founding President",
+              "bullets": [
+                "Led a team to build an academic progress tracking app in Flutter and Dart/Python.",
+                "Streamlined academic monitoring and goal-setting; beta 10.0.0 active in 176 countries/regions."
+              ]
+            },
+            {
+              "heading": "Raize",
+              "bullets": ["Spacial Intelligence for Disaster Zones."]
+            },
+            {
+              "heading": "Vigil",
+              "bullets": ["Waze for emergencies — a live, AI-verified feed from people on the ground."]
+            }
           ],
-          "tags": ["Flutter", "Devpost", "Hackathons"],
           "accent": "#f1c164",
           "suit": "diamonds",
           "rank": "J",
@@ -132,14 +171,22 @@
         {
           "id": "extracurriculars",
           "label": "Extra-Curriculars",
-          "title": "FRC 5427 & Scouting",
-          "teaser": "FRC robotics and Eagle Scout leadership.",
-          "detail": "Robotics programming and Eagle Scout leadership.",
-          "bullets": [
-            "FRC 5427 Steel Talons (Programming Core, 2021–2025) — vision tracking for autonomous mode; Java, Git; District Chairman's Award.",
-            "Eagle Scout (Boy Scouts of America) — Order of the Arrow, Triple Crown high-adventure, 42 merit badges, 195 service hours, White House commended."
+          "groups": [
+            {
+              "heading": "FRC 5427 Steel Talons",
+              "bullets": [
+                "Programming core (2021–2025): vision tracking optimizing autonomous performance.",
+                "Java and Git; winner of various awards including the District Chairman's Award."
+              ]
+            },
+            {
+              "heading": "Eagle Scout",
+              "bullets": [
+                "Order of the Arrow; Triple Crown high-adventure (Bahamas, Philmont, Northern Tier).",
+                "42 merit badges, 195 service hours; White House commended."
+              ]
+            }
           ],
-          "tags": ["Robotics", "FRC", "Eagle Scout"],
           "accent": "#84e4a8",
           "suit": "clubs",
           "rank": "Q"
@@ -147,15 +194,20 @@
         {
           "id": "skills",
           "label": "Skills",
-          "title": "Languages & Tools",
-          "teaser": "Java, Python, Dart, TypeScript, R, C, MATLAB, and more.",
-          "detail": "Java · Python · Dart · TypeScript · R · C · MATLAB",
-          "bullets": [
-            "Languages: Java, Python, Dart, TypeScript, R, C, MATLAB.",
-            "Tools: GitHub, AWS, React, Vite, Flutter, FastAPI, Android Studio.",
-            "Domains: AI, Data Analytics, Quantum Computing, Machine Learning, Web Design."
+          "groups": [
+            {
+              "heading": "Languages",
+              "bullets": ["Java, Python, Dart, TypeScript, R, C, MATLAB"]
+            },
+            {
+              "heading": "Tools & Frameworks",
+              "bullets": ["GitHub, AWS, React, Vite, Flutter, FastAPI, Android Studio"]
+            },
+            {
+              "heading": "Domains",
+              "bullets": ["AI, Data Analytics, Quantum Computing, Machine Learning, Web Design"]
+            }
           ],
-          "tags": ["Java", "Python", "AI", "Quantum"],
           "accent": "#86b7ff",
           "suit": "spades",
           "rank": "10"
@@ -168,14 +220,16 @@
         {
           "id": "certifications",
           "label": "Licenses & Certifications",
-          "title": "Google · AWS",
-          "teaser": "AWS Cloud Practitioner and Google Data Analytics.",
-          "detail": "AWS and Google professional certifications.",
-          "bullets": [
-            "AWS Certified Cloud Practitioner — Amazon Web Services (issued May 2025, expires May 2028).",
-            "Google Data Analytics Professional Certificate — Google (issued Nov 2023)."
+          "groups": [
+            {
+              "heading": "AWS Certified Cloud Practitioner",
+              "bullets": ["Amazon Web Services — issued May 2025, expires May 2028."]
+            },
+            {
+              "heading": "Google Data Analytics",
+              "bullets": ["Professional Certificate — issued Nov 2023."]
+            }
           ],
-          "tags": ["AWS", "Google", "Cloud", "Data Analytics"],
           "accent": "#ff97af",
           "suit": "hearts",
           "rank": "9"
@@ -183,14 +237,16 @@
         {
           "id": "awards",
           "label": "Honors & Awards",
-          "title": "National Merit · All-State",
-          "teaser": "National Merit and Academic All-State honors.",
-          "detail": "Academic and athletic honors.",
-          "bullets": [
-            "National Merit Scholarship Commendation — top 2.27% nationally on the PSAT/NMSQT.",
-            "Team Tennis Academic All-State First Team (Texas, 2024)."
+          "groups": [
+            {
+              "heading": "National Merit Scholarship",
+              "bullets": ["Commendation — top 2.27% nationally on the PSAT/NMSQT."]
+            },
+            {
+              "heading": "Team Tennis Academic All-State",
+              "bullets": ["First Team — Texas High School Coaches Association, 2024."]
+            }
           ],
-          "tags": ["National Merit", "Academic All-State"],
           "accent": "#ffcb78",
           "suit": "diamonds",
           "rank": "7"

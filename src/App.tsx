@@ -63,7 +63,7 @@ function App() {
         />
       </Canvas>
 
-      <header className="scene-hud">
+      <header className="scene-hud" aria-hidden={focusedKey ? 'true' : undefined}>
         <span className="scene-hud__kicker">{owner.tagline}</span>
         <strong className="scene-hud__name">{owner.name}</strong>
         <span className="scene-hud__hint">{boardLabel}</span>

@@ -102,10 +102,11 @@ export const seatSections: PortfolioCardData[] = pickSections([
 
 /**
  * Supporting sections revealed on the community board, in deal order:
- * flop = [research, certifications, awards], turn = [hobbies], river = [contact].
+ * flop = [extracurriculars, certifications, awards], turn = [hobbies],
+ * river = [contact].
  */
 export const communitySections: PortfolioCardData[] = pickSections([
-  'research',
+  'extracurriculars',
   'certifications',
   'awards',
   'hobbies',

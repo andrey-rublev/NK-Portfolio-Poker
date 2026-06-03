@@ -1,14 +1,13 @@
-name: Build & Deploy (auto-updating)
+name: Build & Deploy
 
 # Rebuilds and redeploys:
 #  - on every push to main
-#  - once a day (07:00 UTC) so new Devpost/LinkedIn entries are pulled in
 #  - on demand from the Actions tab
+# Content is maintained by hand in src/data/portfolio.json (no automatic
+# Devpost/LinkedIn scraping).
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: '0 7 * * *'
   workflow_dispatch:
 
 # Allow the workflow to publish to GitHub Pages.
@@ -37,13 +36,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      # Pull the latest Devpost (and optional LinkedIn) data. Never fails the build.
-      - name: Refresh portfolio data
-        run: npm run fetch:data
-        env:
-          # Optional: override the Devpost handle without editing portfolio.json.
-          DEVPOST_USER: ${{ vars.DEVPOST_USER }}
 
       # Build. VITE_BASE makes assets resolve under a project-pages sub-path
       # (https://<user>.github.io/<repo>/). For a user page or custom domain,

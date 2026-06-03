@@ -79,6 +79,18 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     b.rot[2] = lerp(b.rot[2], tr[2], k)
     b.scale = lerp(b.scale, ts, k)
 
+    // Arc the card upward whenever its base orientation is mid-flip (edge-on to
+    // the felt) so a flipping card — e.g. a community card being dealt face-up —
+    // never knifes through the table. 0 when flat (either face), 1 when vertical.
+    const edgeOn =
+      Math.min(
+        Math.abs(b.rot[0] - FACE_DOWN_X),
+        Math.abs(b.rot[0] - FACE_UP_X),
+      ) /
+      (Math.PI / 2)
+    const flipArc = Math.sin(clamp01(edgeOn) * (Math.PI / 2)) ** 2
+    const baseY = b.pos[1] + flipArc * 1.25
+
     // Focus progress 0..1.
     prog.current = lerp(prog.current, focused ? 1 : 0, 0.14)
     const p = prog.current
@@ -88,7 +100,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
 
     g.position.set(
       lerp(b.pos[0], focusX, p),
-      lerp(b.pos[1], FOCUS_Y, liftT),
+      lerp(baseY, FOCUS_Y, liftT),
       lerp(b.pos[2], FOCUS_Z, p),
     )
     g.rotation.set(

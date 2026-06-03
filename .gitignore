@@ -15,7 +15,7 @@ dist-ssr
 # Local verification artifacts (Playwright screenshots, MCP scratch)
 .playwright-mcp/
 verify-*.png
-v2-*.png
+v[0-9]*-*.png
 
 # Editor directories and files
 .vscode/*

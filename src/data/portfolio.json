@@ -15,14 +15,11 @@
         {
           "id": "hobbies",
           "label": "Hobbies",
-          "title": "Tennis · Robotics · Scouting",
+          "title": "Tennis · Robotics · Camping",
           "teaser": "Tennis, programming, robotics, volunteering, camping, exploring, tinkering.",
           "detail": "Tennis, Programming, Robotics, Volunteering, Camping, Exploring, Tinkering.",
-          "bullets": [
-            "FRC 5427 Steel Talons robotics — vision tracking optimizing autonomous performance.",
-            "Scouting high-adventure: Bahamas Sea Base, Philmont, and Northern Tier."
-          ],
-          "tags": ["Tennis", "Robotics", "Camping", "Scouting"],
+          "bullets": [],
+          "tags": ["Tennis", "Robotics", "Camping", "Tinkering"],
           "accent": "#7fe0a9",
           "suit": "clubs",
           "rank": "6"
@@ -93,15 +90,15 @@
         {
           "id": "work",
           "label": "Experience",
-          "title": "Software Engineer · Mercor",
-          "teaser": "Software Engineer at Mercor building LLM evaluation and RL environments.",
-          "detail": "Software Engineer at Mercor (Jan 2026 – Present), remote.",
+          "title": "Mercor · Purdue · RealTalk",
+          "teaser": "Software Engineer at Mercor, quantum researcher at Purdue, co-founder of RealTalk.",
+          "detail": "Software Engineer at Mercor, quantum ML/error researcher at Purdue, and co-founder of RealTalk.",
           "bullets": [
-            "Built reinforcement learning environments for multi-agent, customer-facing AI systems with benchmarking.",
-            "Built LLM evaluation frameworks with rubric-based scoring for accuracy, alignment, relevance, tone, and reasoning.",
-            "Designed scalable evaluation pipelines using NLP and agentic AI."
+            "Mercor — Software Engineer (Jan 2026–present): RL environments & LLM evaluation for multi-agent AI.",
+            "Purdue — Quantum researcher (Aug 2025–May 2026): hybrid quantum-classical models; 4M+ cipher samples.",
+            "RealTalk — Co-Founder (2024–25): AI hiring assistant; React/Vite + FastAPI/AWS, custom AI models."
           ],
-          "tags": ["Mercor", "LLM Eval", "RL", "Agentic AI"],
+          "tags": ["Mercor", "Purdue", "RealTalk", "AI"],
           "accent": "#ff8e79",
           "suit": "hearts",
           "rank": "K"
@@ -111,15 +108,19 @@
           "label": "Projects",
           "title": "Selected Projects",
           "teaser": "Gradus and recent Devpost projects.",
-          "detail": "Gradus, plus recent projects from Devpost.",
+          "detail": "Gradus, plus recent projects on Devpost.",
           "bullets": [
-            "Gradus (Founding President) — academic tracking app in Flutter, Dart/Python; beta 10.0.0 in 176 countries."
+            "Gradus (Founding President) — academic tracking app in Flutter, Dart/Python; beta 10.0.0 in 176 countries.",
+            "Raize — Spacial Intelligence for Disaster Zones.",
+            "Vigil — Waze for emergencies."
           ],
           "tags": ["Flutter", "Devpost", "Hackathons"],
           "accent": "#f1c164",
           "suit": "diamonds",
           "rank": "J",
           "actions": [
+            { "label": "Raize", "href": "https://devpost.com/software/raize" },
+            { "label": "Vigil", "href": "https://devpost.com/software/vigil-gv3ixh" },
             { "label": "All projects", "href": "https://devpost.com/nikhilkolli1" }
           ]
         }
@@ -129,17 +130,16 @@
       "id": "seat-northeast",
       "cards": [
         {
-          "id": "research",
-          "label": "Research",
-          "title": "Quantum Computing · Purdue",
-          "teaser": "Quantum machine learning research at Purdue's Datamine Physics Cohort.",
-          "detail": "Purdue Datamine Physics Cohort · Quantum Computing Lab.",
+          "id": "extracurriculars",
+          "label": "Extra-Curriculars",
+          "title": "FRC 5427 & Scouting",
+          "teaser": "FRC robotics and Eagle Scout leadership.",
+          "detail": "Robotics programming and Eagle Scout leadership.",
           "bullets": [
-            "Quantum simulation in Python and PennyLane; zero-noise extrapolation to mitigate NISQ noise and improve accuracy.",
-            "Hybrid quantum-classical machine learning for cipher classification and decryption (PyTorch + PennyLane).",
-            "Trained on 4M+ substitution and transposition cipher samples with embedding layers and entangled quantum circuits."
+            "FRC 5427 Steel Talons (Programming Core, 2021–2025) — vision tracking for autonomous mode; Java, Git; District Chairman's Award.",
+            "Eagle Scout (Boy Scouts of America) — Order of the Arrow, Triple Crown high-adventure, 42 merit badges, 195 service hours, White House commended."
           ],
-          "tags": ["PennyLane", "PyTorch", "Quantum ML", "Cryptography"],
+          "tags": ["Robotics", "FRC", "Eagle Scout"],
           "accent": "#84e4a8",
           "suit": "clubs",
           "rank": "Q"
@@ -167,7 +167,7 @@
       "cards": [
         {
           "id": "certifications",
-          "label": "Certifications",
+          "label": "Licenses & Certifications",
           "title": "Google · AWS",
           "teaser": "AWS Cloud Practitioner and Google Data Analytics.",
           "detail": "AWS and Google professional certifications.",
@@ -182,17 +182,15 @@
         },
         {
           "id": "awards",
-          "label": "Awards",
-          "title": "Honors & Awards",
-          "teaser": "Eagle Scout, National Merit, Triple Crown, Academic All-State.",
-          "detail": "Academics, athletics, and scouting.",
+          "label": "Honors & Awards",
+          "title": "National Merit · All-State",
+          "teaser": "National Merit and Academic All-State honors.",
+          "detail": "Academic and athletic honors.",
           "bullets": [
-            "Eagle Scout — Order of the Arrow, 42 merit badges, 195 service hours, White House commended.",
-            "Triple Crown High Adventure — Northern Tier (Canada), Philmont (New Mexico), Sea Base (Bahamas).",
             "National Merit Scholarship Commendation — top 2.27% nationally on the PSAT/NMSQT.",
             "Team Tennis Academic All-State First Team (Texas, 2024)."
           ],
-          "tags": ["Eagle Scout", "National Merit", "Triple Crown"],
+          "tags": ["National Merit", "Academic All-State"],
           "accent": "#ffcb78",
           "suit": "diamonds",
           "rank": "7"

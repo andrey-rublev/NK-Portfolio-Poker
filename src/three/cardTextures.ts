@@ -4,6 +4,9 @@ import type { CardRole } from './layout'
 
 const W = 512
 const H = 731
+/** Corner radius for the card face/back; corners outside it stay transparent
+ * so an alphaTest material renders the card with rounded corners. */
+const CARD_RADIUS = 40
 
 function canvas2d() {
   const c = document.createElement('canvas')
@@ -42,8 +45,8 @@ type Ctx = CanvasRenderingContext2D
 const PAD = 46
 const CONTENT_W = W - PAD * 2
 const BULLET_INDENT = 28
-const SUB_FONT = '800 28px "Space Grotesk", system-ui, sans-serif'
-const BULLET_FONT = '500 25px "Space Grotesk", system-ui, sans-serif'
+const SUB_FONT = '800 28px "Mulish", system-ui, sans-serif'
+const BULLET_FONT = '500 25px "Mulish", system-ui, sans-serif'
 const SUB_LH = 33
 const BULLET_LH = 31
 const BULLET_GAP = 10
@@ -138,7 +141,7 @@ function drawItems(
 }
 
 function headerFont(ctx: Ctx, size: number): Ctx {
-  ctx.font = `900 ${size}px "Space Grotesk", system-ui, sans-serif`
+  ctx.font = `900 ${size}px "Mulish", system-ui, sans-serif`
   return ctx
 }
 
@@ -167,7 +170,7 @@ function drawHeader(ctx: Ctx, label: string, accent: string): number {
 function drawActions(ctx: Ctx, actions: { label: string }[], startY: number, accent: string): void {
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
-  ctx.font = '700 23px "Space Grotesk", system-ui, sans-serif'
+  ctx.font = '700 23px "Mulish", system-ui, sans-serif'
   ctx.fillStyle = accent
   let y = startY
   for (const a of actions) {
@@ -178,14 +181,16 @@ function drawActions(ctx: Ctx, actions: { label: string }[], startY: number, acc
 }
 
 function paper(ctx: CanvasRenderingContext2D, accent: string) {
+  ctx.clearRect(0, 0, W, H)
   const grad = ctx.createLinearGradient(0, 0, 0, H)
   grad.addColorStop(0, '#fffdf7')
   grad.addColorStop(1, '#f1e7d4')
   ctx.fillStyle = grad
-  ctx.fillRect(0, 0, W, H)
+  roundedRect(ctx, 0, 0, W, H, CARD_RADIUS)
+  ctx.fill()
   ctx.strokeStyle = accent
   ctx.lineWidth = 12
-  roundedRect(ctx, 22, 22, W - 44, H - 44, 30)
+  roundedRect(ctx, 22, 22, W - 44, H - 44, 28)
   ctx.stroke()
 }
 
@@ -286,7 +291,7 @@ function drawCommunityCover(s: PortfolioCardData): HTMLCanvasElement {
   let size = 140
   let lines: string[] = []
   for (; size >= 54; size -= 4) {
-    ctx.font = `900 ${size}px "Space Grotesk", system-ui, sans-serif`
+    ctx.font = `900 ${size}px "Mulish", system-ui, sans-serif`
     lines = wrapBig(ctx, tokens, maxW)
     const widest = Math.max(...lines.map((l) => ctx.measureText(l).width))
     if (widest <= maxW && lines.length * size * 1.02 <= H - 150) break
@@ -332,9 +337,12 @@ function drawBack(): HTMLCanvasElement {
   const RED_DK = '#7a0c1c'
   const CREAM = '#f6efdd'
 
-  // Cream card stock — this shows through as the white border.
+  // Cream card stock (rounded) — shows through as the white border; corners
+  // stay transparent so the alphaTest material renders rounded corners.
+  ctx.clearRect(0, 0, W, H)
   ctx.fillStyle = CREAM
-  ctx.fillRect(0, 0, W, H)
+  roundedRect(ctx, 0, 0, W, H, CARD_RADIUS)
+  ctx.fill()
 
   // Red printed panel, inset from the edge, with a soft vignette.
   const M = 30
@@ -454,6 +462,77 @@ function drawBack(): HTMLCanvasElement {
   return c
 }
 
+/* ---------- About card: headshot on the left, bio on the right ---------- */
+
+const ABOUT_PHOTO = { x: PAD - 6, y: 152, w: W - (PAD - 6) * 2, h: 468 }
+
+function drawAboutLeft(s: PortfolioCardData): HTMLCanvasElement {
+  const { c, ctx } = canvas2d()
+  paper(ctx, s.accent)
+  drawHeader(ctx, s.label, s.accent)
+  const { x, y, w, h } = ABOUT_PHOTO
+  // Soft placeholder + person silhouette, shown until the photo loads.
+  ctx.save()
+  roundedRect(ctx, x, y, w, h, 20)
+  ctx.clip()
+  const g = ctx.createLinearGradient(0, y, 0, y + h)
+  g.addColorStop(0, '#e9e0cd')
+  g.addColorStop(1, '#d6c9ad')
+  ctx.fillStyle = g
+  ctx.fillRect(x, y, w, h)
+  ctx.fillStyle = 'rgba(120,108,86,0.4)'
+  const cx = x + w / 2
+  ctx.beginPath()
+  ctx.arc(cx, y + h * 0.4, w * 0.17, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.ellipse(cx, y + h * 0.96, w * 0.32, h * 0.32, 0, Math.PI, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+  ctx.strokeStyle = 'rgba(0,0,0,0.16)'
+  ctx.lineWidth = 3
+  roundedRect(ctx, x, y, w, h, 20)
+  ctx.stroke()
+  return c
+}
+
+function drawAboutRight(s: PortfolioCardData): HTMLCanvasElement {
+  const { c, ctx } = canvas2d()
+  paper(ctx, s.accent)
+  const items = buildItems(ctx, s.groups)
+  drawItems(ctx, items, 0, items.length, 60, s.accent)
+  return c
+}
+
+/** Load public/about.jpg into the reserved photo area, then notify (texture update). */
+function loadAboutPhoto(canvas: HTMLCanvasElement, onReady: () => void): void {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  const img = new Image()
+  img.onload = () => {
+    const { x, y, w, h } = ABOUT_PHOTO
+    ctx.save()
+    roundedRect(ctx, x, y, w, h, 20)
+    ctx.clip()
+    const ar = img.width / img.height
+    let dw = w
+    let dh = h
+    if (ar > w / h) dw = h * ar
+    else dh = w / ar
+    ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh)
+    ctx.restore()
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)'
+    ctx.lineWidth = 3
+    roundedRect(ctx, x, y, w, h, 20)
+    ctx.stroke()
+    onReady()
+  }
+  img.onerror = () => {
+    /* keep the placeholder if the photo is missing */
+  }
+  img.src = `${import.meta.env.BASE_URL}about.jpg`
+}
+
 interface Faces {
   front: THREE.Texture
   back: THREE.Texture
@@ -484,9 +563,21 @@ export function createCardFaces(section: PortfolioCardData, role: CardRole): Fac
 
   let faces: Faces
   if (role === 'label') {
-    faces = { front: toTex(getSpread(section).left), back: getSharedBack() }
+    if (section.id === 'about') {
+      const canvas = drawAboutLeft(section)
+      const tex = toTex(canvas)
+      loadAboutPhoto(canvas, () => {
+        tex.needsUpdate = true
+      })
+      faces = { front: tex, back: getSharedBack() }
+    } else {
+      faces = { front: toTex(getSpread(section).left), back: getSharedBack() }
+    }
   } else if (role === 'info') {
-    faces = { front: toTex(getSpread(section).right), back: getSharedBack() }
+    faces =
+      section.id === 'about'
+        ? { front: toTex(drawAboutRight(section)), back: getSharedBack() }
+        : { front: toTex(getSpread(section).right), back: getSharedBack() }
   } else {
     faces = {
       front: toTex(drawCommunityContent(section)),

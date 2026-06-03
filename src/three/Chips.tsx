@@ -52,7 +52,7 @@ function blindTopTexture(text: string, color: string): THREE.Texture {
   ctx.arc(S / 2, S / 2, S / 2 - 12, 0, Math.PI * 2)
   ctx.stroke()
   ctx.fillStyle = '#fff'
-  ctx.font = '800 56px "Space Grotesk", system-ui, sans-serif'
+  ctx.font = '800 56px "Mulish", system-ui, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(text, S / 2, S / 2 + 2)

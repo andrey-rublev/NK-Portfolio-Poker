@@ -139,8 +139,8 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
         <meshStandardMaterial attach="material-1" color="#efe6d2" roughness={0.7} />
         <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
         <meshStandardMaterial attach="material-3" color="#efe6d2" roughness={0.7} />
-        <meshStandardMaterial attach="material-4" map={frontMap} roughness={0.92} metalness={0} />
-        <meshStandardMaterial attach="material-5" map={faces.back} roughness={0.85} metalness={0} />
+        <meshStandardMaterial attach="material-4" map={frontMap} roughness={0.92} metalness={0} alphaTest={0.5} />
+        <meshStandardMaterial attach="material-5" map={faces.back} roughness={0.85} metalness={0} alphaTest={0.5} />
       </mesh>
     </group>
   )

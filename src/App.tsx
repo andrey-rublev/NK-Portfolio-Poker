@@ -12,6 +12,7 @@ function App() {
   // The one hand/community card currently lifted to the camera (null = none).
   const [focusedKey, setFocusedKey] = useState<string | null>(null)
   const [boardStage, setBoardStage] = useState(0)
+  const [showIntro, setShowIntro] = useState(true)
 
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
@@ -66,8 +67,59 @@ function App() {
       <header className="scene-hud" aria-hidden={focusedKey ? 'true' : undefined}>
         <span className="scene-hud__kicker">{owner.tagline}</span>
         <strong className="scene-hud__name">{owner.name}</strong>
-        <span className="scene-hud__hint">{boardLabel}</span>
       </header>
+
+      <p className="scene-hint">{boardLabel}</p>
+
+      <button
+        className="help-btn"
+        type="button"
+        onClick={() => setShowIntro(true)}
+        aria-label="How to play"
+      >
+        ?
+      </button>
+
+      {showIntro && (
+        <div className="intro" role="dialog" aria-modal="true">
+          <button
+            className="intro__scrim"
+            type="button"
+            aria-label="Close"
+            onClick={() => setShowIntro(false)}
+          />
+          <div className="intro__panel">
+            <span className="intro__kicker">Welcome</span>
+            <h2 className="intro__title">It's your deal</h2>
+            <p className="intro__sub">
+              This portfolio is a poker table. Here's how to play your hand:
+            </p>
+            <ul className="intro__steps">
+              <li>
+                <span style={{ color: '#1a2128' }}>♠</span>
+                <span>
+                  Click a player's <strong>hand</strong> to read that section.
+                </span>
+              </li>
+              <li>
+                <span style={{ color: '#b3122a' }}>♥</span>
+                <span>
+                  Press the <strong>deck</strong> to deal the community cards.
+                </span>
+              </li>
+              <li>
+                <span style={{ color: '#2b7a4b' }}>♣</span>
+                <span>
+                  Click any card to bring it up — click it again or anywhere to put it back.
+                </span>
+              </li>
+            </ul>
+            <button className="intro__btn" type="button" onClick={() => setShowIntro(false)}>
+              Deal me in
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

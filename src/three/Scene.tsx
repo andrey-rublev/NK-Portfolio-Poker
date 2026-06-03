@@ -59,7 +59,7 @@ function Deck({ boardStage, onPress }: { boardStage: number; onPress: () => void
           <meshStandardMaterial attach="material-1" color="#efe6d2" roughness={0.7} />
           <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
           <meshStandardMaterial attach="material-3" color="#efe6d2" roughness={0.7} />
-          <meshStandardMaterial attach="material-4" map={back} roughness={0.6} />
+          <meshStandardMaterial attach="material-4" map={back} roughness={0.6} alphaTest={0.5} />
           <meshStandardMaterial attach="material-5" color="#efe6d2" roughness={0.7} />
         </mesh>
       ))}
@@ -103,8 +103,8 @@ function BurnPile({ boardStage }: { boardStage: number }) {
           <meshStandardMaterial attach="material-1" color="#8c1a26" roughness={0.6} />
           <meshStandardMaterial attach="material-2" color="#8c1a26" roughness={0.6} />
           <meshStandardMaterial attach="material-3" color="#8c1a26" roughness={0.6} />
-          <meshStandardMaterial attach="material-4" map={back} roughness={0.6} />
-          <meshStandardMaterial attach="material-5" map={back} roughness={0.6} />
+          <meshStandardMaterial attach="material-4" map={back} roughness={0.6} alphaTest={0.5} />
+          <meshStandardMaterial attach="material-5" map={back} roughness={0.6} alphaTest={0.5} />
         </mesh>
       ))}
     </group>

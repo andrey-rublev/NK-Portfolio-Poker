@@ -58,7 +58,7 @@ function plateTexture(name: string, accent: string): THREE.Texture {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   do {
-    ctx.font = `700 ${size}px "Space Grotesk", system-ui, sans-serif`
+    ctx.font = `800 ${size}px "Mulish", system-ui, sans-serif`
     size -= 2
   } while (ctx.measureText(label).width > W - 110 && size > 18)
   ctx.fillStyle = '#fff4e0'

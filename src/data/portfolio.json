@@ -109,20 +109,18 @@
         {
           "id": "projects",
           "label": "Projects",
-          "title": "RealTalk · Gradus · FRC",
-          "teaser": "RealTalk, Gradus, and FRC 5427 Steel Talons robotics.",
-          "detail": "RealTalk — AI hiring assistant; Gradus — academic progress tracker; FRC 5427 Steel Talons robotics.",
+          "title": "Selected Projects",
+          "teaser": "Gradus and recent Devpost projects.",
+          "detail": "Gradus, plus recent projects from Devpost.",
           "bullets": [
-            "RealTalk (Co-Founder) — AI hiring assistant; TypeScript/React/Vite front end, FastAPI/AWS backend, custom AI models.",
-            "Gradus (Founding President) — academic tracking app in Flutter, Dart/Python; beta 10.0.0 in 176 countries.",
-            "FRC 5427 Steel Talons — vision tracking for autonomous mode (Java, Git); District Chairman's Award."
+            "Gradus (Founding President) — academic tracking app in Flutter, Dart/Python; beta 10.0.0 in 176 countries."
           ],
-          "tags": ["TypeScript", "Flutter", "Robotics", "Python"],
+          "tags": ["Flutter", "Devpost", "Hackathons"],
           "accent": "#f1c164",
           "suit": "diamonds",
           "rank": "J",
           "actions": [
-            { "label": "Devpost", "href": "https://devpost.com/nikhilkolli1" }
+            { "label": "All projects", "href": "https://devpost.com/nikhilkolli1" }
           ]
         }
       ]

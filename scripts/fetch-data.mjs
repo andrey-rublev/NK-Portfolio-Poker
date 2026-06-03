@@ -169,7 +169,18 @@ async function main() {
   try {
     const devpost = await fetchDevpost(getDevpostUser(base))
     if (devpost) {
-      overrides.projects = devpost
+      // Pin Gradus (it isn't hosted on Devpost) ahead of the live Devpost
+      // projects. The pinned bullet is read straight from portfolio.json so
+      // nothing is invented here.
+      const baseProjects = (base.seats ?? [])
+        .flatMap((s) => s.cards ?? [])
+        .find((c) => c.id === 'projects')
+      const pinnedBullets = (baseProjects?.bullets ?? []).slice(0, 1)
+      overrides.projects = {
+        bullets: [...pinnedBullets, ...devpost.bullets],
+        actions: devpost.actions,
+        source: 'devpost',
+      }
       meta.sources.devpost = { ok: true, at: new Date().toISOString() }
     }
   } catch (err) {

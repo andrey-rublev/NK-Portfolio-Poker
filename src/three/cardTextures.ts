@@ -142,21 +142,31 @@ function drawCommunityCover(s: PortfolioCardData): HTMLCanvasElement {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  let size = 100
+  // Shrink-to-fit, but stay big and bold so the label reads on the felt.
+  let size = 150
   const label = s.label.toUpperCase()
   do {
-    ctx.font = `800 ${size}px "Space Grotesk", system-ui, sans-serif`
-    size -= 3
-  } while (ctx.measureText(label).width > W - 110 && size > 34)
-  ctx.fillStyle = '#15202b'
-  ctx.fillText(label, W / 2, H / 2 - 18)
+    ctx.font = `900 ${size}px "Space Grotesk", system-ui, sans-serif`
+    size -= 2
+  } while (ctx.measureText(label).width > W - 44 && size > 64)
 
+  const midY = H / 2 - 6
+  // Crisp pure-black word with a thin dark outline so light can't wash it out.
+  ctx.lineJoin = 'round'
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'
+  ctx.lineWidth = 6
+  ctx.strokeText(label, W / 2, midY)
+  ctx.fillStyle = '#000000'
+  ctx.fillText(label, W / 2, midY)
+
+  // Accent rule under the word.
   ctx.fillStyle = s.accent
-  ctx.fillRect(W / 2 - 80, H / 2 + 44, 160, 10)
+  ctx.fillRect(W / 2 - 104, midY + size * 0.58, 208, 12)
 
-  ctx.fillStyle = '#5b4a35'
-  ctx.font = '600 36px "Cormorant Garamond", Georgia, serif'
-  drawWrapped(ctx, s.title, W / 2, H / 2 + 78, W - 120, 44)
+  // Smaller serif title beneath, so the big label clearly dominates.
+  ctx.fillStyle = '#241d12'
+  ctx.font = '700 38px "Cormorant Garamond", Georgia, serif'
+  drawWrapped(ctx, s.title, W / 2, midY + size * 0.58 + 44, W - 96, 44)
   return c
 }
 
@@ -193,72 +203,138 @@ function drawCommunityContent(s: PortfolioCardData): HTMLCanvasElement {
   return c
 }
 
-/** One ornate red Bicycle-style back, identical on every card. */
+/**
+ * One classic, identical card back: a cream border framing a deep-red field, a
+ * fine all-over diamond lattice, and a central radial medallion (starburst +
+ * flower-of-life rosette). Symmetric and instantly readable as a card back.
+ */
 function drawBack(): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
   const cx = W / 2
   const cy = H / 2
+  const RED = '#b3122a'
+  const RED_DK = '#7a0c1c'
+  const CREAM = '#f6efdd'
 
-  ctx.fillStyle = '#b01e2e'
+  // Cream card stock — this shows through as the white border.
+  ctx.fillStyle = CREAM
   ctx.fillRect(0, 0, W, H)
 
-  ctx.strokeStyle = '#fbf6ec'
-  ctx.lineWidth = 16
-  roundedRect(ctx, 24, 24, W - 48, H - 48, 30)
+  // Red printed panel, inset from the edge, with a soft vignette.
+  const M = 30
+  const vg = ctx.createRadialGradient(cx, cy, 40, cx, cy, H * 0.6)
+  vg.addColorStop(0, RED)
+  vg.addColorStop(1, RED_DK)
+  ctx.fillStyle = vg
+  roundedRect(ctx, M, M, W - 2 * M, H - 2 * M, 26)
+  ctx.fill()
+
+  // Cream keylines framing the panel.
+  ctx.strokeStyle = CREAM
+  ctx.lineWidth = 6
+  roundedRect(ctx, M + 12, M + 12, W - 2 * (M + 12), H - 2 * (M + 12), 18)
   ctx.stroke()
-  ctx.lineWidth = 3
-  roundedRect(ctx, 46, 46, W - 92, H - 92, 22)
+  ctx.lineWidth = 2
+  roundedRect(ctx, M + 20, M + 20, W - 2 * (M + 20), H - 2 * (M + 20), 14)
   ctx.stroke()
 
+  // Fine all-over lattice of tiny cream diamonds, clipped to the panel.
   ctx.save()
-  roundedRect(ctx, 52, 52, W - 104, H - 104, 18)
+  roundedRect(ctx, M + 22, M + 22, W - 2 * (M + 22), H - 2 * (M + 22), 12)
   ctx.clip()
-  ctx.strokeStyle = 'rgba(255,246,236,0.32)'
-  ctx.lineWidth = 1.4
-  for (let i = -H; i < W; i += 13) {
-    ctx.beginPath()
-    ctx.moveTo(i, 0)
-    ctx.lineTo(i + H, H)
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.moveTo(i + H, 0)
-    ctx.lineTo(i, H)
-    ctx.stroke()
-  }
-  for (let r = 250; r > 140; r -= 16) {
-    ctx.strokeStyle = 'rgba(255,246,236,0.20)'
-    ctx.beginPath()
-    ctx.ellipse(cx, cy, r * 0.62, r, 0, 0, Math.PI * 2)
-    ctx.stroke()
+  ctx.fillStyle = 'rgba(246,239,221,0.16)'
+  const g = 26
+  for (let yy = M; yy < H - M; yy += g) {
+    for (let xx = M; xx < W - M; xx += g) {
+      ctx.save()
+      ctx.translate(xx, yy)
+      ctx.rotate(Math.PI / 4)
+      ctx.fillRect(-3, -3, 6, 6)
+      ctx.restore()
+    }
   }
   ctx.restore()
 
-  ctx.fillStyle = '#fbf6ec'
-  ctx.beginPath()
-  ctx.ellipse(cx, cy, 92, 132, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.strokeStyle = '#b01e2e'
-  ctx.lineWidth = 5
-  ctx.beginPath()
-  ctx.ellipse(cx, cy, 92, 132, 0, 0, Math.PI * 2)
-  ctx.stroke()
+  // Central ornate medallion.
   ctx.save()
   ctx.translate(cx, cy)
-  ctx.strokeStyle = '#b01e2e'
-  ctx.lineWidth = 3
-  for (let k = 0; k < 12; k += 1) {
-    ctx.rotate((Math.PI * 2) / 12)
+
+  // Cream disc backdrop with a red core.
+  ctx.fillStyle = CREAM
+  ctx.beginPath()
+  ctx.arc(0, 0, 150, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = RED
+  ctx.beginPath()
+  ctx.arc(0, 0, 138, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Cream starburst petals around the rim.
+  ctx.fillStyle = CREAM
+  const petals = 24
+  for (let i = 0; i < petals; i += 1) {
+    ctx.rotate((Math.PI * 2) / petals)
     ctx.beginPath()
-    ctx.moveTo(0, 0)
-    ctx.quadraticCurveTo(22, 40, 0, 96)
-    ctx.quadraticCurveTo(-22, 40, 0, 0)
+    ctx.ellipse(0, -126, 7, 20, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // Two concentric rings.
+  ctx.strokeStyle = CREAM
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  ctx.arc(0, 0, 108, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.arc(0, 0, 100, 0, Math.PI * 2)
+  ctx.stroke()
+
+  // Flower-of-life rosette: six circles around a centre.
+  ctx.lineWidth = 2.5
+  const rosR = 46
+  for (let i = 0; i < 6; i += 1) {
+    const a = ((Math.PI * 2) / 6) * i
+    ctx.beginPath()
+    ctx.arc(Math.cos(a) * rosR, Math.sin(a) * rosR, rosR, 0, Math.PI * 2)
     ctx.stroke()
   }
-  ctx.fillStyle = '#b01e2e'
   ctx.beginPath()
-  ctx.arc(0, 0, 16, 0, Math.PI * 2)
+  ctx.arc(0, 0, rosR, 0, Math.PI * 2)
+  ctx.stroke()
+
+  // Centre hub.
+  ctx.fillStyle = CREAM
+  ctx.beginPath()
+  ctx.arc(0, 0, 14, 0, Math.PI * 2)
   ctx.fill()
+  ctx.fillStyle = RED
+  ctx.beginPath()
+  ctx.arc(0, 0, 7, 0, Math.PI * 2)
+  ctx.fill()
+
   ctx.restore()
+
+  // Corner fans.
+  const fan = (x: number, y: number, rot: number) => {
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.rotate(rot)
+    ctx.strokeStyle = 'rgba(246,239,221,0.85)'
+    ctx.lineWidth = 3
+    for (let i = 0; i < 4; i += 1) {
+      ctx.beginPath()
+      ctx.arc(0, 0, 16 + i * 9, 0, Math.PI / 2)
+      ctx.stroke()
+    }
+    ctx.restore()
+  }
+  const inset = 64
+  fan(inset, inset, 0)
+  fan(W - inset, inset, Math.PI / 2)
+  fan(W - inset, H - inset, Math.PI)
+  fan(inset, H - inset, -Math.PI / 2)
+
   return c
 }
 

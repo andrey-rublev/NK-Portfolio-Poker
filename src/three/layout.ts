@@ -150,15 +150,33 @@ export interface ChipSpot {
   z: number
 }
 
-/** A chip stack out in front of each player, well clear of the cards. */
+/**
+ * One chip stack per seat, placed beside the player's two-card hand. We start
+ * from the hand CENTRE (same radius as the cards) and slide tangentially along
+ * the rail until the stack clears the hand footprint (half-span ≈ 1.1u + chip
+ * radius), then clamp the result inside the felt ellipse so the stack never
+ * lands on the cards and never pokes through the table edge.
+ */
 export const chipSpots: ChipSpot[] = SEAT_ORDER.map((seatId) => {
   const angle = SEAT_ANGLES[seatId] ?? 90
   const a = (angle * Math.PI) / 180
-  const [bx, bz] = polar(angle, 0.92)
-  const tx = -TABLE.rx * Math.sin(a)
-  const tz = -TABLE.rz * Math.cos(a)
+  const [hx, hz] = polar(angle, SEAT_RADIUS_FACTOR) // hand centre
+  // Unit tangent of the seat ellipse (direction along the rail).
+  let tx = -TABLE.rx * Math.sin(a)
+  let tz = -TABLE.rz * Math.cos(a)
   const tl = Math.hypot(tx, tz) || 1
-  return { seatId, x: bx + (tx / tl) * 0.42, z: bz + (tz / tl) * 0.42 }
+  tx /= tl
+  tz /= tl
+  let x = hx + tx * 1.8
+  let z = hz + tz * 1.8
+  // Keep the stack (plus its radius) comfortably inside the felt.
+  const maxF = 0.85
+  const f = Math.hypot(x / TABLE.rx, z / TABLE.rz)
+  if (f > maxF) {
+    x *= maxF / f
+    z *= maxF / f
+  }
+  return { seatId, x, z }
 })
 
 /** Blinds + a bet stack sit on the betting line in front of two seats. */

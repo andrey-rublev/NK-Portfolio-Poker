@@ -32,6 +32,8 @@ function App() {
     setBoardStage((stage) => Math.min(3, stage + 1))
   }
 
+  const handleDismiss = () => setFocusedKey(null)
+
   const boardLabel = focusedKey
     ? 'Click the card again to put it back'
     : boardStage === 0
@@ -57,6 +59,7 @@ function App() {
           reducedMotion={reducedMotion}
           onToggle={handleToggle}
           onDeckPress={handleDeckPress}
+          onDismiss={handleDismiss}
         />
       </Canvas>
 

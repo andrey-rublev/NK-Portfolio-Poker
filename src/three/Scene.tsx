@@ -111,6 +111,39 @@ function BurnPile({ boardStage }: { boardStage: number }) {
   )
 }
 
+const _camDir = new THREE.Vector3()
+
+/**
+ * A transparent plane that hovers just in front of the camera while a card is
+ * focused, so a click ANYWHERE (felt, players, or the card itself) dismisses it.
+ * Only mounted while something is focused, so it never blocks normal play.
+ */
+function DismissCatcher({ onDismiss }: { onDismiss: () => void }) {
+  const ref = useRef<THREE.Mesh>(null)
+  const camera = useThree((s) => s.camera)
+  useFrame(() => {
+    const m = ref.current
+    if (!m) return
+    camera.getWorldDirection(_camDir)
+    m.position.copy(camera.position).addScaledVector(_camDir, 1.6)
+    m.quaternion.copy(camera.quaternion)
+  })
+  return (
+    <mesh
+      ref={ref}
+      renderOrder={50}
+      onClick={(e) => {
+        e.stopPropagation()
+        onDismiss()
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <planeGeometry args={[80, 80]} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} />
+    </mesh>
+  )
+}
+
 function CameraController() {
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
@@ -140,6 +173,7 @@ interface SceneProps {
   reducedMotion: boolean
   onToggle: (slot: CardSlot) => void
   onDeckPress: () => void
+  onDismiss: () => void
 }
 
 export function Scene({
@@ -149,26 +183,27 @@ export function Scene({
   reducedMotion,
   onToggle,
   onDeckPress,
+  onDismiss,
 }: SceneProps) {
   return (
     <>
       <color attach="background" args={['#160a10']} />
       <fog attach="fog" args={['#160a10', 20, 44]} />
 
-      <ambientLight intensity={0.28} />
-      <hemisphereLight args={['#9fc8b4', '#140d07', 0.32]} />
+      <ambientLight intensity={0.54} />
+      <hemisphereLight args={['#9fc8b4', '#140d07', 0.46]} />
       <spotLight
         position={[0, 13, 1.5]}
-        angle={0.58}
-        penumbra={0.75}
-        intensity={780}
+        angle={0.62}
+        penumbra={0.95}
+        intensity={220}
         distance={42}
         decay={2}
         color="#ffeccb"
       />
       <directionalLight
         position={[5, 13, 7]}
-        intensity={1.25}
+        intensity={0.62}
         color="#ffe8c8"
         castShadow
         shadow-mapSize={[2048, 2048]}
@@ -181,8 +216,8 @@ export function Scene({
         shadow-camera-top={11}
         shadow-camera-bottom={-11}
       />
-      <pointLight position={[-9, 5, 9]} intensity={20} color="#ffd9a0" />
-      <pointLight position={[9, 4, 6]} intensity={12} color="#9fd8ff" />
+      <pointLight position={[-9, 5, 9]} intensity={13} color="#ffd9a0" />
+      <pointLight position={[9, 4, 6]} intensity={8} color="#9fd8ff" />
 
       <Floor />
       <PokerTable />
@@ -216,6 +251,8 @@ export function Scene({
           />
         )
       })}
+
+      {focusedKey && <DismissCatcher onDismiss={onDismiss} />}
 
       <CameraController />
     </>

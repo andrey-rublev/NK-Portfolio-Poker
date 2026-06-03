@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Local verification artifacts (Playwright screenshots, MCP scratch)
+.playwright-mcp/
+verify-*.png
+v2-*.png
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -192,13 +192,13 @@ function drawCommunityContent(s: PortfolioCardData): HTMLCanvasElement {
   ctx.font = '500 27px "Space Grotesk", system-ui, sans-serif'
   y = drawWrapped(ctx, s.detail, pad, y, W - pad * 2, 36) + 14
 
-  ctx.font = '500 26px "Space Grotesk", system-ui, sans-serif'
+  ctx.font = '500 24px "Space Grotesk", system-ui, sans-serif'
   for (const bullet of s.bullets) {
-    if (y > H - 70) break
+    if (y > H - 60) break
     ctx.fillStyle = s.accent
     ctx.fillText('•', pad, y)
     ctx.fillStyle = '#15202b'
-    y = drawWrapped(ctx, bullet, pad + 24, y, W - pad * 2 - 24, 34, H - 70) + 10
+    y = drawWrapped(ctx, bullet, pad + 24, y, W - pad * 2 - 24, 31, H - 60) + 9
   }
   return c
 }

@@ -1,7 +1,7 @@
 {
   "owner": {
     "name": "Nikhil Kolli",
-    "tagline": "Computer Engineering @ Purdue",
+    "tagline": "SWE @ Mercor · CompE @ Purdue",
     "links": {
       "linkedin": "https://linkedin.com/in/nikhilxkolli",
       "devpost": "https://devpost.com/nikhilkolli1",
@@ -15,15 +15,14 @@
         {
           "id": "hobbies",
           "label": "Hobbies",
-          "title": "Outside the Code",
-          "teaser": "Tennis, robotics, volunteering, camping, exploring, and tinkering.",
-          "detail": "A lot of the energy behind the work comes from staying curious outside of software too.",
+          "title": "Tennis · Robotics · Scouting",
+          "teaser": "Tennis, programming, robotics, volunteering, camping, exploring, tinkering.",
+          "detail": "Tennis, Programming, Robotics, Volunteering, Camping, Exploring, Tinkering.",
           "bullets": [
-            "Enjoys tennis, robotics, programming, volunteering, camping, exploring, and hands-on experimentation.",
-            "Scouting and high-adventure experiences built leadership, resilience, and teamwork.",
-            "Tinkering is a constant habit, whether the medium is code, hardware, strategy, or an idea worth testing."
+            "FRC 5427 Steel Talons robotics — vision tracking optimizing autonomous performance.",
+            "Scouting high-adventure: Bahamas Sea Base, Philmont, and Northern Tier."
           ],
-          "tags": ["Tennis", "Robotics", "Camping", "Tinkering"],
+          "tags": ["Tennis", "Robotics", "Camping", "Scouting"],
           "accent": "#7fe0a9",
           "suit": "clubs",
           "rank": "6"
@@ -31,15 +30,15 @@
         {
           "id": "contact",
           "label": "Contact",
-          "title": "Reach Out",
-          "teaser": "Email, call, or connect on LinkedIn for projects, internships, or ideas.",
-          "detail": "Open to ambitious conversations around software, AI, research, internships, and building useful things.",
+          "title": "Get in Touch",
+          "teaser": "Email, call, or connect on LinkedIn.",
+          "detail": "Reach me by email, phone, or on LinkedIn.",
           "bullets": [
-            "Email: nikhilkolli1@gmail.com",
-            "Phone: (346) 457-8061",
-            "Location: Katy, Texas, United States"
+            "nikhilkolli1@gmail.com",
+            "(346) 457-8061",
+            "linkedin.com/in/nikhilxkolli"
           ],
-          "tags": ["LinkedIn", "Internships", "Collaboration"],
+          "tags": ["Email", "Phone", "LinkedIn"],
           "accent": "#ff9178",
           "suit": "hearts",
           "rank": "5",
@@ -57,15 +56,15 @@
         {
           "id": "about",
           "label": "About",
-          "title": "Who I Am",
-          "teaser": "Product-minded engineer with a strong interest in AI and machine learning.",
-          "detail": "Aspiring computer engineering student at Purdue with a strong foundation in software, problem solving, and building technology that feels useful in the real world.",
+          "title": "Computer Engineering @ Purdue",
+          "teaser": "Computer Engineering sophomore at Purdue focused on AI, software, and problem-solving.",
+          "detail": "Computer Engineering sophomore at Purdue with a strong foundation in AI, software development, and problem-solving.",
           "bullets": [
-            "Focused on computer engineering with a strong interest in artificial intelligence, machine learning, and user-first software.",
-            "Combines technical curiosity with execution, from interfaces to backend systems and research workflows.",
-            "Driven by experimentation, continuous learning, and building ideas that go beyond demos."
+            "Passionate about building and testing real systems with machine learning, quantum computing, and full-stack development.",
+            "Hands-on experience turning ideas into user-focused applications and technical projects.",
+            "Applies technical depth and a builder's mindset to solve meaningful problems in fast-moving environments."
           ],
-          "tags": ["Purdue", "AI", "ML", "Product Thinking"],
+          "tags": ["Purdue", "AI", "Software", "Quantum"],
           "accent": "#7dc5ff",
           "suit": "spades",
           "rank": "A"
@@ -73,15 +72,15 @@
         {
           "id": "education",
           "label": "Education",
-          "title": "Academic Record",
-          "teaser": "Computer Engineering at Purdue with a strong STEM foundation behind it.",
-          "detail": "Academic performance reflects consistency, rigor, and a strong base for deeper work in engineering and software.",
+          "title": "Purdue University",
+          "teaser": "Computer Engineering at Purdue, graduating May 2029.",
+          "detail": "Bachelor of Engineering in Computer Engineering, graduating May 2029.",
           "bullets": [
-            "Purdue University, Bachelor of Engineering in Computer Engineering, expected May 2029.",
-            "Current undergraduate GPA: 3.93.",
-            "Tompkins High School graduate with a 4.6154 weighted GPA and class rank of 67 out of 725."
+            "Purdue University, West Lafayette — Computer Engineering, GPA 3.96.",
+            "Obra D. Tompkins High School, Katy, TX — Weighted GPA 4.6154, Class Rank 67/725 (Top 9.24%).",
+            "STEM diploma, graduated May 2025."
           ],
-          "tags": ["Purdue", "3.93 GPA", "STEM"],
+          "tags": ["Purdue", "GPA 3.96", "STEM"],
           "accent": "#6ddbcf",
           "suit": "clubs",
           "rank": "8"
@@ -94,15 +93,15 @@
         {
           "id": "work",
           "label": "Experience",
-          "title": "RealTalk Labs",
-          "teaser": "Co-Founder building an AI hiring assistant and job application manager.",
-          "detail": "Built the MVP for RealTalk Labs with a mix of frontend execution, backend integration, and AI-focused product thinking.",
+          "title": "Software Engineer · Mercor",
+          "teaser": "Software Engineer at Mercor building LLM evaluation and RL environments.",
+          "detail": "Software Engineer at Mercor (Jan 2026 – Present), remote.",
           "bullets": [
-            "Developed the front end using TypeScript, React, and Vite in VS Code.",
-            "Worked with FastAPI, AWS, NLTK, OpenAI API, Whisper, and MySQL to support the product stack.",
-            "Helped shape custom AI features for resume review, interview improvement, and grounded career feedback."
+            "Built reinforcement learning environments for multi-agent, customer-facing AI systems with benchmarking.",
+            "Built LLM evaluation frameworks with rubric-based scoring for accuracy, alignment, relevance, tone, and reasoning.",
+            "Designed scalable evaluation pipelines using NLP and agentic AI."
           ],
-          "tags": ["React", "TypeScript", "FastAPI", "AWS"],
+          "tags": ["Mercor", "LLM Eval", "RL", "Agentic AI"],
           "accent": "#ff8e79",
           "suit": "hearts",
           "rank": "K"
@@ -110,18 +109,21 @@
         {
           "id": "projects",
           "label": "Projects",
-          "title": "What I Build",
-          "teaser": "Quantum experiments, student products, and robotics systems.",
-          "detail": "Projects span research-heavy work and shipped student tools, showing range across software, mobile, and robotics.",
+          "title": "RealTalk · Gradus · FRC",
+          "teaser": "RealTalk, Gradus, and FRC 5427 Steel Talons robotics.",
+          "detail": "RealTalk — AI hiring assistant; Gradus — academic progress tracker; FRC 5427 Steel Talons robotics.",
           "bullets": [
-            "Built a hybrid quantum-classical decoding system for encoded text using Python, PyTorch, and PennyLane.",
-            "Led Gradus, an academic progress tracking app built with Flutter and Dart/Python, with beta usage in 176 countries and regions.",
-            "Worked on FRC 5427 Steel Talons software, including vision tracking to improve autonomous performance."
+            "RealTalk (Co-Founder) — AI hiring assistant; TypeScript/React/Vite front end, FastAPI/AWS backend, custom AI models.",
+            "Gradus (Founding President) — academic tracking app in Flutter, Dart/Python; beta 10.0.0 in 176 countries.",
+            "FRC 5427 Steel Talons — vision tracking for autonomous mode (Java, Git); District Chairman's Award."
           ],
-          "tags": ["Flutter", "Dart", "Robotics", "Python"],
+          "tags": ["TypeScript", "Flutter", "Robotics", "Python"],
           "accent": "#f1c164",
           "suit": "diamonds",
-          "rank": "J"
+          "rank": "J",
+          "actions": [
+            { "label": "Devpost", "href": "https://devpost.com/nikhilkolli1" }
+          ]
         }
       ]
     },
@@ -131,13 +133,13 @@
         {
           "id": "research",
           "label": "Research",
-          "title": "Quantum Computing",
-          "teaser": "Hybrid quantum-classical modeling at Purdue in the Datamine Physics cohort.",
-          "detail": "Research centered on noise mitigation, simulation reliability, and quantum machine learning for encoded text classification and decryption.",
+          "title": "Quantum Computing · Purdue",
+          "teaser": "Quantum machine learning research at Purdue's Datamine Physics Cohort.",
+          "detail": "Purdue Datamine Physics Cohort · Quantum Computing Lab.",
           "bullets": [
-            "Developed PennyLane simulations to study noise in NISQ systems and improve the accuracy of ground-state energy estimates.",
-            "Applied zero-noise extrapolation with linear and quadratic regression to make simulations more reliable.",
-            "Built and trained hybrid PyTorch plus quantum models on 4M+ cipher samples for classification and decoding tasks."
+            "Quantum simulation in Python and PennyLane; zero-noise extrapolation to mitigate NISQ noise and improve accuracy.",
+            "Hybrid quantum-classical machine learning for cipher classification and decryption (PyTorch + PennyLane).",
+            "Trained on 4M+ substitution and transposition cipher samples with embedding layers and entangled quantum circuits."
           ],
           "tags": ["PennyLane", "PyTorch", "Quantum ML", "Cryptography"],
           "accent": "#84e4a8",
@@ -147,15 +149,15 @@
         {
           "id": "skills",
           "label": "Skills",
-          "title": "Technical Stack",
-          "teaser": "Languages, frameworks, tooling, and research-ready engineering skills.",
-          "detail": "Strong breadth across programming, full-stack development, mobile, cloud, analytics, and emerging quantum workflows.",
+          "title": "Languages & Tools",
+          "teaser": "Java, Python, Dart, TypeScript, R, C, MATLAB, and more.",
+          "detail": "Java · Python · Dart · TypeScript · R · C · MATLAB",
           "bullets": [
-            "Languages: Java, Python, Dart, TypeScript, R, C, and MATLAB.",
-            "Tools and frameworks: React, Vite, Flutter, FastAPI, GitHub, AWS, MySQL, and Android Studio.",
-            "Domains: AI, data analysis, web design, mobile development, programming fundamentals, and quantum computing."
+            "Languages: Java, Python, Dart, TypeScript, R, C, MATLAB.",
+            "Tools: GitHub, AWS, React, Vite, Flutter, FastAPI, Android Studio.",
+            "Domains: AI, Data Analytics, Quantum Computing, Machine Learning, Web Design."
           ],
-          "tags": ["Java", "Python", "React", "Flutter"],
+          "tags": ["Java", "Python", "AI", "Quantum"],
           "accent": "#86b7ff",
           "suit": "spades",
           "rank": "10"
@@ -168,15 +170,14 @@
         {
           "id": "certifications",
           "label": "Certifications",
-          "title": "Credentials",
-          "teaser": "Cloud and analytics certifications that reinforce technical practice.",
-          "detail": "Formal certifications support the hands-on work, especially in cloud foundations and data-driven thinking.",
+          "title": "Google · AWS",
+          "teaser": "AWS Cloud Practitioner and Google Data Analytics.",
+          "detail": "AWS and Google professional certifications.",
           "bullets": [
-            "AWS Certified Cloud Practitioner, issued May 2025 and valid through May 2028.",
-            "Google Data Analytics Professional Certificate, issued November 2023.",
-            "Strong alignment between certification topics and practical work in cloud-backed software systems."
+            "AWS Certified Cloud Practitioner — Amazon Web Services (issued May 2025, expires May 2028).",
+            "Google Data Analytics Professional Certificate — Google (issued Nov 2023)."
           ],
-          "tags": ["AWS", "Google Data Analytics", "Cloud"],
+          "tags": ["AWS", "Google", "Cloud", "Data Analytics"],
           "accent": "#ff97af",
           "suit": "hearts",
           "rank": "9"
@@ -184,15 +185,16 @@
         {
           "id": "awards",
           "label": "Awards",
-          "title": "Recognition",
-          "teaser": "Academic, athletic, and service-driven honors across multiple paths.",
-          "detail": "The award record reflects leadership, endurance, academic strength, and long-term commitment outside the classroom too.",
+          "title": "Honors & Awards",
+          "teaser": "Eagle Scout, National Merit, Triple Crown, Academic All-State.",
+          "detail": "Academics, athletics, and scouting.",
           "bullets": [
-            "Team Tennis Academic All-State First Team and National Merit Scholarship Commendation.",
-            "Eagle Scout with 42 merit badges, extensive service hours, and leadership roles in scouting.",
-            "Triple Crown High Adventure Award with major expeditions across Canada, New Mexico, and the Bahamas."
+            "Eagle Scout — Order of the Arrow, 42 merit badges, 195 service hours, White House commended.",
+            "Triple Crown High Adventure — Northern Tier (Canada), Philmont (New Mexico), Sea Base (Bahamas).",
+            "National Merit Scholarship Commendation — top 2.27% nationally on the PSAT/NMSQT.",
+            "Team Tennis Academic All-State First Team (Texas, 2024)."
           ],
-          "tags": ["Eagle Scout", "National Merit", "Academic All-State"],
+          "tags": ["Eagle Scout", "National Merit", "Triple Crown"],
           "accent": "#ffcb78",
           "suit": "diamonds",
           "rank": "7"

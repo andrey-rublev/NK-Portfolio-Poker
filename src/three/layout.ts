@@ -66,18 +66,26 @@ export interface CardSlot {
  */
 export const seatCards: CardSlot[] = (() => {
   const slots: CardSlot[] = []
-  const spread = CARD.w * 1.18
+  const half = (CARD.w * 1.18) / 2
 
   seatSections.forEach((section, i) => {
     const seatId = SEAT_ORDER[i] ?? `seat-${i}`
-    const [cx, cz] = polar(SEAT_ANGLES[seatId] ?? 90, SEAT_RADIUS_FACTOR)
+    const angle = SEAT_ANGLES[seatId] ?? 90
+    const [cx, cz] = polar(angle, SEAT_RADIUS_FACTOR)
+    const a = (angle * Math.PI) / 180
+    // Spin the hand so each card's long axis points outward toward the player
+    // (short edge faces them, not the dealer), and spread the pair along the
+    // tangent so the two cards sit side by side from that player's viewpoint.
+    const yaw = Math.atan2(-Math.cos(a), Math.sin(a))
+    const tx = -Math.sin(a)
+    const tz = -Math.cos(a)
     slots.push({
       id: `${seatId}-label`,
       section,
       role: 'label',
       handId: seatId,
-      position: [cx - spread / 2, CARD.restY, cz],
-      yaw: 0.04,
+      position: [cx - tx * half, CARD.restY, cz - tz * half],
+      yaw,
       dealIndex: i, // first round: one labeled card per seat
     })
     slots.push({
@@ -85,8 +93,8 @@ export const seatCards: CardSlot[] = (() => {
       section,
       role: 'info',
       handId: seatId,
-      position: [cx + spread / 2, CARD.restY, cz],
-      yaw: -0.04,
+      position: [cx + tx * half, CARD.restY, cz + tz * half],
+      yaw,
       dealIndex: seatSections.length + i, // second round
     })
   })
@@ -135,10 +143,15 @@ export interface SeatAnchor {
   z: number
 }
 
-/** Nameplate anchor in front of each player (the section is that seat's "name"). */
+/**
+ * Nameplate anchor in front of each player (the section is that seat's "name").
+ * Pushed out past the cards (factor 1.0, vs the hand's 0.7) so the floating
+ * plate sits in front of the player rather than hovering over the near seats'
+ * (about / education) cards.
+ */
 export const seatAnchors: SeatAnchor[] = seatSections.map((section, i) => {
   const seatId = SEAT_ORDER[i] ?? `seat-${i}`
-  const [x, z] = polar(SEAT_ANGLES[seatId] ?? 90, 0.86)
+  const [x, z] = polar(SEAT_ANGLES[seatId] ?? 90, 1.0)
   return { seatId, section, x, z }
 })
 

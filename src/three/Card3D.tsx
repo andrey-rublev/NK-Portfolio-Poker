@@ -95,7 +95,9 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
       (Math.PI / 2)
     const flipArc = Math.sin(clamp01(edgeOn) * (Math.PI / 2)) ** 2
     _basePos.set(b.pos[0], b.pos[1] + flipArc * 1.25, b.pos[2])
-    _qBase.setFromEuler(_euler.set(b.rot[0], b.rot[1], 0))
+    // YXZ so yaw spins the flat card about the vertical axis (point it at the
+    // player) before it is laid flat by the X rotation.
+    _qBase.setFromEuler(_euler.set(b.rot[0], b.rot[1], 0, 'YXZ'))
 
     // Lower factor = slower pick-up (focus in) and put-down (focus out).
     prog.current = lerp(prog.current, focused ? 1 : 0, 0.06)

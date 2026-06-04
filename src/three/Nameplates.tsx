@@ -74,7 +74,7 @@ function plateTexture(name: string, accent: string): THREE.Texture {
 function Plate({ name, accent, x, z }: { name: string; accent: string; x: number; z: number }) {
   const tex = useMemo(() => plateTexture(name, accent), [name, accent])
   return (
-    <sprite position={[x, 0.82, z]} scale={[1.62, 0.51, 1]}>
+    <sprite position={[x, 0.66, z]} scale={[1.62, 0.51, 1]}>
       <spriteMaterial map={tex} transparent depthWrite={false} />
     </sprite>
   )

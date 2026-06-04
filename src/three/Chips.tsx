@@ -3,7 +3,10 @@ import * as THREE from 'three'
 import { CARD, chipSpots } from './layout'
 import { getChipTextures } from './chipTexture'
 
-const CHIP_COLORS = ['#c0282a', '#1f5fa8', '#d8a32b', '#e9ecf0', '#1f8a5b', '#2a2d33']
+const RED = '#c0282a'
+const BLUE = '#1f5fa8'
+const GOLD = '#d8a32b'
+const GREEN = '#1f8a5b'
 const CHIP_R = 0.2
 const CHIP_H = 0.045
 
@@ -37,64 +40,70 @@ function ChipStack({
   )
 }
 
-function blindTopTexture(text: string, color: string): THREE.Texture {
-  const S = 128
+/** A tall red stack with a shorter blue stack beside it, in front of each seat. */
+function SeatChips({ x, z, idx }: { x: number; z: number; idx: number }) {
+  // Tangential offset (perpendicular to the radial) keeps both stacks at the
+  // same radius — side by side along the rail, neither sliding onto the cards.
+  const len = Math.hypot(x, z) || 1
+  const px = -z / len
+  const pz = x / len
+  const off = CHIP_R * 1.05
+  const redPos: [number, number, number] = [x - px * off, 0, z - pz * off]
+  const bluePos: [number, number, number] = [x + px * off, 0, z + pz * off]
+  return (
+    <>
+      <ChipStack position={redPos} count={8 + (idx % 3)} color={RED} />
+      <ChipStack position={bluePos} count={3 + (idx % 2)} color={BLUE} />
+    </>
+  )
+}
+
+/** Top face of the dealer button: cream disc, navy rings, bold "D". */
+function dealerTopTexture(): THREE.Texture {
+  const S = 256
   const c = document.createElement('canvas')
   c.width = c.height = S
   const ctx = c.getContext('2d')!
-  ctx.fillStyle = color
+  const cx = S / 2
+  ctx.fillStyle = '#f1ece0'
   ctx.beginPath()
-  ctx.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2)
+  ctx.arc(cx, cx, S / 2 - 2, 0, Math.PI * 2)
   ctx.fill()
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)'
-  ctx.lineWidth = 8
+  ctx.strokeStyle = '#1f3a6b'
+  ctx.lineWidth = 11
   ctx.beginPath()
-  ctx.arc(S / 2, S / 2, S / 2 - 12, 0, Math.PI * 2)
+  ctx.arc(cx, cx, S / 2 - 16, 0, Math.PI * 2)
   ctx.stroke()
-  ctx.fillStyle = '#fff'
-  ctx.font = '800 56px "Mulish", system-ui, sans-serif'
+  ctx.lineWidth = 5
+  ctx.beginPath()
+  ctx.arc(cx, cx, S / 2 - 34, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.fillStyle = '#1f3a6b'
+  ctx.font = '900 150px "Mulish", system-ui, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(text, S / 2, S / 2 + 2)
+  ctx.fillText('D', cx, cx + 8)
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.needsUpdate = true
   return tex
 }
 
-function BlindChip({
-  position,
-  text,
-  color,
-}: {
-  position: [number, number, number]
-  text: string
-  color: string
-}) {
-  const top = useMemo(() => blindTopTexture(text, color), [text, color])
+/** The single dealer button, tilted to face the dealer (front of the table). */
+function DealerButton({ position }: { position: [number, number, number] }) {
+  const top = useMemo(() => dealerTopTexture(), [])
   return (
-    <mesh position={position} castShadow receiveShadow>
-      <cylinderGeometry args={[CHIP_R * 1.05, CHIP_R * 1.05, CHIP_H * 1.4, 36]} />
-      <meshStandardMaterial attach="material-0" color={color} roughness={0.45} />
-      <meshStandardMaterial attach="material-1" map={top} roughness={0.4} />
-      <meshStandardMaterial attach="material-2" color={color} roughness={0.45} />
+    <mesh position={position} rotation-x={0.34} castShadow receiveShadow>
+      <cylinderGeometry args={[0.24, 0.24, CHIP_H * 1.3, 40]} />
+      <meshStandardMaterial attach="material-0" color="#e7e1d2" roughness={0.5} />
+      <meshStandardMaterial attach="material-1" map={top} roughness={0.45} />
+      <meshStandardMaterial attach="material-2" color="#e7e1d2" roughness={0.5} />
     </mesh>
   )
 }
 
-/** Chip stacks beside each player, a pot toward the dealer, and the blinds. */
+/** Chip stacks beside each player, the pot toward the dealer, and the button. */
 export function Chips() {
-  const seatStacks = useMemo(
-    () =>
-      chipSpots.map((spot, si) => ({
-        key: spot.seatId,
-        position: [spot.x, 0, spot.z] as [number, number, number],
-        count: 5 + ((si * 3) % 6),
-        color: CHIP_COLORS[si % CHIP_COLORS.length],
-      })),
-    [],
-  )
-
   // Pot sits between the betting line and the dealer (toward the camera).
   const pot = useMemo(() => {
     const spots: [number, number][] = [
@@ -103,25 +112,24 @@ export function Chips() {
       [-0.32, 0.9],
       [0.04, 1.16],
     ]
+    const cols = [RED, GOLD, GREEN, BLUE]
     return spots.map(([x, z], i) => ({
       key: `pot-${i}`,
       position: [x, 0, z] as [number, number, number],
       count: 2 + (i % 3),
-      color: CHIP_COLORS[(i * 2) % CHIP_COLORS.length],
+      color: cols[i % cols.length],
     }))
   }, [])
 
   return (
     <>
-      {seatStacks.map((s) => (
-        <ChipStack key={s.key} position={s.position} count={s.count} color={s.color} />
+      {chipSpots.map((spot, si) => (
+        <SeatChips key={spot.seatId} x={spot.x} z={spot.z} idx={si} />
       ))}
       {pot.map((s) => (
         <ChipStack key={s.key} position={s.position} count={s.count} color={s.color} />
       ))}
-      {/* Blinds on the betting line in front of the two near seats */}
-      <BlindChip position={[-1.55, CARD.restY + 0.03, 1.5]} text="SB" color="#1f5fa8" />
-      <BlindChip position={[1.55, CARD.restY + 0.03, 1.5]} text="BB" color="#c0282a" />
+      <DealerButton position={[1.55, CARD.restY + 0.09, 1.45]} />
     </>
   )
 }

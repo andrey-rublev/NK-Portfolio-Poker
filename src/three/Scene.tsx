@@ -1,10 +1,11 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PokerTable } from './PokerTable'
 import { Card3D } from './Card3D'
 import { Chips } from './Chips'
 import { Players } from './Player'
+import { CupHolders } from './CupHolders'
 import {
   seatCards,
   communityCards,
@@ -91,24 +92,80 @@ function Deck({ boardStage, onPress }: { boardStage: number; onPress: () => void
   )
 }
 
+const burnRestAngle = (i: number) => (i % 2 ? 1 : -1) * 0.18 + 0.25
+
+/**
+ * Burn cards stack face-down under the pot. Each time the dealer burns a card
+ * (boardStage increments) the newest card is tossed in from the deck with a
+ * little arc and spin before settling onto the pile.
+ */
 function BurnPile({ boardStage }: { boardStage: number }) {
   const back = useMemo(() => getSharedBack(), [])
-  // Face-down (back pattern up) under the pot.
+  const flyRef = useRef<THREE.Group>(null)
+  const prog = useRef(1)
+  const prev = useRef(boardStage)
+
+  useEffect(() => {
+    if (boardStage > prev.current) prog.current = 0 // start the toss-in
+    prev.current = boardStage
+  }, [boardStage])
+
+  // Deck position expressed relative to the burn-pile group origin.
+  const deckLocal = useMemo<[number, number, number]>(
+    () => [
+      DECK_POSITION[0] - BURN_POSITION[0],
+      DECK_POSITION[1] - BURN_POSITION[1] + 0.35,
+      DECK_POSITION[2] - BURN_POSITION[2],
+    ],
+    [],
+  )
+
+  const topIndex = boardStage - 1
+  const restY = topIndex >= 0 ? topIndex * CARD.thickness * 1.04 : 0
+  const restAngle = burnRestAngle(Math.max(0, topIndex))
+  const spinFrom = restAngle + (topIndex % 2 ? -1 : 1) * 1.0
+
+  useFrame((_, dt) => {
+    const g = flyRef.current
+    if (!g) return
+    if (prog.current < 1) prog.current = Math.min(1, prog.current + dt / 0.5)
+    const p = easeOutCubic(prog.current)
+    const arc = Math.sin(Math.min(1, prog.current) * Math.PI) * 0.7
+    g.position.set(
+      THREE.MathUtils.lerp(deckLocal[0], 0, p),
+      THREE.MathUtils.lerp(deckLocal[1], restY, p) + arc,
+      THREE.MathUtils.lerp(deckLocal[2], 0, p),
+    )
+    g.rotation.x = -Math.PI / 2
+    g.rotation.z = THREE.MathUtils.lerp(spinFrom, restAngle, p)
+  })
+
   return (
     <group position={BURN_POSITION}>
-      {Array.from({ length: boardStage }).map((_, i) => (
+      {/* Settled burn cards (every card except the one currently flying in) */}
+      {Array.from({ length: Math.max(0, boardStage - 1) }).map((_, i) => (
         <mesh
           key={i}
           geometry={getCardGeometry()}
           position-y={i * CARD.thickness * 1.04}
           rotation-x={-Math.PI / 2}
-          rotation-z={(i % 2 ? 1 : -1) * 0.18 + 0.25}
+          rotation-z={burnRestAngle(i)}
         >
           <meshStandardMaterial attach="material-0" map={back} roughness={0.6} />
           <meshStandardMaterial attach="material-1" map={back} roughness={0.6} />
           <meshStandardMaterial attach="material-2" color="#8c1a26" roughness={0.6} />
         </mesh>
       ))}
+      {/* The most-recently burned card, tossed in from the deck */}
+      {boardStage > 0 && (
+        <group ref={flyRef}>
+          <mesh geometry={getCardGeometry()}>
+            <meshStandardMaterial attach="material-0" map={back} roughness={0.6} />
+            <meshStandardMaterial attach="material-1" map={back} roughness={0.6} />
+            <meshStandardMaterial attach="material-2" color="#8c1a26" roughness={0.6} />
+          </mesh>
+        </group>
+      )}
     </group>
   )
 }
@@ -228,6 +285,7 @@ export function Scene({
 
       <Floor />
       <PokerTable />
+      <CupHolders />
       <Chips />
       <Players reducedMotion={reducedMotion} />
       <Nameplates />

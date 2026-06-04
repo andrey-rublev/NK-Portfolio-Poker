@@ -96,7 +96,8 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     _basePos.set(b.pos[0], b.pos[1] + flipArc * 1.25, b.pos[2])
     _qBase.setFromEuler(_euler.set(b.rot[0], b.rot[1], 0))
 
-    prog.current = lerp(prog.current, focused ? 1 : 0, 0.14)
+    // Lower factor = slower pick-up (focus in) and put-down (focus out).
+    prog.current = lerp(prog.current, focused ? 1 : 0, 0.06)
     const p = prog.current
 
     if (p < 0.001) {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Scene } from './three/Scene'
-import { CAMERA_HOME, type CardSlot } from './three/layout'
+import { CAMERA_HOME, focusActions, type CardSlot } from './three/layout'
 import { prefersReducedMotion } from './three/motion'
 import { owner } from './data/portfolio'
 import './ui.css'
@@ -71,6 +71,16 @@ function App() {
 
       <p className="scene-hint">{boardLabel}</p>
 
+      {focusedKey && focusActions[focusedKey] && (
+        <nav className="card-links">
+          {focusActions[focusedKey].map((a) => (
+            <a key={a.href} href={a.href} target="_blank" rel="noopener noreferrer">
+              {a.label}
+            </a>
+          ))}
+        </nav>
+      )}
+
       <button
         className="help-btn"
         type="button"
@@ -89,29 +99,22 @@ function App() {
             onClick={handleStart}
           />
           <div className="intro__panel">
-            <span className="intro__kicker">Welcome</span>
-            <h2 className="intro__title">It's your deal</h2>
+            <h2 className="intro__title">Welcome</h2>
             <p className="intro__sub">
               This portfolio is a poker table. Here's how to play your hand:
             </p>
             <ul className="intro__steps">
               <li>
                 <span style={{ color: '#1a2128' }}>♠</span>
-                <span>
-                  Click a player's <strong>hand</strong> to read that section.
-                </span>
+                <span>Click a player's hand to read that section.</span>
               </li>
               <li>
                 <span style={{ color: '#b3122a' }}>♥</span>
-                <span>
-                  Press the <strong>deck</strong> to deal the community cards.
-                </span>
+                <span>Press the deck to deal the community cards.</span>
               </li>
               <li>
                 <span style={{ color: '#2b7a4b' }}>♣</span>
-                <span>
-                  Click any card to bring it up — click it again or anywhere to put it back.
-                </span>
+                <span>Click any card to bring it up — click it again or anywhere to put it back.</span>
               </li>
             </ul>
             <button className="intro__btn" type="button" onClick={handleStart}>

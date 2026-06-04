@@ -25,6 +25,13 @@ const INTRO_SECONDS = 2.0
 const INTRO_START: [number, number, number] = [0, 17, 23]
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
+/** Direction and base distance of the design camera from the look-at point. */
+const HOME_VEC = new THREE.Vector3(CAMERA_HOME[0], CAMERA_HOME[1], CAMERA_HOME[2]).sub(LOOK_AT)
+const HOME_DIST = HOME_VEC.length()
+const HOME_UNIT = HOME_VEC.clone().normalize()
+/** Table half-width (incl. rail) to keep within the horizontal field of view. */
+const TABLE_HALF_W = 6.8
+
 function Floor() {
   const tex = useMemo(() => createFloorTexture(), [])
   return (
@@ -140,23 +147,28 @@ function DismissCatcher({ onDismiss }: { onDismiss: () => void }) {
 }
 
 function CameraController() {
-  const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
   const reducedMotion = useRef(prefersReducedMotion())
 
   useFrame((state) => {
+    const cam = state.camera as THREE.PerspectiveCamera
     const aspect = size.width / Math.max(1, size.height)
-    const extra = Math.max(0, 1.4 - aspect)
-    const homeY = CAMERA_HOME[1] + extra * 3.5
-    const homeZ = CAMERA_HOME[2] + extra * 10.5
+    const tanV = Math.tan((((cam.fov ?? 40) * Math.PI) / 180) / 2)
+    const tanH = tanV * aspect
+    // Pull back far enough that the table width fits horizontally — keeps the
+    // sides from being cut off on tall/narrow (mobile) viewports.
+    const dist = Math.max(HOME_DIST, TABLE_HALF_W / tanH)
+    const hx = LOOK_AT.x + HOME_UNIT.x * dist
+    const hy = LOOK_AT.y + HOME_UNIT.y * dist
+    const hz = LOOK_AT.z + HOME_UNIT.z * dist
     const t = state.clock.elapsedTime
     const e = reducedMotion.current ? 1 : easeOutCubic(Math.min(1, t / INTRO_SECONDS))
-    camera.position.set(
-      CAMERA_HOME[0],
-      THREE.MathUtils.lerp(INTRO_START[1], homeY, e),
-      THREE.MathUtils.lerp(INTRO_START[2], homeZ, e),
+    cam.position.set(
+      THREE.MathUtils.lerp(INTRO_START[0], hx, e),
+      THREE.MathUtils.lerp(INTRO_START[1], hy, e),
+      THREE.MathUtils.lerp(INTRO_START[2], hz, e),
     )
-    camera.lookAt(LOOK_AT)
+    cam.lookAt(LOOK_AT)
   })
   return null
 }

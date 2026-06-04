@@ -98,6 +98,38 @@
   background: rgba(10, 38, 27, 0.85);
 }
 
+/* Clickable links for the focused card (e.g. Devpost, LinkedIn). */
+.card-links {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(56px, 9vw, 80px);
+  transform: translateX(-50%);
+  z-index: 18;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(92vw, 560px);
+}
+
+.card-links a {
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  background: #16202a;
+  color: #fff6e2;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(255, 244, 222, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.card-links a:hover {
+  transform: translateY(-2px);
+  background: #24323f;
+}
+
 /* ---------- Intro / how-to-play overlay ---------- */
 .intro {
   position: fixed;
@@ -140,9 +172,9 @@
 }
 
 .intro__title {
-  margin: 0.25rem 0 0;
+  margin: 0 0 0.1rem;
   font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(2rem, 5vw, 2.7rem);
+  font-size: clamp(2.7rem, 8vw, 4rem);
   font-weight: 700;
   line-height: 1;
   color: #16202a;

@@ -164,18 +164,6 @@ function drawHeader(ctx: Ctx, label: string, accent: string): number {
   return y + 24
 }
 
-function drawActions(ctx: Ctx, actions: { label: string }[], startY: number, accent: string): void {
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'top'
-  ctx.font = '700 23px "Mulish", system-ui, sans-serif'
-  ctx.fillStyle = accent
-  let y = startY
-  for (const a of actions) {
-    if (y > H - 46) break
-    ctx.fillText(`→ ${a.label}`, PAD, y)
-    y += 32
-  }
-}
 
 function paper(ctx: CanvasRenderingContext2D, accent: string) {
   // The card's rounded geometry clips the silhouette, so the fill is a full
@@ -215,7 +203,7 @@ function buildHandSpread(s: PortfolioCardData): Spread {
   const yLeft = drawHeader(left.ctx, s.label, s.accent)
   const yRight = 52
   const leftCap = H - 46 - yLeft
-  const rightCap = H - 46 - yRight - (s.actions?.length ? 44 : 0)
+  const rightCap = H - 46 - yRight
 
   let bestK = -1
   let bestScore = Infinity
@@ -246,8 +234,7 @@ function buildHandSpread(s: PortfolioCardData): Spread {
   }
 
   drawItems(left.ctx, items, 0, bestK, yLeft, s.accent)
-  const yEnd = drawItems(right.ctx, items, bestK, items.length, yRight, s.accent)
-  if (s.actions?.length) drawActions(right.ctx, s.actions, yEnd + 8, s.accent)
+  drawItems(right.ctx, items, bestK, items.length, yRight, s.accent)
   return { left: left.c, right: right.c }
 }
 
@@ -284,14 +271,15 @@ function drawCommunityCover(s: PortfolioCardData): HTMLCanvasElement {
   ctx.textBaseline = 'middle'
 
   const tokens = labelTokens(s.label)
-  const maxW = W - 64
-  let size = 140
+  const maxW = W - 32
+  ctx.letterSpacing = '-1px'
+  let size = 156
   let lines: string[] = []
-  for (; size >= 54; size -= 4) {
+  for (; size >= 52; size -= 3) {
     ctx.font = `900 ${size}px "Mulish", system-ui, sans-serif`
     lines = wrapBig(ctx, tokens, maxW)
     const widest = Math.max(...lines.map((l) => ctx.measureText(l).width))
-    if (widest <= maxW && lines.length * size * 1.02 <= H - 150) break
+    if (widest <= maxW && lines.length * size * 1.02 <= H - 110) break
   }
 
   const lh = size * 1.02
@@ -316,8 +304,7 @@ function drawCommunityContent(s: PortfolioCardData): HTMLCanvasElement {
   paper(ctx, s.accent)
   const items = buildItems(ctx, s.groups)
   const y0 = drawHeader(ctx, s.label, s.accent)
-  const yEnd = drawItems(ctx, items, 0, items.length, y0, s.accent)
-  if (s.actions?.length) drawActions(ctx, s.actions, yEnd + 8, s.accent)
+  drawItems(ctx, items, 0, items.length, y0, s.accent)
   return c
 }
 

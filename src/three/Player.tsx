@@ -30,7 +30,7 @@ function PlayerFigure({
   })
 
   return (
-    <group position={[spot.x, 0, spot.z]} rotation-y={spot.faceYaw}>
+    <group position={[spot.x, -0.35, spot.z]} rotation-y={spot.faceYaw} scale={1.95}>
       <group ref={ref}>
         {/* Tapered torso (waist narrower than chest) */}
         <mesh position={[0, 0.82, 0]} rotation-x={0.14} castShadow receiveShadow>

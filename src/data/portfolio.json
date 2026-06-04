@@ -146,21 +146,18 @@
               ]
             },
             {
-              "heading": "Raize",
-              "bullets": ["Spacial Intelligence for Disaster Zones."]
-            },
-            {
-              "heading": "Vigil",
-              "bullets": ["Waze for emergencies — a live, AI-verified feed from people on the ground."]
+              "heading": "Hackathons",
+              "bullets": [
+                "Raize — Spacial Intelligence for Disaster Zones.",
+                "Vigil — Waze for emergencies; a live, AI-verified feed from people on the ground."
+              ]
             }
           ],
           "accent": "#f1c164",
           "suit": "diamonds",
           "rank": "J",
           "actions": [
-            { "label": "Raize", "href": "https://devpost.com/software/raize" },
-            { "label": "Vigil", "href": "https://devpost.com/software/vigil-gv3ixh" },
-            { "label": "All projects", "href": "https://devpost.com/nikhilkolli1" }
+            { "label": "View Devpost", "href": "https://devpost.com/nikhilkolli1" }
           ]
         }
       ]

@@ -3,7 +3,7 @@ import {
   seatSections,
   tableSeats,
 } from '../data/portfolio'
-import type { CardAction, PortfolioCardData } from '../data/portfolio'
+import type { PortfolioCardData } from '../data/portfolio'
 
 /** World units. The felt sits at y = 0; camera looks down from +Z/+Y. */
 export const TABLE = {
@@ -202,19 +202,3 @@ export const playerSpots: PlayerSpot[] = tableSeats.map((seat, i) => {
     variant: i / Math.max(1, tableSeats.length - 1),
   }
 })
-
-/**
- * Action links keyed by the value used for focus: a seat hand's `handId`, or a
- * community card's slot `id`. Used to show real clickable links (Devpost,
- * LinkedIn, …) while that card is focused.
- */
-export const focusActions: Record<string, CardAction[]> = (() => {
-  const map: Record<string, CardAction[]> = {}
-  for (const slot of seatCards) {
-    if (slot.section.actions?.length) map[slot.handId] = slot.section.actions
-  }
-  for (const slot of communityCards) {
-    if (slot.section.actions?.length) map[slot.id] = slot.section.actions
-  }
-  return map
-})()

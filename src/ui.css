@@ -98,34 +98,31 @@
   background: rgba(10, 38, 27, 0.85);
 }
 
-/* Clickable links for the focused card (e.g. Devpost, LinkedIn). */
-.card-links {
-  position: fixed;
-  left: 50%;
-  bottom: clamp(56px, 9vw, 80px);
-  transform: translateX(-50%);
-  z-index: 18;
+/* Clickable link(s) anchored to the bottom of a focused card (drei Html). */
+.card-link-row {
   display: flex;
   gap: 0.5rem;
-  flex-wrap: wrap;
   justify-content: center;
-  max-width: min(92vw, 560px);
+  white-space: nowrap;
 }
 
-.card-links a {
+.card-link-row a {
+  display: inline-block;
   padding: 0.5rem 0.95rem;
   border-radius: 999px;
   background: #16202a;
   color: #fff6e2;
+  font-family: 'Mulish', system-ui, sans-serif;
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  border: 1px solid rgba(255, 244, 222, 0.18);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 244, 222, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   transition: transform 0.16s ease, background 0.16s ease;
+  cursor: pointer;
 }
 
-.card-links a:hover {
+.card-link-row a:hover {
   transform: translateY(-2px);
   background: #24323f;
 }

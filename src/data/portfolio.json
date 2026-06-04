@@ -49,9 +49,7 @@
           "suit": "hearts",
           "rank": "5",
           "actions": [
-            { "label": "Email", "href": "mailto:nikhilkolli1@gmail.com" },
-            { "label": "LinkedIn", "href": "https://linkedin.com/in/nikhilxkolli" },
-            { "label": "Call", "href": "tel:+13464578061" }
+            { "label": "LinkedIn", "href": "https://linkedin.com/in/nikhilxkolli" }
           ]
         }
       ]

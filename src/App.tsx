@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Scene } from './three/Scene'
-import { CAMERA_HOME, focusActions, type CardSlot } from './three/layout'
+import { CAMERA_HOME, type CardSlot } from './three/layout'
 import { prefersReducedMotion } from './three/motion'
 import { owner } from './data/portfolio'
 import './ui.css'
@@ -70,16 +70,6 @@ function App() {
       </header>
 
       <p className="scene-hint">{boardLabel}</p>
-
-      {focusedKey && focusActions[focusedKey] && (
-        <nav className="card-links">
-          {focusActions[focusedKey].map((a) => (
-            <a key={a.href} href={a.href} target="_blank" rel="noopener noreferrer">
-              {a.label}
-            </a>
-          ))}
-        </nav>
-      )}
 
       <button
         className="help-btn"

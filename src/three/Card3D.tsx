@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { createCardFaces } from './cardTextures'
 import { getCardGeometry } from './cardGeometry'
@@ -136,6 +137,9 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
   })
 
   const frontMap = isCommunity && !focused ? faces.cover ?? faces.front : faces.front
+  // Links live on the right (info) card of a hand, or the single community card.
+  const actions = slot.section.actions
+  const showLinks = focused && slot.role !== 'label' && !!actions && actions.length > 0
 
   const onOver = (e: ThreeEvent<PointerEvent>) => {
     if (!interactive) return
@@ -174,6 +178,17 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
           <meshStandardMaterial attach="material-1" map={faces.back} roughness={0.85} metalness={0} />
           <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
         </mesh>
+        {showLinks && actions && (
+          <Html position={[0, -0.5, 0.06]} center>
+            <div className="card-link-row">
+              {actions.map((a) => (
+                <a key={a.href} href={a.href} target="_blank" rel="noopener noreferrer">
+                  {a.label}
+                </a>
+              ))}
+            </div>
+          </Html>
+        )}
       </group>
     </>
   )

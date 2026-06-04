@@ -167,7 +167,7 @@
       "cards": [
         {
           "id": "extracurriculars",
-          "label": "Extra-Curriculars",
+          "label": "Extras",
           "groups": [
             {
               "heading": "FRC 5427 Steel Talons",
@@ -216,7 +216,7 @@
       "cards": [
         {
           "id": "certifications",
-          "label": "Licenses & Certifications",
+          "label": "Licenses",
           "groups": [
             {
               "heading": "AWS Certified Cloud Practitioner",
@@ -233,7 +233,7 @@
         },
         {
           "id": "awards",
-          "label": "Honors & Awards",
+          "label": "Awards",
           "groups": [
             {
               "heading": "National Merit Scholarship",

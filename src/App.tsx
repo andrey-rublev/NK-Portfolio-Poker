@@ -18,11 +18,11 @@ function App() {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
   }, [reducedMotion])
 
-  useEffect(() => {
-    if (dealt) return
-    const id = window.setTimeout(() => setDealt(true), 400)
-    return () => window.clearTimeout(id)
-  }, [dealt])
+  // The deal begins only once the player closes the intro ("Deal me in").
+  const handleStart = () => {
+    setShowIntro(false)
+    setDealt(true)
+  }
 
   const handleToggle = (slot: CardSlot) => {
     const key = slot.role === 'community' ? slot.id : slot.handId
@@ -85,8 +85,8 @@ function App() {
           <button
             className="intro__scrim"
             type="button"
-            aria-label="Close"
-            onClick={() => setShowIntro(false)}
+            aria-label="Start"
+            onClick={handleStart}
           />
           <div className="intro__panel">
             <span className="intro__kicker">Welcome</span>
@@ -114,7 +114,7 @@ function App() {
                 </span>
               </li>
             </ul>
-            <button className="intro__btn" type="button" onClick={() => setShowIntro(false)}>
+            <button className="intro__btn" type="button" onClick={handleStart}>
               Deal me in
             </button>
           </div>

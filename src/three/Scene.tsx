@@ -15,6 +15,7 @@ import {
   type CardSlot,
 } from './layout'
 import { getSharedBack } from './cardTextures'
+import { getCardGeometry } from './cardGeometry'
 import { createFloorTexture } from './floorTexture'
 import { Nameplates } from './Nameplates'
 import { prefersReducedMotion } from './motion'
@@ -50,17 +51,14 @@ function Deck({ boardStage, onPress }: { boardStage: number; onPress: () => void
       {Array.from({ length: remaining }).map((_, i) => (
         <mesh
           key={i}
+          geometry={getCardGeometry()}
           position-y={i * CARD.thickness * 1.04}
           rotation-x={-Math.PI / 2}
           rotation-z={(i % 2 ? 1 : -1) * 0.012}
         >
-          <boxGeometry args={[CARD.w, CARD.h, CARD.thickness]} />
-          <meshStandardMaterial attach="material-0" color="#efe6d2" roughness={0.7} />
+          <meshStandardMaterial attach="material-0" map={back} roughness={0.6} />
           <meshStandardMaterial attach="material-1" color="#efe6d2" roughness={0.7} />
           <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
-          <meshStandardMaterial attach="material-3" color="#efe6d2" roughness={0.7} />
-          <meshStandardMaterial attach="material-4" map={back} roughness={0.6} alphaTest={0.5} />
-          <meshStandardMaterial attach="material-5" color="#efe6d2" roughness={0.7} />
         </mesh>
       ))}
       {/* Click target covering the deck */}
@@ -94,17 +92,14 @@ function BurnPile({ boardStage }: { boardStage: number }) {
       {Array.from({ length: boardStage }).map((_, i) => (
         <mesh
           key={i}
+          geometry={getCardGeometry()}
           position-y={i * CARD.thickness * 1.04}
           rotation-x={-Math.PI / 2}
           rotation-z={(i % 2 ? 1 : -1) * 0.18 + 0.25}
         >
-          <boxGeometry args={[CARD.w, CARD.h, CARD.thickness]} />
-          <meshStandardMaterial attach="material-0" color="#8c1a26" roughness={0.6} />
-          <meshStandardMaterial attach="material-1" color="#8c1a26" roughness={0.6} />
+          <meshStandardMaterial attach="material-0" map={back} roughness={0.6} />
+          <meshStandardMaterial attach="material-1" map={back} roughness={0.6} />
           <meshStandardMaterial attach="material-2" color="#8c1a26" roughness={0.6} />
-          <meshStandardMaterial attach="material-3" color="#8c1a26" roughness={0.6} />
-          <meshStandardMaterial attach="material-4" map={back} roughness={0.6} alphaTest={0.5} />
-          <meshStandardMaterial attach="material-5" map={back} roughness={0.6} alphaTest={0.5} />
         </mesh>
       ))}
     </group>

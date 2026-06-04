@@ -4,9 +4,6 @@ import type { CardRole } from './layout'
 
 const W = 512
 const H = 731
-/** Corner radius for the card face/back; corners outside it stay transparent
- * so an alphaTest material renders the card with rounded corners. */
-const CARD_RADIUS = 40
 
 function canvas2d() {
   const c = document.createElement('canvas')
@@ -181,13 +178,13 @@ function drawActions(ctx: Ctx, actions: { label: string }[], startY: number, acc
 }
 
 function paper(ctx: CanvasRenderingContext2D, accent: string) {
-  ctx.clearRect(0, 0, W, H)
+  // The card's rounded geometry clips the silhouette, so the fill is a full
+  // opaque rectangle; the accent keyline sits inside it.
   const grad = ctx.createLinearGradient(0, 0, 0, H)
   grad.addColorStop(0, '#fffdf7')
   grad.addColorStop(1, '#f1e7d4')
   ctx.fillStyle = grad
-  roundedRect(ctx, 0, 0, W, H, CARD_RADIUS)
-  ctx.fill()
+  ctx.fillRect(0, 0, W, H)
   ctx.strokeStyle = accent
   ctx.lineWidth = 12
   roundedRect(ctx, 22, 22, W - 44, H - 44, 28)
@@ -337,12 +334,9 @@ function drawBack(): HTMLCanvasElement {
   const RED_DK = '#7a0c1c'
   const CREAM = '#f6efdd'
 
-  // Cream card stock (rounded) — shows through as the white border; corners
-  // stay transparent so the alphaTest material renders rounded corners.
-  ctx.clearRect(0, 0, W, H)
+  // Cream card stock — shows through as the white border.
   ctx.fillStyle = CREAM
-  roundedRect(ctx, 0, 0, W, H, CARD_RADIUS)
-  ctx.fill()
+  ctx.fillRect(0, 0, W, H)
 
   // Red printed panel, inset from the edge, with a soft vignette.
   const M = 30
@@ -527,10 +521,15 @@ function loadAboutPhoto(canvas: HTMLCanvasElement, onReady: () => void): void {
     ctx.stroke()
     onReady()
   }
+  let triedJpg = false
   img.onerror = () => {
-    /* keep the placeholder if the photo is missing */
+    // Try .jpg if .jpeg is missing; otherwise keep the placeholder.
+    if (!triedJpg) {
+      triedJpg = true
+      img.src = `${import.meta.env.BASE_URL}about.jpg`
+    }
   }
-  img.src = `${import.meta.env.BASE_URL}about.jpg`
+  img.src = `${import.meta.env.BASE_URL}about.jpeg`
 }
 
 interface Faces {

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { createCardFaces } from './cardTextures'
-import { CARD, DECK_POSITION } from './layout'
+import { getCardGeometry } from './cardGeometry'
+import { DECK_POSITION } from './layout'
 import type { CardSlot } from './layout'
 
 const FACE_DOWN_X = Math.PI / 2
@@ -133,14 +134,17 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
 
   return (
     <group ref={group} renderOrder={focused ? 10 : 0}>
-      <mesh castShadow receiveShadow onPointerOver={onOver} onPointerOut={onOut} onClick={onClick}>
-        <boxGeometry args={[CARD.w, CARD.h, CARD.thickness]} />
-        <meshStandardMaterial attach="material-0" color="#efe6d2" roughness={0.7} />
-        <meshStandardMaterial attach="material-1" color="#efe6d2" roughness={0.7} />
+      <mesh
+        geometry={getCardGeometry()}
+        castShadow
+        receiveShadow
+        onPointerOver={onOver}
+        onPointerOut={onOut}
+        onClick={onClick}
+      >
+        <meshStandardMaterial attach="material-0" map={frontMap} roughness={0.92} metalness={0} />
+        <meshStandardMaterial attach="material-1" map={faces.back} roughness={0.85} metalness={0} />
         <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
-        <meshStandardMaterial attach="material-3" color="#efe6d2" roughness={0.7} />
-        <meshStandardMaterial attach="material-4" map={frontMap} roughness={0.92} metalness={0} alphaTest={0.5} />
-        <meshStandardMaterial attach="material-5" map={faces.back} roughness={0.85} metalness={0} alphaTest={0.5} />
       </mesh>
     </group>
   )

@@ -181,7 +181,7 @@ export function PokerTable() {
           read like the previous (round) rail, which the flat top darkened. */}
       <mesh geometry={railGeometry} castShadow receiveShadow>
         <meshStandardMaterial
-          color="#774f2c"
+          color="#9c7044"
           roughness={0.5}
           metalness={0.08}
           side={THREE.DoubleSide}

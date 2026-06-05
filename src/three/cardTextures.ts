@@ -208,13 +208,15 @@ function buildHandSpread(s: PortfolioCardData): Spread {
   let bestK = -1
   let bestScore = Infinity
   for (let k = 0; k <= items.length; k += 1) {
-    if (k > 0 && items[k - 1].kind === 'sub') continue // never orphan a heading
+    // Only ever split BETWEEN whole groups so a heading and its bullets always
+    // stay together on the same card.
+    const boundary =
+      k === 0 || k === items.length || items[k].kind === 'sub' || items[k].groupStart
+    if (!boundary) continue
     const lh = sum(0, k)
     const rh = sum(k, items.length)
     if (lh > leftCap || rh > rightCap) continue
-    const boundary =
-      k === 0 || k === items.length || items[k].kind === 'sub' || items[k].groupStart
-    const score = Math.abs(lh - rh) + (boundary ? 0 : 90)
+    const score = Math.abs(lh - rh)
     if (score < bestScore) {
       bestScore = score
       bestK = k
@@ -317,87 +319,130 @@ function drawBack(): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
   const cx = W / 2
   const cy = H / 2
-  const RED = '#b3122a'
-  const RED_DK = '#7a0c1c'
-  const CREAM = '#f6efdd'
+  const RED = '#c3122b'
+  const RED_DK = '#8a0c1d'
+  const CREAM = '#f4ecd6'
+  const LACE = 'rgba(244,236,214,0.22)'
 
-  // Cream card stock — shows through as the white border.
+  // Cream card stock — the classic wide white border.
   ctx.fillStyle = CREAM
   ctx.fillRect(0, 0, W, H)
 
-  // Red printed panel, inset from the edge, with a soft vignette.
-  const M = 30
-  const vg = ctx.createRadialGradient(cx, cy, 40, cx, cy, H * 0.6)
+  // Red printed panel with a soft vignette.
+  const M = 26
+  const vg = ctx.createRadialGradient(cx, cy, 50, cx, cy, H * 0.62)
   vg.addColorStop(0, RED)
   vg.addColorStop(1, RED_DK)
   ctx.fillStyle = vg
-  roundedRect(ctx, M, M, W - 2 * M, H - 2 * M, 26)
+  roundedRect(ctx, M, M, W - 2 * M, H - 2 * M, 24)
   ctx.fill()
 
   // Cream keylines framing the panel.
   ctx.strokeStyle = CREAM
   ctx.lineWidth = 6
-  roundedRect(ctx, M + 12, M + 12, W - 2 * (M + 12), H - 2 * (M + 12), 18)
+  roundedRect(ctx, M + 11, M + 11, W - 2 * (M + 11), H - 2 * (M + 11), 17)
   ctx.stroke()
   ctx.lineWidth = 2
-  roundedRect(ctx, M + 20, M + 20, W - 2 * (M + 20), H - 2 * (M + 20), 14)
+  roundedRect(ctx, M + 19, M + 19, W - 2 * (M + 19), H - 2 * (M + 19), 13)
   ctx.stroke()
 
-  // Fine all-over lattice of tiny cream diamonds, clipped to the panel.
+  // Intricate all-over lacework of overlapping arc "scales", clipped to panel.
   ctx.save()
-  roundedRect(ctx, M + 22, M + 22, W - 2 * (M + 22), H - 2 * (M + 22), 12)
+  roundedRect(ctx, M + 21, M + 21, W - 2 * (M + 21), H - 2 * (M + 21), 11)
   ctx.clip()
-  ctx.fillStyle = 'rgba(246,239,221,0.16)'
-  const g = 26
-  for (let yy = M; yy < H - M; yy += g) {
-    for (let xx = M; xx < W - M; xx += g) {
-      ctx.save()
-      ctx.translate(xx, yy)
-      ctx.rotate(Math.PI / 4)
-      ctx.fillRect(-3, -3, 6, 6)
-      ctx.restore()
+  ctx.strokeStyle = LACE
+  ctx.lineWidth = 1.5
+  const step = 30
+  for (let yy = M - step; yy < H; yy += step) {
+    for (let xx = M - step; xx < W; xx += step) {
+      for (let q = 0; q < 4; q += 1) {
+        const a = (q * Math.PI) / 2
+        ctx.beginPath()
+        ctx.arc(
+          xx + Math.cos(a) * step * 0.5,
+          yy + Math.sin(a) * step * 0.5,
+          step * 0.5,
+          a + Math.PI * 0.72,
+          a + Math.PI * 1.28,
+        )
+        ctx.stroke()
+      }
+      ctx.fillStyle = 'rgba(244,236,214,0.16)'
+      ctx.beginPath()
+      ctx.arc(xx, yy, 1.6, 0, Math.PI * 2)
+      ctx.fill()
     }
   }
   ctx.restore()
 
-  // Central ornate medallion.
+  // Top & bottom oval cartouches (the classic brand ovals).
+  const cartouche = (yy: number) => {
+    ctx.save()
+    ctx.translate(cx, yy)
+    ctx.fillStyle = RED_DK
+    ctx.beginPath()
+    ctx.ellipse(0, 0, 66, 30, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = CREAM
+    ctx.lineWidth = 3.5
+    ctx.beginPath()
+    ctx.ellipse(0, 0, 66, 30, 0, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.lineWidth = 1.4
+    ctx.beginPath()
+    ctx.ellipse(0, 0, 58, 24, 0, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.fillStyle = CREAM
+    ctx.beginPath()
+    ctx.moveTo(0, -9)
+    ctx.lineTo(9, 0)
+    ctx.lineTo(0, 9)
+    ctx.lineTo(-9, 0)
+    ctx.closePath()
+    ctx.fill()
+    ctx.restore()
+  }
+  cartouche(M + 64)
+  cartouche(H - M - 64)
+
+  // Central ornate medallion inside a tall oval cartouche.
   ctx.save()
   ctx.translate(cx, cy)
-
-  // Cream disc backdrop with a red core.
   ctx.fillStyle = CREAM
   ctx.beginPath()
-  ctx.arc(0, 0, 150, 0, Math.PI * 2)
+  ctx.ellipse(0, 0, 138, 196, 0, 0, Math.PI * 2)
   ctx.fill()
   ctx.fillStyle = RED
   ctx.beginPath()
-  ctx.arc(0, 0, 138, 0, Math.PI * 2)
+  ctx.ellipse(0, 0, 128, 186, 0, 0, Math.PI * 2)
   ctx.fill()
-
-  // Cream starburst petals around the rim.
-  ctx.fillStyle = CREAM
-  const petals = 24
-  for (let i = 0; i < petals; i += 1) {
-    ctx.rotate((Math.PI * 2) / petals)
-    ctx.beginPath()
-    ctx.ellipse(0, -126, 7, 20, 0, 0, Math.PI * 2)
-    ctx.fill()
-  }
-
-  // Two concentric rings.
   ctx.strokeStyle = CREAM
   ctx.lineWidth = 4
   ctx.beginPath()
-  ctx.arc(0, 0, 108, 0, Math.PI * 2)
+  ctx.ellipse(0, 0, 116, 172, 0, 0, Math.PI * 2)
   ctx.stroke()
-  ctx.lineWidth = 2
+  ctx.lineWidth = 1.6
   ctx.beginPath()
-  ctx.arc(0, 0, 100, 0, Math.PI * 2)
+  ctx.ellipse(0, 0, 108, 162, 0, 0, Math.PI * 2)
   ctx.stroke()
 
-  // Flower-of-life rosette: six circles around a centre.
-  ctx.lineWidth = 2.5
-  const rosR = 46
+  // Starburst petals around the inner rim.
+  ctx.fillStyle = CREAM
+  const petals = 28
+  for (let i = 0; i < petals; i += 1) {
+    const a = ((Math.PI * 2) / petals) * i
+    ctx.save()
+    ctx.rotate(a)
+    ctx.beginPath()
+    ctx.ellipse(0, -150, 5, 16, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+
+  // Flower-of-life rosette at the centre.
+  ctx.strokeStyle = CREAM
+  ctx.lineWidth = 2.4
+  const rosR = 44
   for (let i = 0; i < 6; i += 1) {
     const a = ((Math.PI * 2) / 6) * i
     ctx.beginPath()
@@ -407,38 +452,39 @@ function drawBack(): HTMLCanvasElement {
   ctx.beginPath()
   ctx.arc(0, 0, rosR, 0, Math.PI * 2)
   ctx.stroke()
-
-  // Centre hub.
   ctx.fillStyle = CREAM
   ctx.beginPath()
-  ctx.arc(0, 0, 14, 0, Math.PI * 2)
+  ctx.arc(0, 0, 13, 0, Math.PI * 2)
   ctx.fill()
   ctx.fillStyle = RED
   ctx.beginPath()
-  ctx.arc(0, 0, 7, 0, Math.PI * 2)
+  ctx.arc(0, 0, 6.5, 0, Math.PI * 2)
   ctx.fill()
-
   ctx.restore()
 
-  // Corner fans.
-  const fan = (x: number, y: number, rot: number) => {
+  // Ornate corner flourishes: nested fans plus a small scroll curl.
+  const corner = (x: number, y: number, rot: number) => {
     ctx.save()
     ctx.translate(x, y)
     ctx.rotate(rot)
-    ctx.strokeStyle = 'rgba(246,239,221,0.85)'
+    ctx.strokeStyle = 'rgba(244,236,214,0.9)'
     ctx.lineWidth = 3
     for (let i = 0; i < 4; i += 1) {
       ctx.beginPath()
-      ctx.arc(0, 0, 16 + i * 9, 0, Math.PI / 2)
+      ctx.arc(0, 0, 14 + i * 8, 0, Math.PI / 2)
       ctx.stroke()
     }
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(20, 20, 8, Math.PI, Math.PI * 2.4)
+    ctx.stroke()
     ctx.restore()
   }
-  const inset = 64
-  fan(inset, inset, 0)
-  fan(W - inset, inset, Math.PI / 2)
-  fan(W - inset, H - inset, Math.PI)
-  fan(inset, H - inset, -Math.PI / 2)
+  const inset = 60
+  corner(inset, inset, 0)
+  corner(W - inset, inset, Math.PI / 2)
+  corner(W - inset, H - inset, Math.PI)
+  corner(inset, H - inset, -Math.PI / 2)
 
   return c
 }

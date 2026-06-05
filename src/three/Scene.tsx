@@ -232,8 +232,12 @@ function CameraController() {
 interface SceneProps {
   dealt: boolean
   focusedKey: string | null
-  boardStage: number
-  reducedMotion: boolean
+  /** Players bet chips. */
+  betStage: number
+  /** Dealer burns a card. */
+  burnStage: number
+  /** Community card(s) revealed; also drives the deck size + hint. */
+  revealStage: number
   onToggle: (slot: CardSlot) => void
   onDeckPress: () => void
   onDismiss: () => void
@@ -242,8 +246,9 @@ interface SceneProps {
 export function Scene({
   dealt,
   focusedKey,
-  boardStage,
-  reducedMotion,
+  betStage,
+  burnStage,
+  revealStage,
   onToggle,
   onDeckPress,
   onDismiss,
@@ -284,11 +289,11 @@ export function Scene({
 
       <Floor />
       <PokerTable />
-      <Chips boardStage={boardStage} />
-      <Players reducedMotion={reducedMotion} />
+      <Chips boardStage={betStage} />
+      <Players />
       <Nameplates />
-      <Deck boardStage={boardStage} onPress={onDeckPress} />
-      <BurnPile boardStage={boardStage} />
+      <Deck boardStage={revealStage} onPress={onDeckPress} />
+      <BurnPile boardStage={burnStage} />
 
       {seatCards.map((slot) => (
         <Card3D
@@ -302,7 +307,7 @@ export function Scene({
       ))}
 
       {communityCards.map((slot) => {
-        const isDealt = communityDealt(slot, boardStage)
+        const isDealt = communityDealt(slot, revealStage)
         return (
           <Card3D
             key={slot.id}

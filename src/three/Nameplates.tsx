@@ -22,47 +22,70 @@ function roundedRect(
   ctx.closePath()
 }
 
+/** A small accent gem (diamond) used as an end-cap on the plaque. */
+function gem(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, accent: string) {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.fillStyle = accent
+  ctx.beginPath()
+  ctx.moveTo(0, -r)
+  ctx.lineTo(r * 0.72, 0)
+  ctx.lineTo(0, r)
+  ctx.lineTo(-r * 0.72, 0)
+  ctx.closePath()
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(255,248,225,0.85)'
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+  ctx.restore()
+}
+
+/** An engraved brass plaque, like a name plate set into the rail. */
 function plateTexture(name: string, accent: string): THREE.Texture {
   const c = document.createElement('canvas')
   c.width = W
   c.height = Ht
   const ctx = c.getContext('2d')!
-  const pad = 10
+  const pad = 9
   const h = Ht - pad * 2
+  const r = 18
 
-  // Brushed dark plate with a subtle vertical sheen
+  // Brass body with a vertical sheen.
   const grad = ctx.createLinearGradient(0, pad, 0, pad + h)
-  grad.addColorStop(0, '#22262b')
-  grad.addColorStop(0.5, '#15181c')
-  grad.addColorStop(1, '#0c0e11')
-  roundedRect(ctx, pad, pad, W - pad * 2, h, h / 2)
+  grad.addColorStop(0, '#eed496')
+  grad.addColorStop(0.42, '#c89a44')
+  grad.addColorStop(0.55, '#b98a3a')
+  grad.addColorStop(1, '#7a5b25')
+  roundedRect(ctx, pad, pad, W - pad * 2, h, r)
   ctx.fillStyle = grad
   ctx.fill()
-  // Accent ring + inner hairline
+
+  // Dark outer edge + bright inner bevel for a raised metal look.
   ctx.lineWidth = 4
-  ctx.strokeStyle = accent
+  ctx.strokeStyle = 'rgba(54,38,12,0.85)'
   ctx.stroke()
-  ctx.lineWidth = 1.5
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)'
-  roundedRect(ctx, pad + 6, pad + 6, W - pad * 2 - 12, h - 12, (h - 12) / 2)
+  roundedRect(ctx, pad + 7, pad + 7, W - pad * 2 - 14, h - 14, r - 6)
+  ctx.lineWidth = 2
+  ctx.strokeStyle = 'rgba(255,247,214,0.55)'
   ctx.stroke()
 
-  // Accent dot on the left, like a dealer plaque
-  ctx.fillStyle = accent
-  ctx.beginPath()
-  ctx.arc(pad + 34, Ht / 2, 9, 0, Math.PI * 2)
-  ctx.fill()
+  // Accent gems at each end.
+  gem(ctx, pad + 30, Ht / 2, 12, accent)
+  gem(ctx, W - pad - 30, Ht / 2, 12, accent)
 
+  // Engraved label: a light lower copy + a dark top copy = incised look.
   const label = name.toUpperCase()
-  let size = 50
+  let size = 52
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   do {
     ctx.font = `800 ${size}px "Mulish", system-ui, sans-serif`
     size -= 2
-  } while (ctx.measureText(label).width > W - 110 && size > 18)
-  ctx.fillStyle = '#fff4e0'
-  ctx.fillText(label, W / 2 + 14, Ht / 2 + 2)
+  } while (ctx.measureText(label).width > W - 130 && size > 18)
+  ctx.fillStyle = 'rgba(255,248,222,0.5)'
+  ctx.fillText(label, W / 2 + 1.5, Ht / 2 + 3.5)
+  ctx.fillStyle = '#3a2b10'
+  ctx.fillText(label, W / 2, Ht / 2 + 1)
 
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace

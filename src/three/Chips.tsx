@@ -13,6 +13,12 @@ const lerp = THREE.MathUtils.lerp
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 
+/** Stable pseudo-random angle so each chip in a stack sits at its own rotation. */
+function randRot(n: number): number {
+  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453
+  return (s - Math.floor(s)) * Math.PI * 2
+}
+
 /** The pot sits just right of centre; the burn pile is to its left. */
 const POT_CENTER: [number, number] = [0.72, 0.92]
 
@@ -24,10 +30,12 @@ function ChipStack({
   position,
   count,
   color,
+  seed = 0,
 }: {
   position: [number, number, number]
   count: number
   color: string
+  seed?: number
 }) {
   const { face, edge } = useMemo(() => getChipTextures(color), [color])
   return (
@@ -36,7 +44,7 @@ function ChipStack({
         <mesh
           key={i}
           position-y={CARD.restY + CHIP_H / 2 + i * CHIP_H}
-          rotation-y={i * 0.4}
+          rotation-y={randRot(seed + i)}
           castShadow
           receiveShadow
         >
@@ -62,8 +70,8 @@ function SeatChips({ x, z, idx }: { x: number; z: number; idx: number }) {
   const bluePos: [number, number, number] = [x + px * off, 0, z + pz * off]
   return (
     <>
-      <ChipStack position={redPos} count={RED_COUNTS[idx % RED_COUNTS.length]} color={RED} />
-      <ChipStack position={bluePos} count={BLUE_COUNTS[idx % BLUE_COUNTS.length]} color={BLUE} />
+      <ChipStack position={redPos} count={RED_COUNTS[idx % RED_COUNTS.length]} color={RED} seed={idx * 13} />
+      <ChipStack position={bluePos} count={BLUE_COUNTS[idx % BLUE_COUNTS.length]} color={BLUE} seed={idx * 13 + 101} />
     </>
   )
 }
@@ -99,24 +107,16 @@ function dealerTopTexture(): THREE.Texture {
   return tex
 }
 
-/**
- * The single dealer button. The outer group tilts it up to face the dealer
- * (front of the table); the inner group spins the cap so the "D" reads upright
- * from the dealer's seat.
- */
+/** The single dealer button, lying flat on the felt with the "D" reading upright. */
 function DealerButton({ position }: { position: [number, number, number] }) {
   const top = useMemo(() => dealerTopTexture(), [])
   return (
-    <group position={position} rotation-x={0.34}>
-      <group rotation-y={Math.PI / 2}>
-        <mesh castShadow receiveShadow>
-          <cylinderGeometry args={[0.24, 0.24, CHIP_H * 1.3, 40]} />
-          <meshStandardMaterial attach="material-0" color="#e7e1d2" roughness={0.5} />
-          <meshStandardMaterial attach="material-1" map={top} roughness={0.45} />
-          <meshStandardMaterial attach="material-2" color="#e7e1d2" roughness={0.5} />
-        </mesh>
-      </group>
-    </group>
+    <mesh position={position} rotation-y={Math.PI / 2} castShadow receiveShadow>
+      <cylinderGeometry args={[0.24, 0.24, CHIP_H * 1.3, 40]} />
+      <meshStandardMaterial attach="material-0" color="#e7e1d2" roughness={0.5} />
+      <meshStandardMaterial attach="material-1" map={top} roughness={0.45} />
+      <meshStandardMaterial attach="material-2" color="#e7e1d2" roughness={0.5} />
+    </mesh>
   )
 }
 
@@ -129,9 +129,9 @@ interface Bet {
 }
 
 /**
- * On each street (flop/turn/river) every player picks a chip off their stack and
- * tosses it into the pot. The newest street's chips arc in; earlier ones rest in
- * the pot, so the pot grows as the hand plays out.
+ * On each street (flop/turn/river) every player picks one chip off their stack
+ * and tosses it into the pot — the SAME contribution each, landing as its own
+ * separate stack ringed around the pot, so the pot grows in equal columns.
  */
 function PotThrows({ boardStage }: { boardStage: number }) {
   const prog = useRef(1)
@@ -145,13 +145,15 @@ function PotThrows({ boardStage }: { boardStage: number }) {
 
   const bets = useMemo<Bet[]>(() => {
     const list: Bet[] = []
+    const n = chipSpots.length
     for (let street = 1; street <= 3; street += 1) {
       chipSpots.forEach((spot, seat) => {
         const topY = CARD.restY + RED_COUNTS[seat % RED_COUNTS.length] * CHIP_H + 0.02
-        // Landing column ringed around the pot, growing one chip per street.
-        const a = (seat / chipSpots.length) * Math.PI * 2 + Math.PI / 2
-        const lx = POT_CENTER[0] + Math.cos(a) * 0.3
-        const lz = POT_CENTER[1] + Math.sin(a) * 0.3
+        // One separate landing column per seat, ringed around the pot so the
+        // stacks stay clear of one another (radius > a chip diameter apart).
+        const a = (seat / n) * Math.PI * 2 + Math.PI / 2
+        const lx = POT_CENTER[0] + Math.cos(a) * 0.5
+        const lz = POT_CENTER[1] + Math.sin(a) * 0.5
         list.push({
           street,
           seat,
@@ -165,20 +167,20 @@ function PotThrows({ boardStage }: { boardStage: number }) {
   }, [])
 
   useFrame((_, dt) => {
-    if (prog.current < 1) prog.current = Math.min(1, prog.current + dt / 0.85)
+    if (prog.current < 1) prog.current = Math.min(1, prog.current + dt / 0.8)
     bets.forEach((bet, i) => {
       const g = refs.current[i]
       if (!g || bet.street !== boardStage) return
-      const stagger = bet.seat * 0.06
-      const p = easeOut(clamp01((prog.current - stagger) / 0.7))
-      const arc = Math.sin(clamp01((prog.current - stagger) / 0.7) * Math.PI) * 0.95
+      const stagger = bet.seat * 0.05
+      const t = clamp01((prog.current - stagger) / 0.7)
+      const p = easeOut(t)
+      const arc = Math.sin(t * Math.PI) * 0.95
       g.position.set(
         lerp(bet.from[0], bet.land[0], p),
         lerp(bet.from[1], bet.land[1], p) + arc,
         lerp(bet.from[2], bet.land[2], p),
       )
-      g.rotation.x = p * Math.PI * 2 // tumble, ending flat
-      g.rotation.z = p * Math.PI
+      g.rotation.x = t * Math.PI * 2 // tumble, ending flat
     })
   })
 
@@ -196,7 +198,7 @@ function PotThrows({ boardStage }: { boardStage: number }) {
             }}
             position={flying ? bet.from : bet.land}
           >
-            <mesh castShadow receiveShadow rotation-y={i * 0.5}>
+            <mesh castShadow receiveShadow rotation-y={randRot(bet.seat * 31 + bet.street)}>
               <cylinderGeometry args={[CHIP_R, CHIP_R, CHIP_H, 36]} />
               <meshStandardMaterial attach="material-0" map={edge} roughness={0.5} metalness={0.05} />
               <meshStandardMaterial attach="material-1" map={face} roughness={0.42} metalness={0.05} />
@@ -209,33 +211,15 @@ function PotThrows({ boardStage }: { boardStage: number }) {
   )
 }
 
-/** Chip stacks beside each player, the (red/blue) pot, the button, and bets. */
+/** Chip stacks beside each player, the dealer button, and the betting pot. */
 export function Chips({ boardStage }: { boardStage: number }) {
-  // The ante pot already on the felt before betting (red & blue only).
-  const pot = useMemo(() => {
-    const spots: Array<[number, number, number, string]> = [
-      [0, 0, 3, RED],
-      [0.17, 0.1, 2, BLUE],
-      [-0.14, 0.12, 2, RED],
-    ]
-    return spots.map(([dx, dz, count, color], i) => ({
-      key: `pot-${i}`,
-      position: [POT_CENTER[0] + dx, 0, POT_CENTER[1] + dz] as [number, number, number],
-      count,
-      color,
-    }))
-  }, [])
-
   return (
     <>
       {chipSpots.map((spot, si) => (
         <SeatChips key={spot.seatId} x={spot.x} z={spot.z} idx={si} />
       ))}
-      {pot.map((s) => (
-        <ChipStack key={s.key} position={s.position} count={s.count} color={s.color} />
-      ))}
       <PotThrows boardStage={boardStage} />
-      <DealerButton position={[1.85, CARD.restY + 0.09, 1.5]} />
+      <DealerButton position={[1.85, CARD.restY + (CHIP_H * 1.3) / 2, 1.5]} />
     </>
   )
 }

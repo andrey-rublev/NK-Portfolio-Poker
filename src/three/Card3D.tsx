@@ -4,7 +4,7 @@ import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { createCardFaces } from './cardTextures'
 import { getCardGeometry } from './cardGeometry'
-import { CARD, DECK_POSITION } from './layout'
+import { CARD, DECK_TOP } from './layout'
 import type { CardSlot } from './layout'
 
 const FACE_DOWN_X = Math.PI / 2
@@ -42,7 +42,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
   const faces = useMemo(() => createCardFaces(slot.section, slot.role), [slot.section, slot.role])
 
   const base = useRef({
-    pos: [...DECK_POSITION] as [number, number, number],
+    pos: [...DECK_TOP] as [number, number, number],
     rot: [FACE_DOWN_X, 0, 0] as [number, number, number],
     scale: 1,
   })
@@ -68,7 +68,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     let tr: [number, number, number] = [FACE_DOWN_X, slot.yaw, 0]
     let ts = 1
     if (!outOfDeck) {
-      tp = DECK_POSITION
+      tp = DECK_TOP
       tr = [FACE_DOWN_X, 0, 0]
     } else if (isCommunity) {
       tr = [FACE_UP_X, 0, 0]

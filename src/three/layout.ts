@@ -77,8 +77,15 @@ export const seatCards: CardSlot[] = (() => {
     // (short edge faces them, not the dealer), and spread the pair along the
     // tangent so the two cards sit side by side from that player's viewpoint.
     const yaw = Math.atan2(-Math.cos(a), Math.sin(a))
-    const tx = -Math.sin(a)
-    const tz = -Math.cos(a)
+    let tx = -Math.sin(a)
+    let tz = -Math.cos(a)
+    // Keep the info card on the camera-right (+X) and the label on the left for
+    // every seat (matching the focus layout) so a hand's two cards never cross
+    // paths — and z-fight — on the way back down to the table.
+    if (tx < 0) {
+      tx = -tx
+      tz = -tz
+    }
     slots.push({
       id: `${seatId}-label`,
       section,
@@ -133,8 +140,15 @@ export const DECK_POSITION: [number, number, number] = [
   TABLE.rz * 0.66,
 ]
 
+/** Cards are dealt off the TOP of the deck (not the base — no "bottom dealing"). */
+export const DECK_TOP: [number, number, number] = [
+  DECK_POSITION[0],
+  CARD.restY + 0.34,
+  DECK_POSITION[2],
+]
+
 /** Burn cards stack face-down to the LEFT of the pot (which sits right of centre). */
-export const BURN_POSITION: [number, number, number] = [-0.95, CARD.restY, 0.92]
+export const BURN_POSITION: [number, number, number] = [-0.95, CARD.restY, 1.12]
 
 export interface SeatAnchor {
   seatId: string

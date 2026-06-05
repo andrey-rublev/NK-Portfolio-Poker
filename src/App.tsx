@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Scene } from './three/Scene'
 import { CAMERA_HOME, type CardSlot } from './three/layout'
@@ -11,7 +11,13 @@ function App() {
   const [dealt, setDealt] = useState(false)
   // The one hand/community card currently lifted to the camera (null = none).
   const [focusedKey, setFocusedKey] = useState<string | null>(null)
-  const [boardStage, setBoardStage] = useState(0)
+  // A street plays out in order: players bet (chips), then the dealer burns a
+  // card, then the community card is revealed. Each stage lags the press so the
+  // three animations run one after another rather than all at once.
+  const [betStage, setBetStage] = useState(0)
+  const [burnStage, setBurnStage] = useState(0)
+  const [revealStage, setRevealStage] = useState(0)
+  const dealing = useRef(false)
   const [showIntro, setShowIntro] = useState(true)
 
   useEffect(() => {
@@ -30,18 +36,28 @@ function App() {
   }
 
   const handleDeckPress = () => {
-    setBoardStage((stage) => Math.min(3, stage + 1))
+    if (dealing.current || revealStage >= 3) return
+    dealing.current = true
+    // 1) players push chips into the pot
+    setBetStage((s) => Math.min(3, s + 1))
+    // 2) the dealer burns a card once the chips have landed
+    window.setTimeout(() => setBurnStage((s) => Math.min(3, s + 1)), 950)
+    // 3) the community card is revealed once the burn has landed
+    window.setTimeout(() => setRevealStage((s) => Math.min(3, s + 1)), 1650)
+    window.setTimeout(() => {
+      dealing.current = false
+    }, 1750)
   }
 
   const handleDismiss = () => setFocusedKey(null)
 
   const boardLabel = focusedKey
     ? 'Click the card again to put it back'
-    : boardStage === 0
+    : revealStage === 0
       ? 'Click a hand to look · press the deck to deal the flop'
-      : boardStage === 1
+      : revealStage === 1
         ? 'Press the deck for the turn'
-        : boardStage === 2
+        : revealStage === 2
           ? 'Press the deck for the river'
           : 'Click any card to look'
 
@@ -56,8 +72,9 @@ function App() {
         <Scene
           dealt={dealt}
           focusedKey={focusedKey}
-          boardStage={boardStage}
-          reducedMotion={reducedMotion}
+          betStage={betStage}
+          burnStage={burnStage}
+          revealStage={revealStage}
           onToggle={handleToggle}
           onDeckPress={handleDeckPress}
           onDismiss={handleDismiss}

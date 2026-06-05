@@ -21,7 +21,7 @@ import { Nameplates } from './Nameplates'
 import { prefersReducedMotion } from './motion'
 
 const LOOK_AT = new THREE.Vector3(0, 0.1, -0.2)
-const INTRO_SECONDS = 2.0
+const INTRO_SECONDS = 1.5
 const INTRO_START: [number, number, number] = [0, 17, 23]
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
@@ -48,10 +48,11 @@ function communityDealt(slot: CardSlot, boardStage: number): boolean {
   return boardStage >= need
 }
 
-function Deck({ boardStage, onPress }: { boardStage: number; onPress: () => void }) {
+function Deck({ onPress }: { onPress: () => void }) {
   const back = useMemo(() => getSharedBack(), [])
-  const dealtCount = boardStage === 0 ? 0 : boardStage === 1 ? 4 : boardStage === 2 ? 6 : 8
-  const remaining = Math.max(4, 12 - dealtCount)
+  // Constant height so the deck's top stays at DECK_TOP — cards always deal off
+  // the top (no floating card, no dealing from the middle as the deck shrinks).
+  const remaining = 12
 
   return (
     <group position={DECK_POSITION}>
@@ -202,9 +203,10 @@ function DismissCatcher({ onDismiss }: { onDismiss: () => void }) {
   )
 }
 
-function CameraController() {
+function CameraController({ dealt }: { dealt: boolean }) {
   const size = useThree((s) => s.size)
   const reducedMotion = useRef(prefersReducedMotion())
+  const startT = useRef<number | null>(null)
 
   useFrame((state) => {
     const cam = state.camera as THREE.PerspectiveCamera
@@ -217,8 +219,15 @@ function CameraController() {
     const hx = LOOK_AT.x + HOME_UNIT.x * dist
     const hy = LOOK_AT.y + HOME_UNIT.y * dist
     const hz = LOOK_AT.z + HOME_UNIT.z * dist
-    const t = state.clock.elapsedTime
-    const e = reducedMotion.current ? 1 : easeOutCubic(Math.min(1, t / INTRO_SECONDS))
+    // The fly-in starts only once the deal begins (not on page load behind the
+    // intro), so the zoom accompanies the deal instead of preceding it.
+    let e = 0
+    if (reducedMotion.current) {
+      e = 1
+    } else if (dealt) {
+      if (startT.current === null) startT.current = state.clock.elapsedTime
+      e = easeOutCubic(Math.min(1, (state.clock.elapsedTime - startT.current) / INTRO_SECONDS))
+    }
     cam.position.set(
       THREE.MathUtils.lerp(INTRO_START[0], hx, e),
       THREE.MathUtils.lerp(INTRO_START[1], hy, e),
@@ -292,7 +301,7 @@ export function Scene({
       <Chips boardStage={betStage} />
       <Players />
       <Nameplates />
-      <Deck boardStage={revealStage} onPress={onDeckPress} />
+      <Deck onPress={onDeckPress} />
       <BurnPile boardStage={burnStage} />
 
       {seatCards.map((slot) => (
@@ -322,7 +331,7 @@ export function Scene({
 
       {focusedKey && <DismissCatcher onDismiss={onDismiss} />}
 
-      <CameraController />
+      <CameraController dealt={dealt} />
     </>
   )
 }

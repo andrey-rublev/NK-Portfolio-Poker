@@ -144,12 +144,16 @@
               ]
             },
             {
-              "heading": "Hackathons",
+              "heading": "Raize",
               "bullets": [
-                "Raize — navigable 3D before/after of conflict zones with satellite-backed damage overlays for reconstruction planning.",
-                "Built on UNOSAT data (6,611 buildings) with confidence-aware agentic AI sequencing.",
-                "Tools: Next.js, Three.js, TypeScript, Mapbox, Gemini, World Labs, GCP.",
-                "Vigil — \"Waze for emergencies\": crowdsourced, AI-verified incident Flares with live danger alerts to nearby users.",
+                "Navigable 3D before/after of conflict zones with damage overlays, on UNOSAT data (6,611 buildings) with agentic AI.",
+                "Tools: Next.js, Three.js, TypeScript, Mapbox, Gemini, World Labs, GCP."
+              ]
+            },
+            {
+              "heading": "Vigil",
+              "bullets": [
+                "\"Waze for emergencies\": crowdsourced, AI-verified incident Flares with live alerts to nearby users.",
                 "Tools: Next.js, TypeScript, Tailwind, Mapbox GL, Supabase, Anthropic Claude."
               ]
             }

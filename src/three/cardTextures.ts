@@ -346,145 +346,94 @@ function drawBack(): HTMLCanvasElement {
   roundedRect(ctx, M + 19, M + 19, W - 2 * (M + 19), H - 2 * (M + 19), 13)
   ctx.stroke()
 
-  // Intricate all-over lacework of overlapping arc "scales", clipped to panel.
+  // Fine, regular diamond lattice filling the panel (a clean all-over texture).
   ctx.save()
-  roundedRect(ctx, M + 21, M + 21, W - 2 * (M + 21), H - 2 * (M + 21), 11)
+  roundedRect(ctx, M + 19, M + 19, W - 2 * (M + 19), H - 2 * (M + 19), 11)
   ctx.clip()
   ctx.strokeStyle = LACE
-  ctx.lineWidth = 1.5
-  const step = 30
-  for (let yy = M - step; yy < H; yy += step) {
-    for (let xx = M - step; xx < W; xx += step) {
-      for (let q = 0; q < 4; q += 1) {
-        const a = (q * Math.PI) / 2
-        ctx.beginPath()
-        ctx.arc(
-          xx + Math.cos(a) * step * 0.5,
-          yy + Math.sin(a) * step * 0.5,
-          step * 0.5,
-          a + Math.PI * 0.72,
-          a + Math.PI * 1.28,
-        )
-        ctx.stroke()
-      }
-      ctx.fillStyle = 'rgba(244,236,214,0.16)'
+  ctx.lineWidth = 1.1
+  const gap = 26
+  for (let d = -H; d < W; d += gap) {
+    ctx.beginPath()
+    ctx.moveTo(d, 0)
+    ctx.lineTo(d + H, H)
+    ctx.stroke()
+  }
+  for (let d = 0; d < W + H; d += gap) {
+    ctx.beginPath()
+    ctx.moveTo(d, 0)
+    ctx.lineTo(d - H, H)
+    ctx.stroke()
+  }
+  ctx.fillStyle = 'rgba(244,236,214,0.2)'
+  for (let yy = M; yy < H - M; yy += gap) {
+    for (let xx = M; xx < W - M; xx += gap) {
       ctx.beginPath()
-      ctx.arc(xx, yy, 1.6, 0, Math.PI * 2)
+      ctx.arc(xx, yy, 1.5, 0, Math.PI * 2)
       ctx.fill()
     }
   }
   ctx.restore()
 
-  // Top & bottom oval cartouches (the classic brand ovals).
-  const cartouche = (yy: number) => {
-    ctx.save()
-    ctx.translate(cx, yy)
-    ctx.fillStyle = RED_DK
-    ctx.beginPath()
-    ctx.ellipse(0, 0, 66, 30, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.strokeStyle = CREAM
-    ctx.lineWidth = 3.5
-    ctx.beginPath()
-    ctx.ellipse(0, 0, 66, 30, 0, 0, Math.PI * 2)
-    ctx.stroke()
-    ctx.lineWidth = 1.4
-    ctx.beginPath()
-    ctx.ellipse(0, 0, 58, 24, 0, 0, Math.PI * 2)
-    ctx.stroke()
-    ctx.fillStyle = CREAM
-    ctx.beginPath()
-    ctx.moveTo(0, -9)
-    ctx.lineTo(9, 0)
-    ctx.lineTo(0, 9)
-    ctx.lineTo(-9, 0)
-    ctx.closePath()
-    ctx.fill()
-    ctx.restore()
-  }
-  cartouche(M + 64)
-  cartouche(H - M - 64)
-
-  // Central ornate medallion inside a tall oval cartouche.
+  // Central guilloché medallion: fine interlaced rings of circles on a disc.
   ctx.save()
   ctx.translate(cx, cy)
   ctx.fillStyle = CREAM
   ctx.beginPath()
-  ctx.ellipse(0, 0, 138, 196, 0, 0, Math.PI * 2)
+  ctx.arc(0, 0, 152, 0, Math.PI * 2)
   ctx.fill()
   ctx.fillStyle = RED
   ctx.beginPath()
-  ctx.ellipse(0, 0, 128, 186, 0, 0, Math.PI * 2)
+  ctx.arc(0, 0, 142, 0, Math.PI * 2)
   ctx.fill()
-  ctx.strokeStyle = CREAM
-  ctx.lineWidth = 4
-  ctx.beginPath()
-  ctx.ellipse(0, 0, 116, 172, 0, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.lineWidth = 1.6
-  ctx.beginPath()
-  ctx.ellipse(0, 0, 108, 162, 0, 0, Math.PI * 2)
-  ctx.stroke()
 
-  // Starburst petals around the inner rim.
+  // Starburst petals around the rim.
   ctx.fillStyle = CREAM
-  const petals = 28
+  const petals = 36
   for (let i = 0; i < petals; i += 1) {
     const a = ((Math.PI * 2) / petals) * i
     ctx.save()
     ctx.rotate(a)
     ctx.beginPath()
-    ctx.ellipse(0, -150, 5, 16, 0, 0, Math.PI * 2)
+    ctx.ellipse(0, -134, 4, 12, 0, 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
   }
 
-  // Flower-of-life rosette at the centre.
+  // Framing rings.
   ctx.strokeStyle = CREAM
-  ctx.lineWidth = 2.4
-  const rosR = 44
-  for (let i = 0; i < 6; i += 1) {
-    const a = ((Math.PI * 2) / 6) * i
-    ctx.beginPath()
-    ctx.arc(Math.cos(a) * rosR, Math.sin(a) * rosR, rosR, 0, Math.PI * 2)
-    ctx.stroke()
-  }
+  ctx.lineWidth = 3
   ctx.beginPath()
-  ctx.arc(0, 0, rosR, 0, Math.PI * 2)
+  ctx.arc(0, 0, 120, 0, Math.PI * 2)
   ctx.stroke()
+  ctx.lineWidth = 1.4
+  ctx.beginPath()
+  ctx.arc(0, 0, 112, 0, Math.PI * 2)
+  ctx.stroke()
+
+  // Two interlaced rings of overlapping circles (the guilloché rosette).
+  ctx.lineWidth = 1.4
+  const guilloche = (count: number, ringR: number, circR: number) => {
+    for (let i = 0; i < count; i += 1) {
+      const a = ((Math.PI * 2) / count) * i
+      ctx.beginPath()
+      ctx.arc(Math.cos(a) * ringR, Math.sin(a) * ringR, circR, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+  }
+  guilloche(18, 84, 60)
+  guilloche(12, 50, 50)
+
+  // Central hub.
   ctx.fillStyle = CREAM
   ctx.beginPath()
-  ctx.arc(0, 0, 13, 0, Math.PI * 2)
+  ctx.arc(0, 0, 15, 0, Math.PI * 2)
   ctx.fill()
   ctx.fillStyle = RED
   ctx.beginPath()
-  ctx.arc(0, 0, 6.5, 0, Math.PI * 2)
+  ctx.arc(0, 0, 7.5, 0, Math.PI * 2)
   ctx.fill()
   ctx.restore()
-
-  // Ornate corner flourishes: nested fans plus a small scroll curl.
-  const corner = (x: number, y: number, rot: number) => {
-    ctx.save()
-    ctx.translate(x, y)
-    ctx.rotate(rot)
-    ctx.strokeStyle = 'rgba(244,236,214,0.9)'
-    ctx.lineWidth = 3
-    for (let i = 0; i < 4; i += 1) {
-      ctx.beginPath()
-      ctx.arc(0, 0, 14 + i * 8, 0, Math.PI / 2)
-      ctx.stroke()
-    }
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(20, 20, 8, Math.PI, Math.PI * 2.4)
-    ctx.stroke()
-    ctx.restore()
-  }
-  const inset = 60
-  corner(inset, inset, 0)
-  corner(W - inset, inset, Math.PI / 2)
-  corner(W - inset, H - inset, Math.PI)
-  corner(inset, H - inset, -Math.PI / 2)
 
   return c
 }

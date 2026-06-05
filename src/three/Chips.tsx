@@ -149,11 +149,11 @@ function PotThrows({ boardStage }: { boardStage: number }) {
     for (let street = 1; street <= 3; street += 1) {
       chipSpots.forEach((spot, seat) => {
         const topY = CARD.restY + RED_COUNTS[seat % RED_COUNTS.length] * CHIP_H + 0.02
-        // One separate landing column per seat, ringed around the pot so the
-        // stacks stay clear of one another (radius > a chip diameter apart).
+        // One separate landing column per seat, ringed tightly around the pot —
+        // close together but still a hair more than a chip diameter apart.
         const a = (seat / n) * Math.PI * 2 + Math.PI / 2
-        const lx = POT_CENTER[0] + Math.cos(a) * 0.5
-        const lz = POT_CENTER[1] + Math.sin(a) * 0.5
+        const lx = POT_CENTER[0] + Math.cos(a) * 0.38
+        const lz = POT_CENTER[1] + Math.sin(a) * 0.38
         list.push({
           street,
           seat,

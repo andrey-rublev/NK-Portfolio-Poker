@@ -177,12 +177,13 @@ export function PokerTable() {
         <meshStandardMaterial color="#3a2113" roughness={0.6} metalness={0.15} />
       </mesh>
 
-      {/* Padded leather rail — rounded-rectangle cross-section */}
+      {/* Padded leather rail — rounded-rectangle cross-section. Lightened to
+          read like the previous (round) rail, which the flat top darkened. */}
       <mesh geometry={railGeometry} castShadow receiveShadow>
         <meshStandardMaterial
-          color="#5a3a22"
-          roughness={0.45}
-          metalness={0.1}
+          color="#774f2c"
+          roughness={0.5}
+          metalness={0.08}
           side={THREE.DoubleSide}
         />
       </mesh>

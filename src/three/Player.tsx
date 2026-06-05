@@ -10,7 +10,7 @@ const pick = (arr: string[], v: number) => arr[Math.round(v * (arr.length - 1))]
 /** One arm: shoulder → (bent elbow) → forearm → hand resting on the table edge. */
 function Arm({ side, skin, shirt }: { side: number; skin: string; shirt: string }) {
   return (
-    <group position={[side * 0.26, 1.05, 0.05]} rotation={[-0.5, 0, side * 0.12]}>
+    <group position={[side * 0.3, 1.05, 0.04]} rotation={[-0.5, 0, side * 0.12]}>
       {/* upper arm (sleeve) */}
       <mesh position={[0, -0.22, 0]} castShadow>
         <capsuleGeometry args={[0.088, 0.34, 8, 14]} />
@@ -40,9 +40,9 @@ function PlayerFigure({ spot }: { spot: PlayerSpot }) {
 
   return (
     <group position={[spot.x, -0.35, spot.z]} rotation-y={spot.faceYaw} scale={1.95}>
-      {/* Seat / hips */}
-      <mesh position={[0, 0.2, -0.05]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.31, 0.28, 0.32, 24]} />
+      {/* Seat / hips (also an oval) */}
+      <mesh position={[0, 0.2, -0.05]} scale={[1.18, 1, 0.82]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.3, 0.27, 0.32, 24]} />
         <meshStandardMaterial color={pants} roughness={0.9} />
       </mesh>
       {/* Thighs reaching forward under the table (the seated lap) */}
@@ -58,50 +58,43 @@ function PlayerFigure({ spot }: { spot: PlayerSpot }) {
           <meshStandardMaterial color={pants} roughness={0.9} />
         </mesh>
       ))}
-      {/* Waist → chest as one tapering torso (narrow at the waist, broad at the chest) */}
-      <mesh position={[0, 0.52, -0.01]} castShadow receiveShadow>
+      {/* Torso as an OVAL cylinder (wider than deep): waist → chest */}
+      <mesh position={[0, 0.52, -0.01]} scale={[1.22, 1, 0.78]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.27, 0.25, 0.42, 28]} />
+        <meshStandardMaterial color={shirt} roughness={0.85} />
+      </mesh>
+      <mesh position={[0, 0.9, 0.01]} rotation-x={0.06} scale={[1.22, 1, 0.78]} castShadow receiveShadow>
         <cylinderGeometry args={[0.3, 0.27, 0.42, 28]} />
         <meshStandardMaterial color={shirt} roughness={0.85} />
       </mesh>
-      <mesh position={[0, 0.9, 0.01]} rotation-x={0.06} castShadow receiveShadow>
-        <cylinderGeometry args={[0.34, 0.3, 0.42, 28]} />
+      {/* Sloped shoulders + collar (the original, simpler shoulders) */}
+      <mesh position={[0, 1.16, 0.02]} rotation-z={Math.PI / 2} castShadow>
+        <capsuleGeometry args={[0.14, 0.46, 6, 16]} />
         <meshStandardMaterial color={shirt} roughness={0.85} />
       </mesh>
-      {/* Shoulder yoke + rounded deltoids, overlapping the chest top so they blend */}
-      <mesh position={[0, 1.07, 0.02]} rotation-z={Math.PI / 2} castShadow>
-        <capsuleGeometry args={[0.155, 0.4, 8, 18]} />
-        <meshStandardMaterial color={shirt} roughness={0.85} />
-      </mesh>
-      {[-1, 1].map((s) => (
-        <mesh key={s} position={[s * 0.31, 1.07, 0.02]} castShadow>
-          <sphereGeometry args={[0.155, 18, 16]} />
-          <meshStandardMaterial color={shirt} roughness={0.85} />
-        </mesh>
-      ))}
-      {/* Trapezius filler so the neck meets the shoulders smoothly */}
-      <mesh position={[0, 1.14, 0.0]} scale={[1.4, 0.7, 1.1]} castShadow>
-        <sphereGeometry args={[0.16, 18, 14]} />
-        <meshStandardMaterial color={shirt} roughness={0.85} />
+      <mesh position={[0, 1.25, 0.05]} rotation-x={Math.PI / 2} castShadow>
+        <torusGeometry args={[0.115, 0.034, 10, 20]} />
+        <meshStandardMaterial color={shirt} roughness={0.8} />
       </mesh>
       {/* Neck */}
-      <mesh position={[0, 1.24, 0.03]} castShadow>
-        <cylinderGeometry args={[0.085, 0.1, 0.17, 16]} />
+      <mesh position={[0, 1.31, 0.03]} castShadow>
+        <cylinderGeometry args={[0.082, 0.1, 0.17, 16]} />
         <meshStandardMaterial color={skin} roughness={0.7} />
       </mesh>
       {/* Head */}
-      <mesh position={[0, 1.46, 0.05]} scale={[0.94, 1.12, 1]} castShadow>
+      <mesh position={[0, 1.52, 0.05]} scale={[0.94, 1.12, 1]} castShadow>
         <sphereGeometry args={[0.2, 30, 30]} />
         <meshStandardMaterial color={skin} roughness={0.6} />
       </mesh>
       {/* Ears */}
       {[-1, 1].map((s) => (
-        <mesh key={s} position={[s * 0.19, 1.46, 0.03]} scale={[0.55, 1, 0.7]} castShadow>
+        <mesh key={s} position={[s * 0.19, 1.52, 0.03]} scale={[0.55, 1, 0.7]} castShadow>
           <sphereGeometry args={[0.05, 12, 12]} />
           <meshStandardMaterial color={skin} roughness={0.65} />
         </mesh>
       ))}
       {/* Hair cap */}
-      <mesh position={[0, 1.5, 0.02]} scale={[1.04, 1.1, 1.08]} castShadow>
+      <mesh position={[0, 1.565, 0.02]} scale={[1.04, 1.1, 1.08]} castShadow>
         <sphereGeometry args={[0.205, 26, 24, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
         <meshStandardMaterial color={hair} roughness={0.92} />
       </mesh>

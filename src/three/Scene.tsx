@@ -5,7 +5,6 @@ import { PokerTable } from './PokerTable'
 import { Card3D } from './Card3D'
 import { Chips } from './Chips'
 import { Players } from './Player'
-import { CupHolders } from './CupHolders'
 import {
   seatCards,
   communityCards,
@@ -285,8 +284,7 @@ export function Scene({
 
       <Floor />
       <PokerTable />
-      <CupHolders />
-      <Chips />
+      <Chips boardStage={boardStage} />
       <Players reducedMotion={reducedMotion} />
       <Nameplates />
       <Deck boardStage={boardStage} onPress={onDeckPress} />

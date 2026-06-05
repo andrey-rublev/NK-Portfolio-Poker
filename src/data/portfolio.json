@@ -192,15 +192,15 @@
           "groups": [
             {
               "heading": "Languages",
-              "bullets": ["Java, Python, Dart, TypeScript, R, C, MATLAB"]
+              "bullets": ["Java", "Python", "Dart", "TypeScript", "R", "C", "MATLAB"]
             },
             {
               "heading": "Tools & Frameworks",
-              "bullets": ["GitHub, AWS, React, Vite, Flutter, FastAPI, Android Studio"]
+              "bullets": ["GitHub", "AWS", "React", "Vite", "Flutter", "FastAPI", "Android Studio"]
             },
             {
               "heading": "Domains",
-              "bullets": ["AI, Data Analytics, Quantum Computing, Machine Learning, Web Design"]
+              "bullets": ["AI", "Data Analytics", "Quantum Computing", "Machine Learning", "Web Design"]
             }
           ],
           "accent": "#86b7ff",

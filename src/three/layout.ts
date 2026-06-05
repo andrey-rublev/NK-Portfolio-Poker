@@ -133,8 +133,8 @@ export const DECK_POSITION: [number, number, number] = [
   TABLE.rz * 0.66,
 ]
 
-/** Burn cards stack face-down under the pot, in the middle of the felt. */
-export const BURN_POSITION: [number, number, number] = [0, CARD.restY, 0.92]
+/** Burn cards stack face-down to the LEFT of the pot (which sits right of centre). */
+export const BURN_POSITION: [number, number, number] = [-0.95, CARD.restY, 0.92]
 
 export interface SeatAnchor {
   seatId: string

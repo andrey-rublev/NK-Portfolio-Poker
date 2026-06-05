@@ -146,8 +146,11 @@
             {
               "heading": "Hackathons",
               "bullets": [
-                "Raize — Spacial Intelligence for Disaster Zones.",
-                "Vigil — Waze for emergencies; a live, AI-verified feed from people on the ground."
+                "Raize — navigable 3D before/after of conflict zones with satellite-backed damage overlays for reconstruction planning.",
+                "Built on UNOSAT data (6,611 buildings) with confidence-aware agentic AI sequencing.",
+                "Tools: Next.js, Three.js, TypeScript, Mapbox, Gemini, World Labs, GCP.",
+                "Vigil — \"Waze for emergencies\": crowdsourced, AI-verified incident Flares with live danger alerts to nearby users.",
+                "Tools: Next.js, TypeScript, Tailwind, Mapbox GL, Supabase, Anthropic Claude."
               ]
             }
           ],

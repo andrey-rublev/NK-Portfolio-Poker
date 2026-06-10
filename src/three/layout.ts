@@ -5,9 +5,18 @@ import {
 } from '../data/portfolio'
 import type { PortfolioCardData } from '../data/portfolio'
 
+/**
+ * Compact view for phones (decided once at load): the table is squeezed
+ * narrower — closer to a circle — so it needs far less horizontal field of
+ * view and the camera can sit closer on tall/narrow screens.
+ */
+export const COMPACT_VIEW =
+  typeof window !== 'undefined' &&
+  Math.min(window.innerWidth, window.innerHeight) < 700
+
 /** World units. The felt sits at y = 0; camera looks down from +Z/+Y. */
 export const TABLE = {
-  rx: 6,
+  rx: COMPACT_VIEW ? 5.1 : 6,
   rz: 4,
   topY: 0,
   skirt: 0.9,

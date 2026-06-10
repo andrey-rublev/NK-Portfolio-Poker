@@ -19,6 +19,9 @@ function App() {
   const [revealStage, setRevealStage] = useState(0)
   const dealing = useRef(false)
   const [showIntro, setShowIntro] = useState(true)
+  // "Rotate your phone" tip — shown only on portrait phones (via CSS), and
+  // dismissible. Rotating to landscape hides it automatically.
+  const [rotateTipDismissed, setRotateTipDismissed] = useState(false)
 
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
@@ -88,6 +91,22 @@ function App() {
 
       <p className="scene-hint">{boardLabel}</p>
 
+      {!rotateTipDismissed && !focusedKey && (
+        <div className="rotate-tip" role="note">
+          <span className="rotate-tip__icon" aria-hidden="true">
+            ⟳
+          </span>
+          <span>Rotate for the best experience</span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setRotateTipDismissed(true)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <button
         className="help-btn"
         type="button"
@@ -124,6 +143,9 @@ function App() {
                 <span>Click any card to bring it up — click it again or anywhere to put it back.</span>
               </li>
             </ul>
+            <p className="intro__rotate">
+              Tip: turn your phone sideways for the best view of the table.
+            </p>
             <button className="intro__btn" type="button" onClick={handleStart}>
               Deal me in
             </button>

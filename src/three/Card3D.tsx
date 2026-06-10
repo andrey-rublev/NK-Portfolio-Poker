@@ -18,6 +18,7 @@ const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t 
 // Scratch objects shared across instances (useFrame runs sequentially).
 const _fwd = new THREE.Vector3()
 const _right = new THREE.Vector3()
+const _camUp = new THREE.Vector3()
 const _focusPos = new THREE.Vector3()
 const _basePos = new THREE.Vector3()
 const _lookT = new THREE.Vector3()
@@ -119,13 +120,27 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     const tanH = tanV * aspect
     cam.getWorldDirection(_fwd)
     _right.crossVectors(_fwd, UP).normalize()
-    const halfW = (isCommunity ? 0 : 1.05) + (CARD.w * focusScale) / 2 + 0.12
-    const halfH = (CARD.h * focusScale) / 2 + 0.12
-    const dist = Math.max(halfW / tanH, halfH / tanV) * 1.08
+    _camUp.crossVectors(_right, _fwd).normalize()
+    // On tall (portrait/phone) screens a hand's two cards stack vertically —
+    // label on top, info below — so each card sits far closer to the camera
+    // than a side-by-side pair squeezed into a narrow field of view.
+    const portrait = aspect < 0.9
+    const fx = portrait ? 0 : focusX
+    const fy =
+      portrait && !isCommunity
+        ? (slot.role === 'label' ? 1 : -1) * ((CARD.h * focusScale) / 2 + 0.07)
+        : 0
+    const pad = portrait ? 0.06 : 0.12
+    const halfW = Math.abs(fx) + (CARD.w * focusScale) / 2 + pad
+    const halfH = Math.abs(fy) + (CARD.h * focusScale) / 2 + pad
+    const dist = Math.max(halfW / tanH, halfH / tanV) * (portrait ? 1.12 : 1.08)
+    // Bias the portrait stack upward so its bottom clears the hint pill.
+    const fyBias = portrait ? 0.14 : 0
     _focusPos
       .copy(cam.position)
       .addScaledVector(_fwd, dist)
-      .addScaledVector(_right, focusX)
+      .addScaledVector(_right, fx)
+      .addScaledVector(_camUp, fy + fyBias)
     _lookT.copy(_focusPos).add(_fwd)
     _m4.lookAt(_focusPos, _lookT, UP)
     _qFocus.setFromRotationMatrix(_m4)

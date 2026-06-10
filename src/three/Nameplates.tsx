@@ -1,6 +1,9 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
-import { seatAnchors } from './layout'
+import { COMPACT_VIEW, seatAnchors } from './layout'
+
+/** Larger plates on phones so the seat labels stay readable from further away. */
+const PLATE_SCALE = COMPACT_VIEW ? 1.32 : 1
 
 const W = 420
 const Ht = 132
@@ -97,7 +100,7 @@ function plateTexture(name: string, accent: string): THREE.Texture {
 function Plate({ name, accent, x, z }: { name: string; accent: string; x: number; z: number }) {
   const tex = useMemo(() => plateTexture(name, accent), [name, accent])
   return (
-    <sprite position={[x, 0.66, z]} scale={[1.62, 0.51, 1]}>
+    <sprite position={[x, 0.66, z]} scale={[1.62 * PLATE_SCALE, 0.51 * PLATE_SCALE, 1]}>
       <spriteMaterial map={tex} transparent depthWrite={false} />
     </sprite>
   )

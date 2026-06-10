@@ -12,6 +12,7 @@ import {
   BURN_POSITION,
   CARD,
   CAMERA_HOME,
+  TABLE,
   type CardSlot,
 } from './layout'
 import { getSharedBack } from './cardTextures'
@@ -29,8 +30,9 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 const HOME_VEC = new THREE.Vector3(CAMERA_HOME[0], CAMERA_HOME[1], CAMERA_HOME[2]).sub(LOOK_AT)
 const HOME_DIST = HOME_VEC.length()
 const HOME_UNIT = HOME_VEC.clone().normalize()
-/** Table half-width (incl. rail) to keep within the horizontal field of view. */
-const TABLE_HALF_W = 6.8
+/** Table half-width (incl. rail) to keep within the horizontal field of view.
+    Derived from the table, so the compact (phone) table needs less pull-back. */
+const TABLE_HALF_W = TABLE.rx + 0.85
 
 function Floor() {
   const tex = useMemo(() => createFloorTexture(), [])

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Vite dep-optimizer cache (accidentally committed once; keep it out)
+.vite/
+
 # Local verification artifacts (Playwright screenshots, MCP scratch)
 .playwright-mcp/
 verify-*.png

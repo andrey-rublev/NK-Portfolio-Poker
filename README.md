@@ -24,24 +24,12 @@ over the base, but it is empty by default — there is **no automatic Devpost/Li
 scraping**. (A best-effort `scripts/fetch-data.mjs` + `npm run fetch:data` remain in the
 repo if you ever want to regenerate Devpost data manually, but nothing runs it for you.)
 
-## Deploy (GitHub Pages)
+## Deploy
 
-The included workflow ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml))
-builds and deploys on every push to `main`, and on manual dispatch.
-
-1. Push this repo to GitHub.
-2. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
-3. Done. The site publishes to `https://<user>.github.io/<repo>/`.
-
-Optional repository **Variable** (Settings → Secrets and variables → Actions → Variables):
-
-- `VITE_BASE` — set to `/` if you deploy to a **user page** (`<user>.github.io`) or a
-  **custom domain**. Defaults to `/<repo>/` for project pages.
-
-### Other hosts (Vercel / Netlify)
-
-Set the build command to `npm run build`, output dir `dist`, and `VITE_BASE=/`. Their
-SPA routing handles deep links automatically (the generated `404.html` is harmless).
+Any static host works (Cloudflare Pages / Vercel / Netlify): build command
+`npm run build`, output dir `dist`. Set `VITE_BASE=/` when serving from the domain
+root; for a sub-path (e.g. GitHub Pages project sites) set it to `/<repo>/`. SPA
+routing handles deep links automatically (the generated `404.html` is harmless).
 
 ## Stack
 

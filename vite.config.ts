@@ -8,4 +8,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: process.env.VITE_BASE || '/',
   plugins: [react()],
+  // Honour an externally assigned port (e.g. the preview harness sets PORT);
+  // otherwise fall back to Vite's default.
+  server: {
+    port: process.env.PORT ? Number(process.env.PORT) : undefined,
+  },
 })

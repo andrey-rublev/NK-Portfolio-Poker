@@ -8,8 +8,9 @@
     "build": "tsc -b && vite build",
     "postbuild": "node scripts/spa-fallback.mjs",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "fetch:data": "node scripts/fetch-data.mjs"
+    "preview": "npm run build && wrangler dev",
+    "fetch:data": "node scripts/fetch-data.mjs",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@react-spring/three": "^10.1.0",
@@ -20,6 +21,7 @@
     "three": "^0.184.0"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.40.1",
     "@eslint/js": "^9.39.4",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
@@ -32,6 +34,7 @@
     "globals": "^17.5.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.9"
+    "vite": "^8.0.9",
+    "wrangler": "^4.99.0"
   }
 }

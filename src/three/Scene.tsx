@@ -302,7 +302,7 @@ export function Scene({
       <PokerTable />
       <Chips boardStage={betStage} />
       <Players />
-      <Nameplates />
+      <Nameplates hidden={focusedKey !== null} />
       <Deck onPress={onDeckPress} />
       <BurnPile boardStage={burnStage} />
 

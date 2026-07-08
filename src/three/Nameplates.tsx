@@ -99,15 +99,22 @@ function plateTexture(name: string, accent: string): THREE.Texture {
 
 function Plate({ name, accent, x, z }: { name: string; accent: string; x: number; z: number }) {
   const tex = useMemo(() => plateTexture(name, accent), [name, accent])
+  // depthTest off (+ a high renderOrder) so the label always draws above the
+  // table, rail, players' hands, and resting cards.
   return (
-    <sprite position={[x, 0.66, z]} scale={[1.62 * PLATE_SCALE, 0.51 * PLATE_SCALE, 1]}>
-      <spriteMaterial map={tex} transparent depthWrite={false} />
+    <sprite position={[x, 0.8, z]} scale={[1.62 * PLATE_SCALE, 0.51 * PLATE_SCALE, 1]} renderOrder={5}>
+      <spriteMaterial map={tex} transparent depthWrite={false} depthTest={false} />
     </sprite>
   )
 }
 
-/** A floating nameplate in front of each player showing that seat's section. */
-export function Nameplates() {
+/**
+ * A floating nameplate in front of each player showing that seat's section.
+ * Hidden while a card is lifted to the camera so the plates (which ignore
+ * depth) never draw over the focused card's text.
+ */
+export function Nameplates({ hidden }: { hidden: boolean }) {
+  if (hidden) return null
   return (
     <>
       {seatAnchors.map((a) => (

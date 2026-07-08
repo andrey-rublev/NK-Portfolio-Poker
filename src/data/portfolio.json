@@ -5,7 +5,7 @@
     "links": {
       "linkedin": "https://linkedin.com/in/nikhilxkolli",
       "devpost": "https://devpost.com/nikhilkolli1",
-      "email": "nikhilkolli1@gmail.com"
+      "email": "kolli16@gmail.com"
     }
   },
   "seats": [
@@ -36,7 +36,7 @@
           "groups": [
             {
               "bullets": [
-                "nikhilkolli1@gmail.com",
+                "kolli16@gmail.com",
                 "(346) 457-8061",
                 "Katy, Texas, United States",
                 "linkedin.com/in/nikhilxkolli"
@@ -79,15 +79,21 @@
             {
               "heading": "Purdue University",
               "bullets": [
-                "B.S. Computer Engineering — GPA 3.96; 2× Dean's List.",
+                "B.S. in Computer Engineering.",
+                "GPA: 3.96.",
+                "2× Dean's List.",
+                "Datamine Learning Community — Physics Cohort.",
                 "West Lafayette, Indiana."
               ]
             },
             {
               "heading": "Obra D. Tompkins High School",
               "bullets": [
-                "Weighted GPA 4.6154; Unweighted 3.8077.",
-                "Class Rank 67/725 (Top 9.24%); Katy, TX."
+                "Weighted GPA: 4.6154.",
+                "Unweighted GPA: 3.8077.",
+                "Class Rank: 67/725 (Top 9.24%).",
+                "Clubs: FRC 5427 Robotics, Varsity Tennis.",
+                "Katy, TX (Katy ISD)."
               ]
             }
           ],
@@ -114,15 +120,17 @@
             {
               "heading": "Transpira Labs — AI Evaluation (May 2026)",
               "bullets": [
-                "Evaluated tasks for an internal AI benchmark, targeting web-UI failure modes for browser agents.",
-                "Rubric-based evaluations; annotated runs to categorize failure patterns."
+                "Evaluated tasks for an internal AI browser-agent benchmark.",
+                "Rubric scoring; annotated runs to find failure patterns."
               ]
             },
             {
-              "heading": "Purdue — Quantum Researcher (Aug 2025–May 2026)",
+              "heading": "Purdue Quantum Lab (Aug 2025–May 2026)",
               "bullets": [
-                "Python/PennyLane simulations; zero-noise extrapolation to improve accuracy.",
-                "Trained hybrid quantum ML models to decode ciphers on a 4M+ sample dataset."
+                "Datamine Physics Cohort — two semesters of research.",
+                "Quantum simulation models in Python/PennyLane with a hybrid quantum-classical pipeline.",
+                "Zero-noise extrapolation and regression fitting to mitigate noise and improve accuracy.",
+                "Hybrid quantum ML models for cipher classification and decryption (PyTorch) on 4M+ samples."
               ]
             }
           ],
@@ -182,7 +190,7 @@
             {
               "heading": "FRC 5427 Steel Talons",
               "bullets": [
-                "Programming core team (2021–2025): built a vision tracking system optimizing autonomous-mode performance.",
+                "Programming core team: built a vision tracking system optimizing autonomous-mode performance.",
                 "Java and Git; winner of multiple awards including the District Chairman's Award."
               ]
             },

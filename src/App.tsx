@@ -23,13 +23,12 @@ function App() {
   // "Rotate your phone" tip — shown only on portrait phones (via CSS), and
   // dismissible. Rotating to landscape hides it automatically.
   const [rotateTipDismissed, setRotateTipDismissed] = useState(false)
-  // Render-resolution cap. Starts at 1.5x and drops to 1x when the
-  // PerformanceMonitor sees sustained low frame rates (see below).
-  const [dprCap, setDprCap] = useState(1.5)
-  const dpr = Math.min(
-    dprCap,
-    typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
-  )
+  // Adaptive render resolution: start at the display's native sharpness
+  // (capped at 2x) and let the PerformanceMonitor walk it down toward 1x
+  // only when the frame rate actually sags — sharp when there's headroom.
+  const nativeDpr =
+    typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1
+  const [dpr, setDpr] = useState(nativeDpr)
 
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
@@ -80,13 +79,16 @@ function App() {
         gl={{ antialias: true }}
         camera={{ position: CAMERA_HOME, fov: 40, near: 0.1, far: 100 }}
       >
-        {/* Drop render resolution when the frame rate sags; restore it when
-            there's headroom. After 3 flip-flops, settle at the low baseline. */}
+        {/* Walk render resolution between 1x and native based on measured
+            frame rate; if it keeps flip-flopping, settle at the low baseline. */}
         <PerformanceMonitor
-          onDecline={() => setDprCap(1)}
-          onIncline={() => setDprCap(1.5)}
+          factor={1}
+          onChange={({ factor }) => {
+            const next = 1 + (nativeDpr - 1) * factor
+            setDpr(Math.round(next * 10) / 10)
+          }}
           flipflops={3}
-          onFallback={() => setDprCap(1)}
+          onFallback={() => setDpr(1)}
         >
           <Scene
             dealt={dealt}

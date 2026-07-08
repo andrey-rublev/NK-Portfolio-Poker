@@ -19,11 +19,9 @@
             {
               "bullets": [
                 "Tennis",
-                "Programming",
                 "Robotics",
                 "Volunteering",
                 "Camping",
-                "Exploring",
                 "Tinkering"
               ]
             }
@@ -63,9 +61,9 @@
           "groups": [
             {
               "bullets": [
-                "Computer Engineering sophomore at Purdue with a strong foundation in AI, software development, and problem-solving.",
-                "Passionate about building and testing real systems with machine learning, quantum computing, and full-stack development.",
-                "Hands-on experience turning ideas into user-focused applications and technical projects.",
+                "Computer Engineering student at Purdue with a strong foundation in AI, software development, and problem-solving.",
+                "Experienced building and evaluating real systems across machine learning, quantum computing, and full-stack development.",
+                "A track record of turning ideas into user-focused applications.",
                 "Applies technical depth and a builder's mindset to solve meaningful problems in fast-moving environments."
               ]
             }
@@ -81,15 +79,15 @@
             {
               "heading": "Purdue University",
               "bullets": [
-                "B.E. Computer Engineering — GPA 3.96.",
-                "West Lafayette; graduating May 2029."
+                "B.S. Computer Engineering — GPA 3.96; 2× Dean's List.",
+                "West Lafayette, Indiana."
               ]
             },
             {
               "heading": "Obra D. Tompkins High School",
               "bullets": [
                 "Weighted GPA 4.6154; Unweighted 3.8077.",
-                "Class Rank 67/725 (Top 9.24%); STEM diploma, May 2025."
+                "Class Rank 67/725 (Top 9.24%); Katy, TX."
               ]
             }
           ],
@@ -107,24 +105,24 @@
           "label": "Experience",
           "groups": [
             {
-              "heading": "Mercor — Software Engineer (Jan 2026–Present)",
+              "heading": "Mercor — Software Engineer (Jan 2026–Jun 2026)",
               "bullets": [
-                "Built RL environments for multi-agent, customer-facing AI with failure-mode benchmarking.",
-                "Built LLM evaluation frameworks with rubric scoring for accuracy, alignment, tone, and reasoning."
+                "RL environments for multi-agent, customer-facing AI with failure-mode benchmarking.",
+                "LLM evaluation frameworks with rubric scoring for accuracy, alignment, and reasoning."
+              ]
+            },
+            {
+              "heading": "Transpira Labs — AI Evaluation (May 2026)",
+              "bullets": [
+                "Evaluated tasks for an internal AI benchmark, targeting web-UI failure modes for browser agents.",
+                "Rubric-based evaluations; annotated runs to categorize failure patterns."
               ]
             },
             {
               "heading": "Purdue — Quantum Researcher (Aug 2025–May 2026)",
               "bullets": [
-                "Python/PennyLane simulations of NISQ noise; zero-noise extrapolation to improve accuracy.",
-                "Trained a hybrid quantum-classical model to classify and decode ciphers on a 4M+ sample dataset."
-              ]
-            },
-            {
-              "heading": "RealTalk — Co-Founder (2024–2025)",
-              "bullets": [
-                "Front end in TypeScript/React/Vite; backend with FastAPI on AWS, OpenAI API, Whisper, MySQL.",
-                "Shipped the MVP with custom AI models that review and improve resumes and interviews."
+                "Python/PennyLane simulations; zero-noise extrapolation to improve accuracy.",
+                "Trained hybrid quantum ML models to decode ciphers on a 4M+ sample dataset."
               ]
             }
           ],
@@ -139,8 +137,15 @@
             {
               "heading": "Gradus — Founding President",
               "bullets": [
-                "Led a team to build an academic progress tracking app in Flutter and Dart/Python.",
-                "Streamlined academic monitoring and goal-setting; beta 10.0.0 active in 176 countries/regions."
+                "Led a team to build and ship a Flutter/Dart academic progress tracking app.",
+                "Beta released and active in 176 countries/regions."
+              ]
+            },
+            {
+              "heading": "RealTalk — Co-Founder & Developer",
+              "bullets": [
+                "AI hiring assistant with custom models that review and improve resumes and interviews; active product.",
+                "Tools: React, TypeScript, Vite, FastAPI, AWS, OpenAI API, Whisper."
               ]
             },
             {
@@ -177,15 +182,15 @@
             {
               "heading": "FRC 5427 Steel Talons",
               "bullets": [
-                "Programming core (2021–2025): vision tracking optimizing autonomous performance.",
-                "Java and Git; winner of various awards including the District Chairman's Award."
+                "Programming core team (2021–2025): built a vision tracking system optimizing autonomous-mode performance.",
+                "Java and Git; winner of multiple awards including the District Chairman's Award."
               ]
             },
             {
               "heading": "Eagle Scout",
               "bullets": [
-                "Order of the Arrow; Triple Crown high-adventure (Bahamas, Philmont, Northern Tier).",
-                "42 merit badges, 195 service hours; White House commended."
+                "Order of the Arrow; Triple Crown — Philmont, Sea Base, and Northern Tier high adventures.",
+                "42 merit badges, 195 service hours, 100 camping nights, 170 backpacking miles."
               ]
             }
           ],
@@ -198,16 +203,12 @@
           "label": "Skills",
           "groups": [
             {
-              "heading": "Languages",
-              "bullets": ["Java", "Python", "Dart", "TypeScript", "R", "C", "MATLAB"]
-            },
-            {
-              "heading": "Tools & Frameworks",
-              "bullets": ["GitHub", "AWS", "React", "Vite", "Flutter", "FastAPI", "Android Studio"]
+              "heading": "Languages & Tools",
+              "bullets": ["Python", "Java", "C", "TypeScript", "Dart", "R", "MATLAB", "React", "FastAPI", "Git/GitHub", "AWS"]
             },
             {
               "heading": "Domains",
-              "bullets": ["AI", "Data Analytics", "Quantum Computing", "Machine Learning", "Web Design"]
+              "bullets": ["Machine Learning", "Agentic AI / LLM Evaluation", "Quantum Computing", "Data Analytics", "Full-Stack Development", "Cloud Infrastructure"]
             }
           ],
           "accent": "#86b7ff",

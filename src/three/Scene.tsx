@@ -285,7 +285,7 @@ export function Scene({
         intensity={0.62}
         color="#ffe8c8"
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1024, 1024]}
         shadow-bias={-0.0002}
         shadow-normalBias={0.04}
         shadow-camera-near={1}

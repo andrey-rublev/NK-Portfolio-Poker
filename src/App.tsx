@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
+import { PerformanceMonitor } from '@react-three/drei'
 import { Scene } from './three/Scene'
 import { CAMERA_HOME, type CardSlot } from './three/layout'
 import { prefersReducedMotion } from './three/motion'
@@ -22,6 +23,13 @@ function App() {
   // "Rotate your phone" tip — shown only on portrait phones (via CSS), and
   // dismissible. Rotating to landscape hides it automatically.
   const [rotateTipDismissed, setRotateTipDismissed] = useState(false)
+  // Render-resolution cap. Starts at 1.5x and drops to 1x when the
+  // PerformanceMonitor sees sustained low frame rates (see below).
+  const [dprCap, setDprCap] = useState(1.5)
+  const dpr = Math.min(
+    dprCap,
+    typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
+  )
 
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
@@ -68,20 +76,29 @@ function App() {
     <div className="app-shell">
       <Canvas
         shadows
-        dpr={[1, 2]}
+        dpr={dpr}
         gl={{ antialias: true }}
         camera={{ position: CAMERA_HOME, fov: 40, near: 0.1, far: 100 }}
       >
-        <Scene
-          dealt={dealt}
-          focusedKey={focusedKey}
-          betStage={betStage}
-          burnStage={burnStage}
-          revealStage={revealStage}
-          onToggle={handleToggle}
-          onDeckPress={handleDeckPress}
-          onDismiss={handleDismiss}
-        />
+        {/* Drop render resolution when the frame rate sags; restore it when
+            there's headroom. After 3 flip-flops, settle at the low baseline. */}
+        <PerformanceMonitor
+          onDecline={() => setDprCap(1)}
+          onIncline={() => setDprCap(1.5)}
+          flipflops={3}
+          onFallback={() => setDprCap(1)}
+        >
+          <Scene
+            dealt={dealt}
+            focusedKey={focusedKey}
+            betStage={betStage}
+            burnStage={burnStage}
+            revealStage={revealStage}
+            onToggle={handleToggle}
+            onDeckPress={handleDeckPress}
+            onDismiss={handleDismiss}
+          />
+        </PerformanceMonitor>
       </Canvas>
 
       <header className="scene-hud" aria-hidden={focusedKey ? 'true' : undefined}>

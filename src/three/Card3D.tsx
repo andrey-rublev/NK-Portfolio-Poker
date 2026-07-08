@@ -60,7 +60,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
   const focusX = isCommunity ? 0 : slot.role === 'label' ? -1.05 : 1.05
   const focusScale = isCommunity ? 1.65 : 1.5
 
-  useFrame((state) => {
+  useFrame((state, dt) => {
     const g = group.current
     if (!g) return
 
@@ -80,7 +80,9 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     }
 
     const b = base.current
-    const k = 0.16
+    // Time-corrected smoothing so motion takes the same real-world time at any
+    // frame rate (≈ the old per-frame 0.16 at 60 fps).
+    const k = 1 - Math.exp(-10.5 * dt)
     b.pos[0] = lerp(b.pos[0], tp[0], k)
     b.pos[1] = lerp(b.pos[1], tp[1], k)
     b.pos[2] = lerp(b.pos[2], tp[2], k)
@@ -100,8 +102,9 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     // player) before it is laid flat by the X rotation.
     _qBase.setFromEuler(_euler.set(b.rot[0], b.rot[1], 0, 'YXZ'))
 
-    // Lower factor = slower pick-up (focus in) and put-down (focus out).
-    prog.current = lerp(prog.current, focused ? 1 : 0, 0.06)
+    // Lower rate = slower pick-up (focus in) and put-down (focus out).
+    // Time-corrected (≈ the old per-frame 0.06 at 60 fps).
+    prog.current = lerp(prog.current, focused ? 1 : 0, 1 - Math.exp(-3.7 * dt))
     const p = prog.current
 
     if (p < 0.001) {

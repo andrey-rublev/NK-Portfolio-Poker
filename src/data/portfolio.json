@@ -206,7 +206,7 @@
               "heading": "Eagle Scout",
               "bullets": [
                 "Order of the Arrow; Triple Crown — Philmont, Sea Base, and Northern Tier high adventures.",
-                "42 merit badges, 195 service hours, 100 camping nights, 170 backpacking miles."
+                "42 merit badges, 195 service hours, 100 camping nights, 300 trail miles."
               ]
             }
           ],
@@ -224,7 +224,7 @@
             },
             {
               "heading": "Domains",
-              "bullets": ["Machine Learning", "Agentic AI / LLM Evaluation", "Quantum Computing", "Data Analytics", "Full-Stack Development", "Cloud Infrastructure"]
+              "bullets": ["Machine Learning", "Agentic AI", "LLM Evaluation", "Quantum Computing", "Data Analytics", "Full-Stack Development", "Cloud Infrastructure"]
             }
           ],
           "accent": "#86b7ff",

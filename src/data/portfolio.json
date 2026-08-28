@@ -111,7 +111,7 @@
           "label": "Experience",
           "groups": [
             {
-              "heading": "Purdue Datamine — ML Researcher (Aug 2026–Present)",
+              "heading": "Purdue Datamine RTX — ML Researcher (Aug 2026–Present)",
               "bullets": [
                 "3D sim of RTX unmanned aircraft flight; path-planning data.",
                 "Neural-net routes for obstacle avoidance, fuel, and waypoints.",
@@ -135,8 +135,10 @@
             {
               "heading": "Purdue Quantum Lab (Aug 2025–May 2026)",
               "bullets": [
-                "Quantum simulation in Python/PennyLane; zero-noise extrapolation.",
-                "Hybrid quantum ML for ciphers on 4M+ samples (PyTorch)."
+                "Datamine Physics Cohort — two semesters of research.",
+                "Hybrid quantum-classical models in Python/PennyLane.",
+                "Zero-noise extrapolation and regression curve fitting.",
+                "Quantum ML decoding ciphers; 4M+ samples (PyTorch)."
               ]
             }
           ],

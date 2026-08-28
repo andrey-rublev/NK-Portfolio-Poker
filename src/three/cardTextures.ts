@@ -50,8 +50,29 @@ const BULLET_GAP = 10
 const GROUP_GAP = 18
 const BODY = '#28323e'
 
+/**
+ * Split on whitespace, but keep a parenthesised span — a date range like
+ * "(Aug 2026–Present)" — as one unbreakable token so it never wraps mid-range.
+ */
+function textTokens(text: string): string[] {
+  const out: string[] = []
+  let buf = ''
+  let open = 0
+  for (const word of text.split(/\s+/)) {
+    open += (word.split('(').length - 1) - (word.split(')').length - 1)
+    buf = buf ? `${buf} ${word}` : word
+    if (open <= 0) {
+      out.push(buf)
+      buf = ''
+      open = 0
+    }
+  }
+  if (buf) out.push(buf)
+  return out
+}
+
 function wrapLines(ctx: Ctx, text: string, maxW: number): string[] {
-  const words = text.split(/\s+/)
+  const words = textTokens(text)
   const lines: string[] = []
   let line = ''
   for (const word of words) {

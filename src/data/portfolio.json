@@ -113,7 +113,7 @@
             {
               "heading": "Purdue Datamine RTX — ML Researcher (Aug 2026–Present)",
               "bullets": [
-                "Collaborating with RTX to build a 3D simulation environment modeling unmanned aircraft flight, generating training data through classical path planning algorithms.",
+                "Collaborating with RTX to build a 3D sim of unmanned aircraft flight; path-planning data.",
                 "Neural-net routes for obstacle avoidance, fuel, and waypoints.",
                 "Extending to multi-aircraft formation flight."
               ]

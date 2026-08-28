@@ -41,14 +41,35 @@ type Ctx = CanvasRenderingContext2D
 
 const PAD = 46
 const CONTENT_W = W - PAD * 2
-const BULLET_INDENT = 28
-const SUB_FONT = '800 28px "Mulish", system-ui, sans-serif'
-const BULLET_FONT = '500 25px "Mulish", system-ui, sans-serif'
-const SUB_LH = 33
-const BULLET_LH = 31
-const BULLET_GAP = 10
-const GROUP_GAP = 18
 const BODY = '#28323e'
+
+/** Text metrics at a given scale — cards shrink their text rather than clip. */
+interface Metrics {
+  subFont: string
+  bulletFont: string
+  subLh: number
+  bulletLh: number
+  bulletGap: number
+  groupGap: number
+  subGap: number
+  indent: number
+}
+
+function metrics(s: number): Metrics {
+  return {
+    subFont: `800 ${28 * s}px "Mulish", system-ui, sans-serif`,
+    bulletFont: `500 ${25 * s}px "Mulish", system-ui, sans-serif`,
+    subLh: 33 * s,
+    bulletLh: 31 * s,
+    bulletGap: 10 * s,
+    groupGap: 18 * s,
+    subGap: 4 * s,
+    indent: 28 * s,
+  }
+}
+
+/** Progressively smaller text, tried in order until the content fits. */
+const SCALES = [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7]
 
 /**
  * Split on whitespace, but keep a parenthesised span — a date range like
@@ -95,18 +116,18 @@ interface Item {
   groupStart: boolean
 }
 
-function buildItems(ctx: Ctx, groups: CardGroup[]): Item[] {
+function buildItems(ctx: Ctx, groups: CardGroup[], m: Metrics): Item[] {
   const items: Item[] = []
   for (const group of groups) {
     if (group.heading) {
-      ctx.font = SUB_FONT
+      ctx.font = m.subFont
       items.push({ kind: 'sub', lines: wrapLines(ctx, group.heading, CONTENT_W), groupStart: true })
     }
     group.bullets.forEach((b, i) => {
-      ctx.font = BULLET_FONT
+      ctx.font = m.bulletFont
       items.push({
         kind: 'bullet',
-        lines: wrapLines(ctx, b, CONTENT_W - BULLET_INDENT),
+        lines: wrapLines(ctx, b, CONTENT_W - m.indent),
         groupStart: i === 0 && !group.heading,
       })
     })
@@ -114,10 +135,29 @@ function buildItems(ctx: Ctx, groups: CardGroup[]): Item[] {
   return items
 }
 
-function itemHeight(it: Item): number {
+function itemHeight(it: Item, m: Metrics): number {
   return it.kind === 'sub'
-    ? GROUP_GAP + it.lines.length * SUB_LH
-    : it.lines.length * BULLET_LH + BULLET_GAP
+    ? m.groupGap + it.lines.length * m.subLh + m.subGap
+    : it.lines.length * m.bulletLh + m.bulletGap
+}
+
+/** Total height of items [from, to). */
+function itemsHeight(items: Item[], from: number, to: number, m: Metrics): number {
+  let total = 0
+  for (let i = from; i < to; i += 1) total += itemHeight(items[i], m)
+  return total
+}
+
+/** Build the items at the largest scale whose total height fits `cap`. */
+function fitItems(ctx: Ctx, groups: CardGroup[], cap: number): { items: Item[]; m: Metrics } {
+  let fallback: { items: Item[]; m: Metrics } | null = null
+  for (const scale of SCALES) {
+    const m = metrics(scale)
+    const items = buildItems(ctx, groups, m)
+    fallback = { items, m }
+    if (itemsHeight(items, 0, items.length, m) <= cap) return { items, m }
+  }
+  return fallback!
 }
 
 /** Draw items [from, to) starting at y; returns the y below the last one. */
@@ -128,6 +168,7 @@ function drawItems(
   to: number,
   startY: number,
   accent: string,
+  m: Metrics,
 ): number {
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
@@ -135,24 +176,24 @@ function drawItems(
   for (let i = from; i < to; i += 1) {
     const it = items[i]
     if (it.kind === 'sub') {
-      if (i !== from) y += GROUP_GAP
-      ctx.font = SUB_FONT
+      if (i !== from) y += m.groupGap
+      ctx.font = m.subFont
       ctx.fillStyle = accent
       for (const ln of it.lines) {
         ctx.fillText(ln, PAD, y)
-        y += SUB_LH
+        y += m.subLh
       }
-      y += 4
+      y += m.subGap
     } else {
-      ctx.font = BULLET_FONT
+      ctx.font = m.bulletFont
       ctx.fillStyle = accent
       ctx.fillText('•', PAD, y)
       ctx.fillStyle = BODY
       for (const ln of it.lines) {
-        ctx.fillText(ln, PAD + BULLET_INDENT, y)
-        y += BULLET_LH
+        ctx.fillText(ln, PAD + m.indent, y)
+        y += m.bulletLh
       }
-      y += BULLET_GAP
+      y += m.bulletGap
     }
   }
   return y
@@ -217,47 +258,60 @@ function buildHandSpread(s: PortfolioCardData): Spread {
   paper(left.ctx, s.accent)
   paper(right.ctx, s.accent)
 
-  const items = buildItems(left.ctx, s.groups)
-  const heights = items.map(itemHeight)
-  const sum = (a: number, b: number) => heights.slice(a, b).reduce((x, y) => x + y, 0)
-
   const yLeft = drawHeader(left.ctx, s.label, s.accent)
   const yRight = 52
   const leftCap = H - 46 - yLeft
   const rightCap = H - 46 - yRight
 
-  let bestK = -1
-  let bestScore = Infinity
-  for (let k = 0; k <= items.length; k += 1) {
-    // Only ever split BETWEEN whole groups so a heading and its bullets always
-    // stay together on the same card.
-    const boundary =
-      k === 0 || k === items.length || items[k].kind === 'sub' || items[k].groupStart
-    if (!boundary) continue
-    const lh = sum(0, k)
-    const rh = sum(k, items.length)
-    if (lh > leftCap || rh > rightCap) continue
-    const score = Math.abs(lh - rh)
-    if (score < bestScore) {
-      bestScore = score
-      bestK = k
+  // Try progressively smaller text until the groups split cleanly across the
+  // two cards; shrinking beats clipping or orphaning half a role.
+  let picked: { items: Item[]; m: Metrics; k: number } | null = null
+  for (const scale of SCALES) {
+    const m = metrics(scale)
+    const items = buildItems(left.ctx, s.groups, m)
+    let bestK = -1
+    let bestScore = Infinity
+    for (let k = 0; k <= items.length; k += 1) {
+      // Only ever split BETWEEN whole groups so a heading and its bullets
+      // always stay together on the same card.
+      const boundary =
+        k === 0 || k === items.length || items[k].kind === 'sub' || items[k].groupStart
+      if (!boundary) continue
+      const lh = itemsHeight(items, 0, k, m)
+      const rh = itemsHeight(items, k, items.length, m)
+      if (lh > leftCap || rh > rightCap) continue
+      const score = Math.abs(lh - rh)
+      if (score < bestScore) {
+        bestScore = score
+        bestK = k
+      }
     }
-  }
-  if (bestK < 0) {
-    // Fallback: fill the left card, overflow onto the right.
-    let acc = 0
-    bestK = 0
-    for (let i = 0; i < items.length; i += 1) {
-      if (acc + heights[i] > leftCap) break
-      acc += heights[i]
-      bestK = i + 1
+    if (bestK >= 0) {
+      picked = { items, m, k: bestK }
+      break
     }
-    // Never end the left card on a heading — push it to the right card.
-    while (bestK > 0 && items[bestK - 1].kind === 'sub') bestK -= 1
   }
 
-  drawItems(left.ctx, items, 0, bestK, yLeft, s.accent)
-  drawItems(right.ctx, items, bestK, items.length, yRight, s.accent)
+  if (!picked) {
+    // Even the smallest text won't split cleanly: fill the left card at that
+    // size and overflow onto the right.
+    const m = metrics(SCALES[SCALES.length - 1])
+    const items = buildItems(left.ctx, s.groups, m)
+    let acc = 0
+    let k = 0
+    for (let i = 0; i < items.length; i += 1) {
+      const h = itemHeight(items[i], m)
+      if (acc + h > leftCap) break
+      acc += h
+      k = i + 1
+    }
+    // Never end the left card on a heading — push it to the right card.
+    while (k > 0 && items[k - 1].kind === 'sub') k -= 1
+    picked = { items, m, k }
+  }
+
+  drawItems(left.ctx, picked.items, 0, picked.k, yLeft, s.accent, picked.m)
+  drawItems(right.ctx, picked.items, picked.k, picked.items.length, yRight, s.accent, picked.m)
   return { left: left.c, right: right.c }
 }
 
@@ -325,9 +379,9 @@ function drawCommunityCover(s: PortfolioCardData): HTMLCanvasElement {
 function drawCommunityContent(s: PortfolioCardData): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
   paper(ctx, s.accent)
-  const items = buildItems(ctx, s.groups)
   const y0 = drawHeader(ctx, s.label, s.accent)
-  drawItems(ctx, items, 0, items.length, y0, s.accent)
+  const { items, m } = fitItems(ctx, s.groups, H - 46 - y0)
+  drawItems(ctx, items, 0, items.length, y0, s.accent, m)
   return c
 }
 
@@ -496,8 +550,8 @@ function drawAboutLeft(s: PortfolioCardData): HTMLCanvasElement {
 function drawAboutRight(s: PortfolioCardData): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
   paper(ctx, s.accent)
-  const items = buildItems(ctx, s.groups)
-  drawItems(ctx, items, 0, items.length, 60, s.accent)
+  const { items, m } = fitItems(ctx, s.groups, H - 46 - 60)
+  drawItems(ctx, items, 0, items.length, 60, s.accent, m)
   return c
 }
 

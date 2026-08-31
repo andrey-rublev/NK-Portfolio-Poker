@@ -136,9 +136,11 @@
               "heading": "Purdue Quantum Lab (Aug 2025–May 2026)",
               "bullets": [
                 "Datamine Physics Cohort — two semesters of research.",
-                "Hybrid quantum-classical models in Python/PennyLane.",
-                "Zero-noise extrapolation and regression curve fitting.",
-                "Quantum ML decoding ciphers; 4M+ samples (PyTorch)."
+                "Hybrid quantum-classical model trained on 4M+ ciphertext samples.",
+                "96.59% cipher classification (6 qubits, 7 entangling layers).",
+                "99.85% ciphertext decryption (4 qubits, 6 entangling layers).",
+                "Zero-noise extrapolation on H2 ground-state energy simulation.",
+                "Quadratic fitting cut error ~10x, from 2.4% to 0.24% off baseline."
               ]
             }
           ],
@@ -175,6 +177,7 @@
               "heading": "Vigil",
               "bullets": [
                 "\"Waze for emergencies\": crowdsourced, AI-verified incident Flares with live alerts to nearby users.",
+                "Push alerts to users within 10 miles; Flares expire after 24 hours.",
                 "Tools: Next.js, TypeScript, Tailwind, Mapbox GL, Supabase, Anthropic Claude."
               ]
             }

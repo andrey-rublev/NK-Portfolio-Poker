@@ -5,6 +5,13 @@ import { Scene } from './three/Scene'
 import { CAMERA_HOME, type CardSlot } from './three/layout'
 import { prefersReducedMotion } from './three/motion'
 import { owner } from './data/portfolio'
+import {
+  canFullscreen,
+  isFullscreen,
+  isIosSafari,
+  isStandalone,
+  toggleFullscreen,
+} from './three/display'
 import './ui.css'
 
 function App() {
@@ -23,6 +30,12 @@ function App() {
   // "Rotate your phone" tip — shown only on portrait phones (via CSS), and
   // dismissible. Rotating to landscape hides it automatically.
   const [rotateTipDismissed, setRotateTipDismissed] = useState(false)
+  // Fullscreen is only offered where the API exists (not iPhone Safari).
+  const [fsAvailable] = useState(() => canFullscreen() && !isStandalone())
+  const [fullscreen, setFullscreen] = useState(false)
+  // On iPhone Safari the only way to lose the toolbar is Add to Home Screen.
+  const [a2hsDismissed, setA2hsDismissed] = useState(false)
+  const [showA2hs] = useState(() => isIosSafari() && !isStandalone())
   // Adaptive render resolution: start at the display's native sharpness
   // (capped at 2x) and let the PerformanceMonitor walk it down toward 1x
   // only when the frame rate actually sags — sharp when there's headroom.
@@ -33,6 +46,18 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
   }, [reducedMotion])
+
+  // Keep the fullscreen button's icon in step with the actual state (the user
+  // can leave fullscreen with Esc or a system gesture).
+  useEffect(() => {
+    const sync = () => setFullscreen(isFullscreen())
+    document.addEventListener('fullscreenchange', sync)
+    document.addEventListener('webkitfullscreenchange', sync)
+    return () => {
+      document.removeEventListener('fullscreenchange', sync)
+      document.removeEventListener('webkitfullscreenchange', sync)
+    }
+  }, [])
 
   // The deal begins only once the player closes the intro ("Deal me in").
   const handleStart = () => {
@@ -126,6 +151,18 @@ function App() {
         </div>
       )}
 
+      {fsAvailable && (
+        <button
+          className="fullscreen-btn"
+          type="button"
+          onClick={() => void toggleFullscreen()}
+          aria-label={fullscreen ? 'Exit full screen' : 'Enter full screen'}
+          title={fullscreen ? 'Exit full screen' : 'Full screen'}
+        >
+          {fullscreen ? '✕' : '⛶'}
+        </button>
+      )}
+
       <button
         className="help-btn"
         type="button"
@@ -134,6 +171,17 @@ function App() {
       >
         ?
       </button>
+
+      {showA2hs && !a2hsDismissed && !showIntro && !focusedKey && (
+        <div className="a2hs-tip" role="note">
+          <span>
+            For full screen: <strong>Share</strong> &rarr; <strong>Add to Home Screen</strong>
+          </span>
+          <button type="button" aria-label="Dismiss" onClick={() => setA2hsDismissed(true)}>
+            ✕
+          </button>
+        </div>
+      )}
 
       {showIntro && (
         <div className="intro" role="dialog" aria-modal="true">

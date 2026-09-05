@@ -84,7 +84,10 @@ select {
 }
 
 #root {
+  /* dvh tracks the viewport as browser chrome shows/hides; svh is the safe
+     floor for older Safari. */
   height: 100svh;
+  height: 100dvh;
 }
 
 ::selection {

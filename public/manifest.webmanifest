@@ -1,0 +1,15 @@
+{
+  "name": "Nikhil Kolli | Poker Table Portfolio",
+  "short_name": "Nikhil Kolli",
+  "description": "An interactive portfolio rendered as a 3D poker table.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07130f",
+  "theme_color": "#07130f",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

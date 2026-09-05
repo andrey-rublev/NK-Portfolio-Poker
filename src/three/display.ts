@@ -47,12 +47,17 @@ export async function toggleFullscreen(): Promise<void> {
   }
 }
 
-/** iOS Safari (not Chrome/Firefox on iOS, which can't install to the Home Screen). */
-export function isIosSafari(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent
-  const iOS =
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  return iOS && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)
+/**
+ * True on the one platform that has no Fullscreen API at all: iPhone browsers
+ * (every iOS browser is Safari underneath). There the only way to shed the
+ * toolbars is to give the page something to scroll -- Safari collapses its own
+ * chrome on the first upward swipe -- so the app mounts a scroll shim instead
+ * of a fullscreen button.
+ */
+export function needsScrollShim(): boolean {
+  if (typeof window === 'undefined') return false
+  return !canFullscreen() && !isStandalone() && (navigator.maxTouchPoints ?? 0) > 0
 }
+
+/** How far the page must scroll before the browser has actually retracted. */
+export const SHIM_COLLAPSE_PX = 24

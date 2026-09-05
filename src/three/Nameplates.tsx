@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { COMPACT_VIEW, seatAnchors } from './layout'
 
@@ -97,12 +98,75 @@ function plateTexture(name: string, accent: string): THREE.Texture {
   return tex
 }
 
-function Plate({ name, accent, x, z }: { name: string; accent: string; x: number; z: number }) {
+const BASE_W = 1.62 * PLATE_SCALE
+const BASE_H = 0.51 * PLATE_SCALE
+
+interface PlateProps {
+  name: string
+  accent: string
+  x: number
+  z: number
+  /** Nameplates only answer to clicks once the hand has actually been dealt. */
+  interactive: boolean
+  onSelect: () => void
+}
+
+function Plate({ name, accent, x, z, interactive, onSelect }: PlateProps) {
   const tex = useMemo(() => plateTexture(name, accent), [name, accent])
+  const ref = useRef<THREE.Sprite>(null)
+  const [hovered, setHovered] = useState(false)
+  const grow = useRef(0)
+
+  // Ease toward the hovered size rather than snapping, matching the easing
+  // used elsewhere in the scene (frame-rate independent).
+  useFrame((_, dt) => {
+    const sprite = ref.current
+    if (!sprite) return
+    const want = hovered && interactive ? 1 : 0
+    grow.current = THREE.MathUtils.lerp(grow.current, want, 1 - Math.exp(-14 * dt))
+    const s = 1 + grow.current * 0.1
+    sprite.scale.set(BASE_W * s, BASE_H * s, 1)
+    sprite.position.y = 0.8 + grow.current * 0.05
+  })
+
+  const setCursor = (on: boolean) => {
+    document.body.style.cursor = on ? 'pointer' : ''
+  }
+
   // depthTest off (+ a high renderOrder) so the label always draws above the
   // table, rail, players' hands, and resting cards.
   return (
-    <sprite position={[x, 0.8, z]} scale={[1.62 * PLATE_SCALE, 0.51 * PLATE_SCALE, 1]} renderOrder={5}>
+    <sprite
+      ref={ref}
+      position={[x, 0.8, z]}
+      scale={[BASE_W, BASE_H, 1]}
+      renderOrder={5}
+      onClick={
+        interactive
+          ? (e) => {
+              e.stopPropagation()
+              onSelect()
+            }
+          : undefined
+      }
+      onPointerOver={
+        interactive
+          ? (e) => {
+              e.stopPropagation()
+              setHovered(true)
+              setCursor(true)
+            }
+          : undefined
+      }
+      onPointerOut={
+        interactive
+          ? () => {
+              setHovered(false)
+              setCursor(false)
+            }
+          : undefined
+      }
+    >
       <spriteMaterial map={tex} transparent depthWrite={false} depthTest={false} />
     </sprite>
   )
@@ -110,15 +174,32 @@ function Plate({ name, accent, x, z }: { name: string; accent: string; x: number
 
 /**
  * A floating nameplate in front of each player showing that seat's section.
- * Hidden while a card is lifted to the camera so the plates (which ignore
- * depth) never draw over the focused card's text.
+ * Clicking one lifts that seat's hand, so the labels double as the scene's
+ * navigation. Hidden while a card is lifted to the camera so the plates (which
+ * ignore depth) never draw over the focused card's text.
  */
-export function Nameplates({ hidden }: { hidden: boolean }) {
+export function Nameplates({
+  hidden,
+  interactive,
+  onSelect,
+}: {
+  hidden: boolean
+  interactive: boolean
+  onSelect: (seatId: string) => void
+}) {
   if (hidden) return null
   return (
     <>
       {seatAnchors.map((a) => (
-        <Plate key={a.seatId} name={a.section.label} accent={a.section.accent} x={a.x} z={a.z} />
+        <Plate
+          key={a.seatId}
+          name={a.section.label}
+          accent={a.section.accent}
+          x={a.x}
+          z={a.z}
+          interactive={interactive}
+          onSelect={() => onSelect(a.seatId)}
+        />
       ))}
     </>
   )

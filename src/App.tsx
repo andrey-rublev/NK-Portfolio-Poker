@@ -6,10 +6,11 @@ import { CAMERA_HOME, type CardSlot } from './three/layout'
 import { prefersReducedMotion } from './three/motion'
 import { owner } from './data/portfolio'
 import {
+  SHIM_COLLAPSE_PX,
   canFullscreen,
   isFullscreen,
-  isIosSafari,
   isStandalone,
+  needsScrollShim,
   toggleFullscreen,
 } from './three/display'
 import './ui.css'
@@ -33,9 +34,12 @@ function App() {
   // Fullscreen is only offered where the API exists (not iPhone Safari).
   const [fsAvailable] = useState(() => canFullscreen() && !isStandalone())
   const [fullscreen, setFullscreen] = useState(false)
-  // On iPhone Safari the only way to lose the toolbar is Add to Home Screen.
-  const [a2hsDismissed, setA2hsDismissed] = useState(false)
-  const [showA2hs] = useState(() => isIosSafari() && !isStandalone())
+  // iPhone browsers have no Fullscreen API, but they *do* retract their own
+  // toolbars once the page scrolls. `scrollShim` makes the document a little
+  // taller than the viewport so that gesture exists; `chromeHidden` tracks
+  // whether the visitor has already taken it.
+  const [scrollShim] = useState(needsScrollShim)
+  const [chromeHidden, setChromeHidden] = useState(false)
   // Adaptive render resolution: start at the display's native sharpness
   // (capped at 2x) and let the PerformanceMonitor walk it down toward 1x
   // only when the frame rate actually sags — sharp when there's headroom.
@@ -46,6 +50,23 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
   }, [reducedMotion])
+
+  // Scroll shim: opt the document into a small amount of vertical scroll so
+  // mobile Safari retracts its address and tab bars. The scene itself is fixed,
+  // so scrolling moves nothing on screen -- it only buys back the chrome's
+  // height, which `100dvh` then hands to the canvas.
+  useEffect(() => {
+    if (!scrollShim) return
+    const root = document.documentElement
+    root.dataset.scrollShim = 'on'
+    const onScroll = () => setChromeHidden(window.scrollY > SHIM_COLLAPSE_PX)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      delete root.dataset.scrollShim
+    }
+  }, [scrollShim])
 
   // Keep the fullscreen button's icon in step with the actual state (the user
   // can leave fullscreen with Esc or a system gesture).
@@ -70,6 +91,11 @@ function App() {
     setFocusedKey((prev) => (prev === key ? null : key))
   }
 
+  // A seat's nameplate lifts that seat's hand, exactly like clicking its cards.
+  const handleSeatSelect = (seatId: string) => {
+    setFocusedKey((prev) => (prev === seatId ? null : seatId))
+  }
+
   const handleDeckPress = () => {
     if (dealing.current || revealStage >= 3) return
     dealing.current = true
@@ -89,7 +115,7 @@ function App() {
   const boardLabel = focusedKey
     ? 'Click the card again to put it back'
     : revealStage === 0
-      ? 'Click a hand to look · press the deck to deal the flop'
+      ? 'Click a name or hand to look · press the deck to deal the flop'
       : revealStage === 1
         ? 'Press the deck for the turn'
         : revealStage === 2
@@ -122,6 +148,7 @@ function App() {
             burnStage={burnStage}
             revealStage={revealStage}
             onToggle={handleToggle}
+            onSelectSeat={handleSeatSelect}
             onDeckPress={handleDeckPress}
             onDismiss={handleDismiss}
           />
@@ -172,14 +199,14 @@ function App() {
         ?
       </button>
 
-      {showA2hs && !a2hsDismissed && !showIntro && !focusedKey && (
-        <div className="a2hs-tip" role="note">
-          <span>
-            For full screen: <strong>Share</strong> &rarr; <strong>Add to Home Screen</strong>
+      {scrollShim && !chromeHidden && !showIntro && !focusedKey && (
+        <div className="swipe-tip" role="note">
+          <span className="swipe-tip__icon" aria-hidden="true">
+            ↑
           </span>
-          <button type="button" aria-label="Dismiss" onClick={() => setA2hsDismissed(true)}>
-            ✕
-          </button>
+          <span>
+            Swipe up for <strong>full screen</strong>
+          </span>
         </div>
       )}
 
@@ -199,7 +226,7 @@ function App() {
             <ul className="intro__steps">
               <li>
                 <span style={{ color: '#1a2128' }}>♠</span>
-                <span>Click a player's hand to read that section.</span>
+                <span>Click a player's name or hand to read that section.</span>
               </li>
               <li>
                 <span style={{ color: '#b3122a' }}>♥</span>

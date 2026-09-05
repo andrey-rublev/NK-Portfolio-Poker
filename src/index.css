@@ -90,6 +90,35 @@ select {
   height: 100dvh;
 }
 
+/* ---------- Scroll shim (iPhone browsers only) ----------
+   iOS has no Fullscreen API, but Safari retracts its address and tab bars the
+   moment a page scrolls. The scene is position: fixed, so this extra document
+   height is invisible -- it exists purely so that gesture is available. Once
+   the bars retract, 100dvh grows and the canvas claims the space. */
+html[data-scroll-shim='on'],
+html[data-scroll-shim='on'] body {
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto;
+  /* Don't let the shim's scroll chain out to any parent frame. */
+  overscroll-behavior-y: contain;
+}
+
+html[data-scroll-shim='on'] #root {
+  height: calc(100dvh + 220px);
+}
+
+/* The shim's scrollbar would be pure noise -- there is nothing to see down
+   there. (iOS overlays scrollbars anyway; this covers everything else.) */
+html[data-scroll-shim='on'] {
+  scrollbar-width: none;
+}
+
+html[data-scroll-shim='on']::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 ::selection {
   background: rgba(235, 191, 102, 0.36);
   color: #fffaf1;

@@ -13,6 +13,20 @@
   touch-action: none;
 }
 
+/* With the scroll shim active the shell must track the *dynamic* viewport, so
+   it grows into the space Safari's retracting toolbars give back. */
+html[data-scroll-shim='on'] .app-shell {
+  bottom: auto;
+  height: 100dvh;
+}
+
+/* A vertical drag has to reach the document scroller for Safari to retract its
+   chrome. The scene is tap-only -- no drag gestures -- so trading `none` for
+   `pan-y` costs no interaction. !important overrides the rule above. */
+html[data-scroll-shim='on'] .app-shell canvas {
+  touch-action: pan-y !important;
+}
+
 /* ---------- Heads-up display ---------- */
 .scene-hud {
   position: fixed;
@@ -394,18 +408,19 @@
   background: rgba(10, 38, 27, 0.85);
 }
 
-/* "Add to Home Screen" hint — iOS Safari only, where fullscreen is impossible. */
-.a2hs-tip {
+/* "Swipe up for full screen" — shown on iPhone browsers, which have no
+   Fullscreen API, and self-dismissing the moment the chrome actually retracts.
+   Portrait already carries the rotate tip, so this one is landscape-only. */
+.swipe-tip {
   position: fixed;
   display: none;
   left: 50%;
   transform: translateX(-50%);
   bottom: calc(clamp(64px, 14vw, 92px) + env(safe-area-inset-bottom, 0px));
   z-index: 18;
-  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.6rem 0.5rem 0.95rem;
+  gap: 0.45rem;
+  padding: 0.5rem 0.95rem;
   border-radius: 999px;
   background: rgba(6, 24, 17, 0.78);
   border: 1px solid rgba(255, 244, 222, 0.2);
@@ -415,29 +430,36 @@
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
+  pointer-events: none;
 }
 
 @media (orientation: landscape) {
-  .a2hs-tip {
+  .swipe-tip {
     display: flex;
   }
 }
 
-.a2hs-tip strong {
+.swipe-tip strong {
   color: #ffe9bd;
 }
 
-.a2hs-tip button {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(255, 244, 222, 0.14);
+.swipe-tip__icon {
+  font-size: 0.95rem;
+  line-height: 1;
   color: #ffe9bd;
-  font-size: 0.7rem;
-  cursor: pointer;
+  animation: swipe-tip-nudge 1.6s ease-in-out infinite;
+}
+
+@keyframes swipe-tip-nudge {
+  0%,
+  100% {
+    transform: translateY(2px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
 }
 
 /* ---------- Short landscape (phone with browser chrome) ----------
@@ -482,9 +504,9 @@
     height: 32px;
   }
 
-  .a2hs-tip {
+  .swipe-tip {
     bottom: calc(44px + env(safe-area-inset-bottom, 0px));
-    padding: 0.35rem 0.45rem 0.35rem 0.7rem;
+    padding: 0.35rem 0.7rem;
     font-size: 0.7rem;
   }
 

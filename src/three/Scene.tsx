@@ -250,6 +250,8 @@ interface SceneProps {
   /** Community card(s) revealed; also drives the deck size + hint. */
   revealStage: number
   onToggle: (slot: CardSlot) => void
+  /** Clicking a seat's nameplate lifts that seat's hand. */
+  onSelectSeat: (seatId: string) => void
   onDeckPress: () => void
   onDismiss: () => void
 }
@@ -261,6 +263,7 @@ export function Scene({
   burnStage,
   revealStage,
   onToggle,
+  onSelectSeat,
   onDeckPress,
   onDismiss,
 }: SceneProps) {
@@ -302,7 +305,7 @@ export function Scene({
       <PokerTable />
       <Chips boardStage={betStage} />
       <Players />
-      <Nameplates hidden={focusedKey !== null} />
+      <Nameplates hidden={focusedKey !== null} interactive={dealt} onSelect={onSelectSeat} />
       <Deck onPress={onDeckPress} />
       <BurnPile boardStage={burnStage} />
 

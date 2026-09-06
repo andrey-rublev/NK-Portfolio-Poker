@@ -59,6 +59,7 @@ function App() {
   // drags the table's baseline down with it.
   const [settledKey, setSettledKey] = useState<string | null>(null)
   const focusedRef = useRef(false)
+  const settleUntil = useRef(0)
   const reading = focusedKey !== null && settledKey === focusedKey
   const dpr = reading ? readingDpr : adaptiveDpr
 
@@ -82,6 +83,14 @@ function App() {
       delete root.dataset.scrollShim
     }
   }, [scrollShim])
+
+  // Resizing the drawing buffer costs a frame or two. Ignore the monitor for
+  // a moment afterwards so that self-inflicted hitch is not read as a
+  // performance decline -- otherwise every card the visitor closed ratcheted
+  // the resolution down another step and it never climbed back.
+  useEffect(() => {
+    settleUntil.current = performance.now() + 1500
+  }, [dpr])
 
   // Sharpen a focused card only after it has landed: resizing the drawing
   // buffer mid-flight would stutter the animation, whereas raising the
@@ -158,17 +167,18 @@ function App() {
         camera={{ position: CAMERA_HOME, fov: 40, near: 0.1, far: 100 }}
       >
         {/* Walk render resolution between the floor and the motion ceiling
-            based on measured frame rate; if it keeps flip-flopping, settle at
-            the floor rather than dropping to 1x. */}
+            based on measured frame rate. No flipflop fallback: opening and
+            closing cards makes the monitor oscillate by design, and pinning a
+            permanent baseline off that turned browsing into a one-way ratchet
+            down. Oscillating inside a 1.5x-2x band is harmless on its own, and
+            the guard below keeps it to at most one change per 1.5s. */}
         <PerformanceMonitor
           factor={1}
           onChange={({ factor }) => {
-            if (focusedRef.current) return
+            if (focusedRef.current || performance.now() < settleUntil.current) return
             const next = floorDpr + (motionDpr - floorDpr) * factor
             setAdaptiveDpr(Math.round(next * 10) / 10)
           }}
-          flipflops={3}
-          onFallback={() => setAdaptiveDpr(floorDpr)}
         >
           <Scene
             dealt={dealt}

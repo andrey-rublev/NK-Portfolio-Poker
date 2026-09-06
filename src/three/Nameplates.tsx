@@ -98,6 +98,24 @@ function plateTexture(name: string, accent: string): THREE.Texture {
   return tex
 }
 
+/**
+ * Plate textures are built once and kept. The plates unmount whenever a card
+ * is focused, so without this every release rebuilt five canvas textures and
+ * abandoned the previous five on the GPU -- a leak that grew with every card
+ * the visitor opened.
+ */
+const plateCache = new Map<string, THREE.Texture>()
+
+function getPlateTexture(name: string, accent: string): THREE.Texture {
+  const key = `${name}|${accent}`
+  let tex = plateCache.get(key)
+  if (!tex) {
+    tex = plateTexture(name, accent)
+    plateCache.set(key, tex)
+  }
+  return tex
+}
+
 const BASE_W = 1.62 * PLATE_SCALE
 const BASE_H = 0.51 * PLATE_SCALE
 
@@ -112,7 +130,7 @@ interface PlateProps {
 }
 
 function Plate({ name, accent, x, z, interactive, onSelect }: PlateProps) {
-  const tex = useMemo(() => plateTexture(name, accent), [name, accent])
+  const tex = useMemo(() => getPlateTexture(name, accent), [name, accent])
   const ref = useRef<THREE.Sprite>(null)
   const [hovered, setHovered] = useState(false)
   const grow = useRef(0)

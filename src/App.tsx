@@ -40,12 +40,27 @@ function App() {
   // whether the visitor has already taken it.
   const [scrollShim] = useState(needsScrollShim)
   const [chromeHidden, setChromeHidden] = useState(false)
-  // Adaptive render resolution: start at the display's native sharpness
-  // (capped at 2x) and let the PerformanceMonitor walk it down toward 1x
-  // only when the frame rate actually sags — sharp when there's headroom.
-  const nativeDpr =
-    typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1
-  const [dpr, setDpr] = useState(nativeDpr)
+  // Render resolution. The scene has two modes with opposite needs:
+  //   - the table ANIMATES (deal, chips, burn), so it is capped at 2x and the
+  //     PerformanceMonitor may walk it down when frames start dropping;
+  //   - a focused card is STILL, and its body text is the entire point, so it
+  //     gets the display's full density.
+  // The floor is what matters most: letting the monitor fall all the way to 1x
+  // is a 3x downsample on a modern phone, which turns card text to mush. That
+  // drift — 2.0 down to 1.0 depending on measured frame rate — is why
+  // sharpness felt random rather than consistently good or bad.
+  const nativeDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
+  const motionDpr = Math.min(nativeDpr, 2)
+  const floorDpr = Math.min(nativeDpr, 1.5)
+  const readingDpr = Math.min(nativeDpr, 3)
+  const [adaptiveDpr, setAdaptiveDpr] = useState(motionDpr)
+  // `reading` turns on once a focused card has finished flying up. The ref
+  // keeps those frames out of the measurements below, so reading mode never
+  // drags the table's baseline down with it.
+  const [settledKey, setSettledKey] = useState<string | null>(null)
+  const focusedRef = useRef(false)
+  const reading = focusedKey !== null && settledKey === focusedKey
+  const dpr = reading ? readingDpr : adaptiveDpr
 
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
@@ -67,6 +82,18 @@ function App() {
       delete root.dataset.scrollShim
     }
   }, [scrollShim])
+
+  // Sharpen a focused card only after it has landed: resizing the drawing
+  // buffer mid-flight would stutter the animation, whereas raising the
+  // resolution of an already-still card is free.
+  useEffect(() => {
+    focusedRef.current = focusedKey !== null
+    // Dropping back out of reading mode needs no state change: `reading` is
+    // derived, so it goes false the instant the card is released.
+    if (!focusedKey) return
+    const t = window.setTimeout(() => setSettledKey(focusedKey), 900)
+    return () => window.clearTimeout(t)
+  }, [focusedKey])
 
   // Keep the fullscreen button's icon in step with the actual state (the user
   // can leave fullscreen with Esc or a system gesture).
@@ -130,16 +157,18 @@ function App() {
         gl={{ antialias: true }}
         camera={{ position: CAMERA_HOME, fov: 40, near: 0.1, far: 100 }}
       >
-        {/* Walk render resolution between 1x and native based on measured
-            frame rate; if it keeps flip-flopping, settle at the low baseline. */}
+        {/* Walk render resolution between the floor and the motion ceiling
+            based on measured frame rate; if it keeps flip-flopping, settle at
+            the floor rather than dropping to 1x. */}
         <PerformanceMonitor
           factor={1}
           onChange={({ factor }) => {
-            const next = 1 + (nativeDpr - 1) * factor
-            setDpr(Math.round(next * 10) / 10)
+            if (focusedRef.current) return
+            const next = floorDpr + (motionDpr - floorDpr) * factor
+            setAdaptiveDpr(Math.round(next * 10) / 10)
           }}
           flipflops={3}
-          onFallback={() => setDpr(1)}
+          onFallback={() => setAdaptiveDpr(floorDpr)}
         >
           <Scene
             dealt={dealt}

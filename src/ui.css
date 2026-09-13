@@ -129,6 +129,8 @@ html[data-scroll-shim='on'] .app-shell canvas {
   gap: 0.5rem;
   justify-content: center;
   white-space: nowrap;
+  /* Wait for the card to land (and a community card to turn over). */
+  animation: fade-rise 0.35s ease 0.6s both;
 }
 
 .card-link-row a {
@@ -150,6 +152,88 @@ html[data-scroll-shim='on'] .app-shell canvas {
 .card-link-row a:hover {
   transform: translateY(-2px);
   background: #24323f;
+}
+
+/* "Deal the flop" button floating over the deck (drei Html). */
+.deal-cue {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #ffe9bd;
+  font-family: 'Mulish', system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  animation: fade-rise 0.45s ease 0.5s both;
+}
+
+.deal-cue__label {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: rgba(6, 24, 17, 0.8);
+  border: 1px solid rgba(243, 197, 107, 0.75);
+  box-shadow: 0 0 18px rgba(243, 197, 107, 0.28), 0 8px 22px rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.deal-cue:hover .deal-cue__label {
+  transform: translateY(-2px);
+  background: rgba(12, 40, 28, 0.9);
+}
+
+.deal-cue:focus-visible {
+  outline: none;
+}
+
+.deal-cue:focus-visible .deal-cue__label {
+  outline: 2px solid #ffe9bd;
+  outline-offset: 3px;
+}
+
+.deal-cue__arrow {
+  font-size: 1.05rem;
+  line-height: 1;
+  color: #f3c56b;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  animation: deal-cue-bob 1.2s ease-in-out infinite;
+}
+
+@keyframes deal-cue-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-link-row,
+  .deal-cue,
+  .deal-cue__arrow {
+    animation: none;
+  }
 }
 
 /* ---------- "Rotate your phone" tip (portrait phones only) ---------- */
@@ -507,6 +591,11 @@ html[data-scroll-shim='on'] .app-shell canvas {
   .swipe-tip {
     bottom: calc(44px + env(safe-area-inset-bottom, 0px));
     padding: 0.35rem 0.7rem;
+    font-size: 0.7rem;
+  }
+
+  .deal-cue__label {
+    padding: 0.4rem 0.8rem;
     font-size: 0.7rem;
   }
 

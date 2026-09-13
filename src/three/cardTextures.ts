@@ -375,7 +375,7 @@ function drawCommunityCover(s: PortfolioCardData): HTMLCanvasElement {
   return c
 }
 
-/** Community content (after click): header at top, then the grouped bullets. */
+/** Community content (the card's reverse): header at top, then the grouped bullets. */
 function drawCommunityContent(s: PortfolioCardData): HTMLCanvasElement {
   const { c, ctx } = canvas2d()
   paper(ctx, s.accent)
@@ -592,7 +592,8 @@ function loadAboutPhoto(canvas: HTMLCanvasElement, onReady: () => void): void {
 interface Faces {
   front: THREE.Texture
   back: THREE.Texture
-  cover?: THREE.Texture
+  /** Community cards only: the section content, printed on the card's reverse. */
+  content?: THREE.Texture
 }
 let sharedBack: THREE.Texture | null = null
 const cache = new Map<string, Faces>()
@@ -635,11 +636,14 @@ export function createCardFaces(section: PortfolioCardData, role: CardRole): Fac
         ? { front: toTex(drawAboutRight(section)), back: getSharedBack() }
         : { front: toTex(getSpread(section).right), back: getSharedBack() }
   } else {
-    faces = {
-      front: toTex(drawCommunityContent(section)),
-      cover: toTex(drawCommunityCover(section)),
-      back: getSharedBack(),
-    }
+    // The title is the face-up side on the board; the content is printed on
+    // the reverse and revealed by turning the card over. It turns about its
+    // vertical axis, which would read mirror-image, so the texture is flipped
+    // horizontally to cancel that out.
+    const content = toTex(drawCommunityContent(section))
+    content.repeat.x = -1
+    content.offset.x = 1
+    faces = { front: toTex(drawCommunityCover(section)), back: getSharedBack(), content }
   }
   cache.set(key, faces)
   return faces

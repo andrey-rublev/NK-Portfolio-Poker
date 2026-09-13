@@ -25,6 +25,7 @@ const _lookT = new THREE.Vector3()
 const _m4 = new THREE.Matrix4()
 const _qBase = new THREE.Quaternion()
 const _qFocus = new THREE.Quaternion()
+const _qFlip = new THREE.Quaternion()
 const _euler = new THREE.Euler()
 const UP = new THREE.Vector3(0, 1, 0)
 
@@ -38,6 +39,7 @@ interface Card3DProps {
 
 export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DProps) {
   const group = useRef<THREE.Group>(null)
+  const backMat = useRef<THREE.MeshStandardMaterial>(null)
   const [hovered, setHovered] = useState(false)
   const [outOfDeck, setOutOfDeck] = useState(dealt)
   const faces = useMemo(() => createCardFaces(slot.section, slot.role), [slot.section, slot.role])
@@ -106,8 +108,21 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     // Time-corrected (≈ the old per-frame 0.06 at 60 fps).
     prog.current = lerp(prog.current, focused ? 1 : 0, 1 - Math.exp(-3.7 * dt))
     const p = prog.current
+    const lifted = p > 0.001
 
-    if (p < 0.001) {
+    // A lifted card draws after the nameplates, so it covers them rather than
+    // the plates (which ignore depth) printing over its text.
+    g.renderOrder = lifted ? 10 : 0
+
+    // A community card's content is printed on its reverse. The reverse faces
+    // the felt the whole time the card rests face-up, so it keeps the ordinary
+    // card back until the card leaves the table -- that swap is never visible.
+    if (faces.content && backMat.current) {
+      const want = lifted ? faces.content : faces.back
+      if (backMat.current.map !== want) backMat.current.map = want
+    }
+
+    if (!lifted) {
       g.position.copy(_basePos)
       g.quaternion.copy(_qBase)
       g.scale.setScalar(b.scale)
@@ -149,14 +164,19 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     _qFocus.setFromRotationMatrix(_m4)
 
     // Position leads (clears the table); rotation lags (flips to face you).
+    // A community card turns to face you title-first over the first half of
+    // the lift, then turns over like a page to show the content on its back.
     const posE = easeOut(clamp01(p / 0.55))
-    const rotE = easeInOut(clamp01((p - 0.15) / 0.85))
+    const rotE = easeInOut(clamp01((p - 0.15) / (isCommunity ? 0.45 : 0.85)))
     g.position.copy(_basePos).lerp(_focusPos, posE)
     g.quaternion.copy(_qBase).slerp(_qFocus, rotE)
+    if (isCommunity) {
+      const flipE = easeInOut(clamp01((p - 0.5) / 0.5))
+      g.quaternion.multiply(_qFlip.setFromAxisAngle(UP, Math.PI * flipE))
+    }
     g.scale.setScalar(lerp(b.scale, focusScale, p))
   })
 
-  const frontMap = isCommunity && !focused ? faces.cover ?? faces.front : faces.front
   // Links live on the right (info) card of a hand, or the single community card.
   const actions = slot.section.actions
   const showLinks = focused && slot.role !== 'label' && !!actions && actions.length > 0
@@ -192,14 +212,19 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
 
-      <group ref={group} renderOrder={focused ? 10 : 0}>
+      {/* Materials are `transparent` at full opacity purely for draw order:
+          three.js sorts opaque and transparent objects in separate passes, and
+          the nameplates are transparent, so only a transparent card can be
+          ordered above them. */}
+      <group ref={group}>
         <mesh geometry={getCardGeometry()} castShadow receiveShadow>
-          <meshStandardMaterial attach="material-0" map={frontMap} roughness={0.92} metalness={0} />
-          <meshStandardMaterial attach="material-1" map={faces.back} roughness={0.85} metalness={0} />
-          <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
+          <meshStandardMaterial attach="material-0" map={faces.front} transparent roughness={0.92} metalness={0} />
+          <meshStandardMaterial ref={backMat} attach="material-1" map={faces.back} transparent roughness={0.85} metalness={0} />
+          <meshStandardMaterial attach="material-2" color="#efe6d2" transparent roughness={0.7} />
         </mesh>
         {showLinks && actions && (
-          <Html position={[0, -0.5, 0.06]} center>
+          // A community card is read from its back, so its links sit on that side.
+          <Html position={[0, -0.5, isCommunity ? -0.06 : 0.06]} center>
             <div className="card-link-row">
               {actions.map((a) => (
                 <a key={a.href} href={a.href} target="_blank" rel="noopener noreferrer">

@@ -147,12 +147,11 @@ function Plate({ name, accent, x, z, interactive, onSelect }: PlateProps) {
     sprite.position.y = 0.8 + grow.current * 0.05
   })
 
-  const setCursor = (on: boolean) => {
-    document.body.style.cursor = on ? 'pointer' : ''
-  }
-
   // depthTest off (+ a high renderOrder) so the label always draws above the
   // table, rail, players' hands, and resting cards.
+  // Hover is tracked even while the plate is inert, so a plate that becomes
+  // inert under a resting pointer (a card was just lifted) settles back down
+  // instead of staying enlarged once it is interactive again.
   return (
     <sprite
       ref={ref}
@@ -167,23 +166,16 @@ function Plate({ name, accent, x, z, interactive, onSelect }: PlateProps) {
             }
           : undefined
       }
-      onPointerOver={
-        interactive
-          ? (e) => {
-              e.stopPropagation()
-              setHovered(true)
-              setCursor(true)
-            }
-          : undefined
-      }
-      onPointerOut={
-        interactive
-          ? () => {
-              setHovered(false)
-              setCursor(false)
-            }
-          : undefined
-      }
+      onPointerOver={(e) => {
+        setHovered(true)
+        if (!interactive) return
+        e.stopPropagation()
+        document.body.style.cursor = 'pointer'
+      }}
+      onPointerOut={() => {
+        setHovered(false)
+        document.body.style.cursor = ''
+      }}
     >
       <spriteMaterial map={tex} transparent depthWrite={false} depthTest={false} />
     </sprite>
@@ -193,19 +185,16 @@ function Plate({ name, accent, x, z, interactive, onSelect }: PlateProps) {
 /**
  * A floating nameplate in front of each player showing that seat's section.
  * Clicking one lifts that seat's hand, so the labels double as the scene's
- * navigation. Hidden while a card is lifted to the camera so the plates (which
- * ignore depth) never draw over the focused card's text.
+ * navigation. The plates stay up while a card is lifted; the lifted card is
+ * ordered to draw after them, so it covers them (see Card3D).
  */
 export function Nameplates({
-  hidden,
   interactive,
   onSelect,
 }: {
-  hidden: boolean
   interactive: boolean
   onSelect: (seatId: string) => void
 }) {
-  if (hidden) return null
   return (
     <>
       {seatAnchors.map((a) => (

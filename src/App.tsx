@@ -15,6 +15,8 @@ import {
 } from './three/display'
 import './ui.css'
 
+const DEAL_CUES = ['Deal the flop', 'Deal the turn', 'Deal the river']
+
 function App() {
   const [reducedMotion] = useState(prefersReducedMotion)
   const [dealt, setDealt] = useState(false)
@@ -28,6 +30,9 @@ function App() {
   const [revealStage, setRevealStage] = useState(0)
   const dealing = useRef(false)
   const [showIntro, setShowIntro] = useState(true)
+  // The deck cue waits for the opening deal to finish, so it isn't competing
+  // with ten cards flying out of the deck.
+  const [cueReady, setCueReady] = useState(false)
   // "Rotate your phone" tip — shown only on portrait phones (via CSS), and
   // dismissible. Rotating to landscape hides it automatically.
   const [rotateTipDismissed, setRotateTipDismissed] = useState(false)
@@ -120,6 +125,7 @@ function App() {
   const handleStart = () => {
     setShowIntro(false)
     setDealt(true)
+    window.setTimeout(() => setCueReady(true), 2400)
   }
 
   const handleToggle = (slot: CardSlot) => {
@@ -158,6 +164,13 @@ function App() {
           ? 'Press the deck for the river'
           : 'Click any card to look'
 
+  // Point at the deck whenever another street can be dealt: hidden while one is
+  // still playing out (the chips move first) and while a card is being read.
+  const dealCue =
+    cueReady && !focusedKey && betStage === revealStage && revealStage < 3
+      ? DEAL_CUES[revealStage]
+      : null
+
   return (
     <div className="app-shell">
       <Canvas
@@ -186,6 +199,7 @@ function App() {
             betStage={betStage}
             burnStage={burnStage}
             revealStage={revealStage}
+            dealCue={dealCue}
             onToggle={handleToggle}
             onSelectSeat={handleSeatSelect}
             onDeckPress={handleDeckPress}

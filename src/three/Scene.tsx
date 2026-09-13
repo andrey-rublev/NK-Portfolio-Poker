@@ -19,6 +19,7 @@ import { getSharedBack } from './cardTextures'
 import { getCardGeometry } from './cardGeometry'
 import { createFloorTexture } from './floorTexture'
 import { Nameplates } from './Nameplates'
+import { DealCue } from './DealCue'
 import { prefersReducedMotion } from './motion'
 
 const LOOK_AT = new THREE.Vector3(0, 0.1, -0.2)
@@ -249,6 +250,8 @@ interface SceneProps {
   burnStage: number
   /** Community card(s) revealed; also drives the deck size + hint. */
   revealStage: number
+  /** Label for the cue pointing at the deck, or null when there is nothing to deal. */
+  dealCue: string | null
   onToggle: (slot: CardSlot) => void
   /** Clicking a seat's nameplate lifts that seat's hand. */
   onSelectSeat: (seatId: string) => void
@@ -262,6 +265,7 @@ export function Scene({
   betStage,
   burnStage,
   revealStage,
+  dealCue,
   onToggle,
   onSelectSeat,
   onDeckPress,
@@ -305,8 +309,9 @@ export function Scene({
       <PokerTable />
       <Chips boardStage={betStage} />
       <Players />
-      <Nameplates hidden={focusedKey !== null} interactive={dealt} onSelect={onSelectSeat} />
+      <Nameplates interactive={dealt && focusedKey === null} onSelect={onSelectSeat} />
       <Deck onPress={onDeckPress} />
+      {dealCue && <DealCue label={dealCue} onPress={onDeckPress} />}
       <BurnPile boardStage={burnStage} />
 
       {seatCards.map((slot) => (

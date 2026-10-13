@@ -153,17 +153,19 @@
           "label": "Projects",
           "groups": [
             {
-              "heading": "Gradus — Founding President",
+              "heading": "GeoGuessr AI",
               "bullets": [
-                "Led a team to build and ship a Flutter/Dart academic progress tracking app.",
-                "Beta released and active in 176 countries/regions."
+                "Self-trained geolocation model that plays OpenGuessr from screen pixels alone, then finds the spot on the map and drops the pin.",
+                "On recent live rounds it averages about 3,450 of 5,000 points.",
+                "Tools: PyTorch, CLIP, Python."
               ]
             },
             {
-              "heading": "RealTalk — Co-Founder & Developer",
+              "heading": "SAP-AI",
               "bullets": [
-                "AI hiring assistant with custom models that review and improve resumes and interviews; active product.",
-                "Tools: React, TypeScript, Vite, FastAPI, AWS, OpenAI API, Whisper."
+                "Reinforcement learning agent that plays Super Auto Pets.",
+                "The desktop program observes the game, chooses actions, performs its own mouse input and verifies the effects.",
+                "Tools: Python, PyTorch, Gymnasium, NumPy."
               ]
             },
             {
@@ -186,7 +188,8 @@
           "suit": "diamonds",
           "rank": "J",
           "actions": [
-            { "label": "View Devpost", "href": "https://devpost.com/nikhilkolli1" }
+            { "label": "GitHub", "href": "https://github.com/andrey-rublev" },
+            { "label": "Devpost", "href": "https://devpost.com/nikhilkolli1" }
           ]
         }
       ]

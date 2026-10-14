@@ -14,7 +14,7 @@ export function createFloorTexture(): THREE.Texture {
   ctx.fillRect(0, 0, S, S)
 
   // Diamond lattice
-  ctx.strokeStyle = 'rgba(120, 40, 60, 0.4)'
+  ctx.strokeStyle = 'rgba(120, 40, 60, 0.22)'
   ctx.lineWidth = 2
   for (let i = -S; i < S * 2; i += 40) {
     ctx.beginPath()

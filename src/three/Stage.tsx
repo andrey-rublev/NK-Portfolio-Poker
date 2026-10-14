@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
+import * as THREE from 'three'
 import { Scene, type SceneProps } from './Scene'
 import { CAMERA_HOME } from './layout'
 
@@ -32,7 +33,9 @@ export default function Stage(scene: SceneProps) {
       frameloop="demand"
       shadows="percentage"
       dpr={Math.min(nativeDpr, reading ? 3 : 2)}
-      gl={{ antialias: true }}
+      // Neutral tone mapping keeps the felt green, card red and paper cream
+      // true to their colours; the default (ACES) shifts saturated hues.
+      gl={{ antialias: true, toneMapping: THREE.NeutralToneMapping }}
       camera={{ position: CAMERA_HOME, fov: 40, near: 0.1, far: 100 }}
     >
       <Scene {...scene} />

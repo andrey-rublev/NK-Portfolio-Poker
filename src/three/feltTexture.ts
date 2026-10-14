@@ -33,6 +33,20 @@ export function createFeltTexture(): THREE.Texture {
     ctx.fillRect(x, y, 1.5, 1.5)
   }
 
+  // Loose fibres: short strokes at random angles, the nap of real baize.
+  ctx.lineWidth = 0.8
+  for (let i = 0; i < 14000; i += 1) {
+    const x = Math.random() * S
+    const y = Math.random() * S
+    const a = Math.random() * Math.PI
+    const l = 2 + Math.random() * 4
+    ctx.strokeStyle = Math.random() > 0.5 ? 'rgba(170,255,210,0.035)' : 'rgba(0,20,10,0.05)'
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l)
+    ctx.stroke()
+  }
+
   const tex = new THREE.CanvasTexture(canvas)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.anisotropy = 8

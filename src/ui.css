@@ -13,6 +13,22 @@
   touch-action: none;
 }
 
+/* A soft vignette that draws the eye to the table. It lifts while a card is
+   being read so it never darkens the card's corners. */
+.app-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 58%, rgba(4, 2, 3, 0.5) 100%);
+  transition: opacity 0.5s ease;
+}
+
+.app-shell.is-reading::after {
+  opacity: 0;
+}
+
 /* With the scroll shim active the shell must track the *dynamic* viewport, so
    it grows into the space Safari's retracting toolbars give back. */
 html[data-scroll-shim='on'] .app-shell {

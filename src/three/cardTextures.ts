@@ -6,11 +6,17 @@ import { inkColor } from '../theme'
 const W = 512
 const H = 731
 
-function canvas2d() {
+/**
+ * A card-sized canvas. Everything is drawn in the card's own 512 x 731 units;
+ * `scale` only raises the pixel density (the reading copies use 2x).
+ */
+function canvas2d(scale = 1) {
   const c = document.createElement('canvas')
-  c.width = W
-  c.height = H
-  return { c, ctx: c.getContext('2d')! }
+  c.width = W * scale
+  c.height = H * scale
+  const ctx = c.getContext('2d')!
+  ctx.scale(scale, scale)
+  return { c, ctx }
 }
 
 function toTex(c: HTMLCanvasElement) {
@@ -257,9 +263,9 @@ interface Spread {
  * chosen to balance the two cards, prefers group boundaries, never orphans a
  * sub-heading, and keeps each side within the card.
  */
-function buildHandSpread(s: PortfolioCardData): Spread {
-  const left = canvas2d()
-  const right = canvas2d()
+function buildHandSpread(s: PortfolioCardData, scale = 1): Spread {
+  const left = canvas2d(scale)
+  const right = canvas2d(scale)
   paper(left.ctx, s.accent)
   paper(right.ctx, s.accent)
 
@@ -381,8 +387,8 @@ function drawCommunityCover(s: PortfolioCardData): HTMLCanvasElement {
 }
 
 /** Community content (the card's reverse): header at top, then the grouped bullets. */
-function drawCommunityContent(s: PortfolioCardData): HTMLCanvasElement {
-  const { c, ctx } = canvas2d()
+function drawCommunityContent(s: PortfolioCardData, scale = 1): HTMLCanvasElement {
+  const { c, ctx } = canvas2d(scale)
   paper(ctx, s.accent)
   const y0 = drawHeader(ctx, s.label, s.accent)
   const { items, m } = fitItems(ctx, s.groups, H - 46 - y0)
@@ -522,8 +528,8 @@ function drawBack(): HTMLCanvasElement {
 
 const ABOUT_PHOTO = { x: PAD - 6, y: 152, w: W - (PAD - 6) * 2, h: 468 }
 
-function drawAboutLeft(s: PortfolioCardData): HTMLCanvasElement {
-  const { c, ctx } = canvas2d()
+function drawAboutLeft(s: PortfolioCardData, scale = 1): HTMLCanvasElement {
+  const { c, ctx } = canvas2d(scale)
   paper(ctx, s.accent)
   drawHeader(ctx, s.label, s.accent)
   const { x, y, w, h } = ABOUT_PHOTO
@@ -552,15 +558,19 @@ function drawAboutLeft(s: PortfolioCardData): HTMLCanvasElement {
   return c
 }
 
-function drawAboutRight(s: PortfolioCardData): HTMLCanvasElement {
-  const { c, ctx } = canvas2d()
+function drawAboutRight(s: PortfolioCardData, scale = 1): HTMLCanvasElement {
+  const { c, ctx } = canvas2d(scale)
   paper(ctx, s.accent)
   const { items, m } = fitItems(ctx, s.groups, H - 46 - 60)
   drawItems(ctx, items, 0, items.length, 60, s.accent, m)
   return c
 }
 
-/** Load public/about.jpg into the reserved photo area, then notify (texture update). */
+/**
+ * Load public/about.jpeg into the reserved photo area, then notify (texture
+ * update). The context keeps the canvas's scale, so the photo is drawn at the
+ * canvas's full density.
+ */
 function loadAboutPhoto(canvas: HTMLCanvasElement, onReady: () => void): void {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -616,6 +626,10 @@ export function onCardFacesUpdated(listener: () => void): () => void {
 }
 const spreadCache = new Map<string, Spread>()
 
+function notifyUpdated() {
+  updateListeners.forEach((listener) => listener())
+}
+
 export function getSharedBack(): THREE.Texture {
   if (!sharedBack) sharedBack = toTex(drawBack())
   return sharedBack
@@ -642,7 +656,7 @@ export function createCardFaces(section: PortfolioCardData, role: CardRole): Fac
       const tex = toTex(canvas)
       loadAboutPhoto(canvas, () => {
         tex.needsUpdate = true
-        updateListeners.forEach((listener) => listener())
+        notifyUpdated()
       })
       faces = { front: tex, back: getSharedBack() }
     } else {
@@ -665,4 +679,61 @@ export function createCardFaces(section: PortfolioCardData, role: CardRole): Fac
   }
   cache.set(key, faces)
   return faces
+}
+
+/* ---------- High-resolution reading faces ---------- */
+
+const READING_SCALE = 2
+/** Reading faces are 4x the memory of a table face, so only a few are kept. */
+const READING_KEEP = 4
+const readingFaces = new Map<string, THREE.Texture>() // oldest first
+let readingSpread: { id: string; spread: Spread } | null = null
+
+/**
+ * The face a lifted card is read from, at twice the resolution. Table faces
+ * are 512px wide -- plenty on the felt, but soft once a card fills half of a
+ * high-density screen. Built when a card lands and kept for the last few cards
+ * read; older ones are released.
+ */
+export function getReadingFace(section: PortfolioCardData, role: CardRole): THREE.Texture {
+  const key = `${section.id}:${role}`
+  const hit = readingFaces.get(key)
+  if (hit) {
+    readingFaces.delete(key)
+    readingFaces.set(key, hit)
+    return hit
+  }
+
+  let tex: THREE.Texture
+  if (role === 'community') {
+    tex = toTex(drawCommunityContent(section, READING_SCALE))
+    tex.repeat.x = -1
+    tex.offset.x = 1
+  } else if (section.id === 'about') {
+    if (role === 'label') {
+      const canvas = drawAboutLeft(section, READING_SCALE)
+      const photoTex = toTex(canvas)
+      loadAboutPhoto(canvas, () => {
+        photoTex.needsUpdate = true
+        notifyUpdated()
+      })
+      tex = photoTex
+    } else {
+      tex = toTex(drawAboutRight(section, READING_SCALE))
+    }
+  } else {
+    // A hand's two faces come from one layout pass, so keep the latest spread.
+    if (readingSpread?.id !== section.id) {
+      readingSpread = { id: section.id, spread: buildHandSpread(section, READING_SCALE) }
+    }
+    tex = toTex(role === 'label' ? readingSpread.spread.left : readingSpread.spread.right)
+  }
+
+  readingFaces.set(key, tex)
+  while (readingFaces.size > READING_KEEP) {
+    const [oldKey, old] = readingFaces.entries().next().value!
+    readingFaces.delete(oldKey)
+    old.dispose()
+  }
+  return tex
 }

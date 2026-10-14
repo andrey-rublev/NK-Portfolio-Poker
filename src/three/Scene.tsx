@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
+import { Environment, Lightformer } from '@react-three/drei'
 import * as THREE from 'three'
 import { PokerTable } from './PokerTable'
 import { Card3D } from './Card3D'
@@ -26,6 +27,9 @@ import { frameStep } from './frame'
 const LOOK_AT = new THREE.Vector3(0, 0.1, -0.2)
 const INTRO_SECONDS = 1.5
 const INTRO_START: [number, number, number] = [0, 17, 23]
+/** Fog distances past the camera's resting distance. */
+const FOG_NEAR = 8.5
+const FOG_FAR = 32.5
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
 /** Direction and base distance of the design camera from the look-at point. */
@@ -236,6 +240,14 @@ function CameraController({ dealt }: { dealt: boolean }) {
     // Pull back far enough that the table width fits horizontally — keeps the
     // sides from being cut off on tall/narrow (mobile) viewports.
     const dist = Math.max(HOME_DIST, TABLE_HALF_W / tanH)
+    // Fog starts just beyond the table from wherever the camera rests, so a
+    // tall screen's pulled-back camera doesn't sink the table into it (the
+    // fly-in still starts out in the fog).
+    const fog = state.scene.fog as THREE.Fog | null
+    if (fog) {
+      fog.near = dist + FOG_NEAR
+      fog.far = dist + FOG_FAR
+    }
     const hx = LOOK_AT.x + HOME_UNIT.x * dist
     const hy = LOOK_AT.y + HOME_UNIT.y * dist
     const hz = LOOK_AT.z + HOME_UNIT.z * dist
@@ -304,10 +316,21 @@ export function Scene({
   return (
     <>
       <color attach="background" args={['#160a10']} />
-      <fog attach="fog" args={['#160a10', 20, 44]} />
+      {/* near/far are set per frame from the camera distance (CameraController). */}
+      <fog attach="fog" args={['#160a10', HOME_DIST + FOG_NEAR, HOME_DIST + FOG_FAR]} />
 
-      <ambientLight intensity={0.54} />
-      <hemisphereLight args={['#9fc8b4', '#140d07', 0.46]} />
+      {/* Soft studio reflections: a warm softbox over the table and two dim
+          side panels, filmed once into an environment map (no HDR download).
+          They give the chips, leather, brass and lacquer something to shine
+          with. */}
+      <Environment resolution={128} environmentIntensity={0.55}>
+        <Lightformer form="rect" intensity={3} color="#ffe2b8" position={[0, 9, 1]} target={[0, 0, 0]} scale={[12, 7, 1]} />
+        <Lightformer form="rect" intensity={1.1} color="#a9c8ff" position={[-11, 4, -5]} target={[0, 0, 0]} scale={[9, 4, 1]} />
+        <Lightformer form="rect" intensity={0.9} color="#ffcf96" position={[11, 3, 9]} target={[0, 0, 0]} scale={[9, 4, 1]} />
+      </Environment>
+
+      <ambientLight intensity={0.3} />
+      <hemisphereLight args={['#9fc8b4', '#140d07', 0.3]} />
       <spotLight
         position={[0, 13, 1.5]}
         angle={0.62}

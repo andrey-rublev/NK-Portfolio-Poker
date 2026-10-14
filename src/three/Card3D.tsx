@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
-import { createCardFaces } from './cardTextures'
+import { createCardFaces, getReadingFace } from './cardTextures'
 import { getCardGeometry } from './cardGeometry'
 import { CARD, DECK_TOP } from './layout'
 import type { CardSlot } from './layout'
@@ -141,9 +141,19 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     // warm, dim lighting and tone mapping render them.
     const u = unlit.current
     if (u) {
+      const mats = u.material as THREE.MeshBasicMaterial[]
       const glow = THREE.MathUtils.smoothstep(p, 0.1, 0.6)
       u.visible = glow > 0
-      if (u.visible) for (const m of u.material as THREE.Material[]) m.opacity = glow
+      if (u.visible) for (const m of mats) m.opacity = glow
+      // Once the card has landed, read it from a sharper copy of its face;
+      // drop back to the table face the moment it starts back down.
+      const reading = isCommunity ? mats[1] : mats[0]
+      const tableFace = isCommunity ? (faces.content ?? faces.back) : faces.front
+      const wantFace = focused && p === 1 ? getReadingFace(slot.section, slot.role) : tableFace
+      if (reading.map !== wantFace) {
+        reading.map = wantFace
+        state.invalidate()
+      }
     }
 
     // A lifted card draws after the nameplates, so it covers them rather than

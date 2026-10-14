@@ -184,7 +184,7 @@ function App() {
   )
 
   return (
-    <div className="app-shell">
+    <div className={focusedKey ? 'app-shell is-reading' : 'app-shell'}>
       {webgl ? (
         <StageBoundary fallback={noTable}>
           <Suspense

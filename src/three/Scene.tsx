@@ -20,7 +20,7 @@ import { getCardGeometry } from './cardGeometry'
 import { createFloorTexture } from './floorTexture'
 import { Nameplates } from './Nameplates'
 import { DealCue } from './DealCue'
-import { prefersReducedMotion } from './motion'
+import { skipIntroZoom } from './motion'
 import { frameStep } from './frame'
 
 const LOOK_AT = new THREE.Vector3(0, 0.1, -0.2)
@@ -225,7 +225,7 @@ function DismissCatcher({ onDismiss }: { onDismiss: () => void }) {
 
 function CameraController({ dealt }: { dealt: boolean }) {
   const size = useThree((s) => s.size)
-  const reducedMotion = useRef(prefersReducedMotion())
+  const skipZoom = useRef(skipIntroZoom())
   const startT = useRef<number | null>(null)
 
   useFrame((state) => {
@@ -242,7 +242,7 @@ function CameraController({ dealt }: { dealt: boolean }) {
     // The fly-in starts only once the deal begins (not on page load behind the
     // intro), so the zoom accompanies the deal instead of preceding it.
     let e = 0
-    if (reducedMotion.current) {
+    if (skipZoom.current) {
       e = 1
     } else if (dealt) {
       // Timed from the first frame of the flight, so a pause before it (frames

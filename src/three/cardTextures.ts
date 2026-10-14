@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { CardGroup, PortfolioCardData } from '../data/portfolio'
 import type { CardRole } from './layout'
+import { inkColor } from '../theme'
 
 const W = 512
 const H = 731
@@ -57,8 +58,8 @@ interface Metrics {
 
 function metrics(s: number): Metrics {
   return {
-    subFont: `800 ${28 * s}px "Mulish", system-ui, sans-serif`,
-    bulletFont: `500 ${25 * s}px "Mulish", system-ui, sans-serif`,
+    subFont: `800 ${28 * s}px "Mulish Variable", system-ui, sans-serif`,
+    bulletFont: `500 ${25 * s}px "Mulish Variable", system-ui, sans-serif`,
     subLh: 33 * s,
     bulletLh: 31 * s,
     bulletGap: 10 * s,
@@ -172,13 +173,16 @@ function drawItems(
 ): number {
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
+  // Text uses the readable shade of the accent; the bright accent itself is
+  // kept for the frame and rules (see inkColor).
+  const ink = inkColor(accent)
   let y = startY
   for (let i = from; i < to; i += 1) {
     const it = items[i]
     if (it.kind === 'sub') {
       if (i !== from) y += m.groupGap
       ctx.font = m.subFont
-      ctx.fillStyle = accent
+      ctx.fillStyle = ink
       for (const ln of it.lines) {
         ctx.fillText(ln, PAD, y)
         y += m.subLh
@@ -186,7 +190,7 @@ function drawItems(
       y += m.subGap
     } else {
       ctx.font = m.bulletFont
-      ctx.fillStyle = accent
+      ctx.fillStyle = ink
       ctx.fillText('•', PAD, y)
       ctx.fillStyle = BODY
       for (const ln of it.lines) {
@@ -200,7 +204,7 @@ function drawItems(
 }
 
 function headerFont(ctx: Ctx, size: number): Ctx {
-  ctx.font = `900 ${size}px "Mulish", system-ui, sans-serif`
+  ctx.font = `900 ${size}px "Mulish Variable", system-ui, sans-serif`
   return ctx
 }
 
@@ -217,11 +221,12 @@ function drawHeader(ctx: Ctx, label: string, accent: string): number {
     lines = wrapBig(headerFont(ctx, size), tokens, CONTENT_W)
   }
   let y = 52
-  ctx.fillStyle = accent
+  ctx.fillStyle = inkColor(accent)
   for (const ln of lines) {
     ctx.fillText(ln, PAD, y)
     y += size * 1.02
   }
+  ctx.fillStyle = accent
   ctx.fillRect(PAD, y + 2, 64, 6)
   return y + 24
 }
@@ -353,7 +358,7 @@ function drawCommunityCover(s: PortfolioCardData): HTMLCanvasElement {
   let size = 156
   let lines: string[] = []
   for (; size >= 52; size -= 3) {
-    ctx.font = `900 ${size}px "Mulish", system-ui, sans-serif`
+    ctx.font = `900 ${size}px "Mulish Variable", system-ui, sans-serif`
     lines = wrapBig(ctx, tokens, maxW)
     const widest = Math.max(...lines.map((l) => ctx.measureText(l).width))
     if (widest <= maxW && lines.length * size * 1.02 <= H - 110) break
@@ -597,6 +602,18 @@ interface Faces {
 }
 let sharedBack: THREE.Texture | null = null
 const cache = new Map<string, Faces>()
+const updateListeners = new Set<() => void>()
+
+/**
+ * Subscribe to a card face changing after it was created (the About photo
+ * arriving), so an on-demand canvas knows to redraw. Returns an unsubscribe.
+ */
+export function onCardFacesUpdated(listener: () => void): () => void {
+  updateListeners.add(listener)
+  return () => {
+    updateListeners.delete(listener)
+  }
+}
 const spreadCache = new Map<string, Spread>()
 
 export function getSharedBack(): THREE.Texture {
@@ -625,6 +642,7 @@ export function createCardFaces(section: PortfolioCardData, role: CardRole): Fac
       const tex = toTex(canvas)
       loadAboutPhoto(canvas, () => {
         tex.needsUpdate = true
+        updateListeners.forEach((listener) => listener())
       })
       faces = { front: tex, back: getSharedBack() }
     } else {

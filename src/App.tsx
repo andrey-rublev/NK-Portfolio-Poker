@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { PerformanceMonitor } from '@react-three/drei'
-import { Scene } from './three/Scene'
-import { CAMERA_HOME, type CardSlot } from './three/layout'
-import { prefersReducedMotion } from './three/motion'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { owner } from './data/portfolio'
+import { canvasFontsReady } from './fonts'
+import type { CardSlot } from './three/layout'
+import { prefersReducedMotion } from './three/motion'
 import {
   SHIM_COLLAPSE_PX,
   canFullscreen,
@@ -13,12 +11,40 @@ import {
   needsScrollShim,
   toggleFullscreen,
 } from './three/display'
+import { IntroDialog } from './components/IntroDialog'
+import { PortfolioSections } from './components/PortfolioText'
+import { StageBoundary } from './components/StageBoundary'
+import { hasWebGL } from './webgl'
+import { TextView } from './components/TextView'
 import './ui.css'
+
+// three.js and the scene are most of the download, so they load as a separate
+// chunk: the page and the welcome card appear first, and the table streams in
+// behind them. The card faces are painted onto canvases, which can't swap a
+// font in later the way HTML does, so the table also waits for Mulish.
+const Stage = lazy(() =>
+  Promise.all([import('./three/Stage'), canvasFontsReady()]).then(([stage]) => stage),
+)
 
 const DEAL_CUES = ['Deal the flop', 'Deal the turn', 'Deal the river']
 
+function ListIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+      <path
+        d="M7 5h10M7 10h10M7 15h10M3 5h.01M3 10h.01M3 15h.01"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 function App() {
   const [reducedMotion] = useState(prefersReducedMotion)
+  const [webgl] = useState(hasWebGL)
   const [dealt, setDealt] = useState(false)
   // The one hand/community card currently lifted to the camera (null = none).
   const [focusedKey, setFocusedKey] = useState<string | null>(null)
@@ -29,7 +55,9 @@ function App() {
   const [burnStage, setBurnStage] = useState(0)
   const [revealStage, setRevealStage] = useState(0)
   const dealing = useRef(false)
-  const [showIntro, setShowIntro] = useState(true)
+  // 'welcome' on arrival (closing it deals the hand), 'help' when reopened.
+  const [intro, setIntro] = useState<'welcome' | 'help' | null>('welcome')
+  const [textOpen, setTextOpen] = useState(false)
   // The deck cue waits for the opening deal to finish, so it isn't competing
   // with ten cards flying out of the deck.
   const [cueReady, setCueReady] = useState(false)
@@ -45,28 +73,6 @@ function App() {
   // whether the visitor has already taken it.
   const [scrollShim] = useState(needsScrollShim)
   const [chromeHidden, setChromeHidden] = useState(false)
-  // Render resolution. The scene has two modes with opposite needs:
-  //   - the table ANIMATES (deal, chips, burn), so it is capped at 2x and the
-  //     PerformanceMonitor may walk it down when frames start dropping;
-  //   - a focused card is STILL, and its body text is the entire point, so it
-  //     gets the display's full density.
-  // The floor is what matters most: letting the monitor fall all the way to 1x
-  // is a 3x downsample on a modern phone, which turns card text to mush. That
-  // drift — 2.0 down to 1.0 depending on measured frame rate — is why
-  // sharpness felt random rather than consistently good or bad.
-  const nativeDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
-  const motionDpr = Math.min(nativeDpr, 2)
-  const floorDpr = Math.min(nativeDpr, 1.5)
-  const readingDpr = Math.min(nativeDpr, 3)
-  const [adaptiveDpr, setAdaptiveDpr] = useState(motionDpr)
-  // `reading` turns on once a focused card has finished flying up. The ref
-  // keeps those frames out of the measurements below, so reading mode never
-  // drags the table's baseline down with it.
-  const [settledKey, setSettledKey] = useState<string | null>(null)
-  const focusedRef = useRef(false)
-  const settleUntil = useRef(0)
-  const reading = focusedKey !== null && settledKey === focusedKey
-  const dpr = reading ? readingDpr : adaptiveDpr
 
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? 'true' : 'false'
@@ -89,26 +95,6 @@ function App() {
     }
   }, [scrollShim])
 
-  // Resizing the drawing buffer costs a frame or two. Ignore the monitor for
-  // a moment afterwards so that self-inflicted hitch is not read as a
-  // performance decline -- otherwise every card the visitor closed ratcheted
-  // the resolution down another step and it never climbed back.
-  useEffect(() => {
-    settleUntil.current = performance.now() + 1500
-  }, [dpr])
-
-  // Sharpen a focused card only after it has landed: resizing the drawing
-  // buffer mid-flight would stutter the animation, whereas raising the
-  // resolution of an already-still card is free.
-  useEffect(() => {
-    focusedRef.current = focusedKey !== null
-    // Dropping back out of reading mode needs no state change: `reading` is
-    // derived, so it goes false the instant the card is released.
-    if (!focusedKey) return
-    const t = window.setTimeout(() => setSettledKey(focusedKey), 900)
-    return () => window.clearTimeout(t)
-  }, [focusedKey])
-
   // Keep the fullscreen button's icon in step with the actual state (the user
   // can leave fullscreen with Esc or a system gesture).
   useEffect(() => {
@@ -121,11 +107,29 @@ function App() {
     }
   }, [])
 
-  // The deal begins only once the player closes the intro ("Deal me in").
-  const handleStart = () => {
-    setShowIntro(false)
-    setDealt(true)
-    window.setTimeout(() => setCueReady(true), 2400)
+  // Esc puts a lifted card back. Open dialogs handle Esc themselves.
+  const overlayOpen = intro !== null || textOpen
+  useEffect(() => {
+    if (!focusedKey || overlayOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFocusedKey(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [focusedKey, overlayOpen])
+
+  const closeIntro = () => {
+    // The deal begins only once the visitor closes the welcome card.
+    if (intro === 'welcome') {
+      setDealt(true)
+      window.setTimeout(() => setCueReady(true), 2400)
+    }
+    setIntro(null)
+  }
+
+  const openTextView = () => {
+    if (intro) closeIntro()
+    setTextOpen(true)
   }
 
   const handleToggle = (slot: CardSlot) => {
@@ -152,8 +156,6 @@ function App() {
     }, 1750)
   }
 
-  const handleDismiss = () => setFocusedKey(null)
-
   const boardLabel = focusedKey
     ? 'Click the card again to put it back'
     : revealStage === 0
@@ -171,49 +173,64 @@ function App() {
       ? DEAL_CUES[revealStage]
       : null
 
+  // Shown instead of the table when the browser can't run it.
+  const noTable = (
+    <div className="no-webgl">
+      <p>This browser can't show the 3D table.</p>
+      <button type="button" className="intro__btn" onClick={openTextView}>
+        View as list
+      </button>
+    </div>
+  )
+
   return (
     <div className="app-shell">
-      <Canvas
-        shadows
-        dpr={dpr}
-        gl={{ antialias: true }}
-        camera={{ position: CAMERA_HOME, fov: 40, near: 0.1, far: 100 }}
-      >
-        {/* Walk render resolution between the floor and the motion ceiling
-            based on measured frame rate. No flipflop fallback: opening and
-            closing cards makes the monitor oscillate by design, and pinning a
-            permanent baseline off that turned browsing into a one-way ratchet
-            down. Oscillating inside a 1.5x-2x band is harmless on its own, and
-            the guard below keeps it to at most one change per 1.5s. */}
-        <PerformanceMonitor
-          factor={1}
-          onChange={({ factor }) => {
-            if (focusedRef.current || performance.now() < settleUntil.current) return
-            const next = floorDpr + (motionDpr - floorDpr) * factor
-            setAdaptiveDpr(Math.round(next * 10) / 10)
-          }}
-        >
-          <Scene
-            dealt={dealt}
-            focusedKey={focusedKey}
-            betStage={betStage}
-            burnStage={burnStage}
-            revealStage={revealStage}
-            dealCue={dealCue}
-            onToggle={handleToggle}
-            onSelectSeat={handleSeatSelect}
-            onDeckPress={handleDeckPress}
-            onDismiss={handleDismiss}
-          />
-        </PerformanceMonitor>
-      </Canvas>
+      {webgl ? (
+        <StageBoundary fallback={noTable}>
+          <Suspense
+            fallback={
+              <p className="stage-loading" role="status">
+                Shuffling the deck…
+              </p>
+            }
+          >
+            <Stage
+              dealt={dealt}
+              focusedKey={focusedKey}
+              betStage={betStage}
+              burnStage={burnStage}
+              revealStage={revealStage}
+              dealCue={dealCue}
+              onToggle={handleToggle}
+              onSelectSeat={handleSeatSelect}
+              onDeckPress={handleDeckPress}
+              onDismiss={() => setFocusedKey(null)}
+            />
+          </Suspense>
+        </StageBoundary>
+      ) : (
+        noTable
+      )}
 
       <header className="scene-hud" aria-hidden={focusedKey ? 'true' : undefined}>
         <span className="scene-hud__kicker">{owner.tagline}</span>
         <strong className="scene-hud__name">{owner.name}</strong>
       </header>
 
-      <p className="scene-hint">{boardLabel}</p>
+      {!focusedKey && (
+        // The label shortens to "List" on phones; the accessible name stays whole.
+        <button type="button" className="list-btn" onClick={openTextView} aria-label="View as list">
+          <ListIcon />
+          <span className="list-btn__long">View as list</span>
+          <span className="list-btn__short">List</span>
+        </button>
+      )}
+
+      {webgl && (
+        <p className="scene-hint" aria-live="polite">
+          {boardLabel}
+        </p>
+      )}
 
       {!rotateTipDismissed && !focusedKey && (
         <div className="rotate-tip" role="note">
@@ -246,13 +263,13 @@ function App() {
       <button
         className="help-btn"
         type="button"
-        onClick={() => setShowIntro(true)}
+        onClick={() => setIntro('help')}
         aria-label="How to play"
       >
         ?
       </button>
 
-      {scrollShim && !chromeHidden && !showIntro && !focusedKey && (
+      {scrollShim && !chromeHidden && !intro && !focusedKey && (
         <div className="swipe-tip" role="note">
           <span className="swipe-tip__icon" aria-hidden="true">
             ↑
@@ -263,42 +280,18 @@ function App() {
         </div>
       )}
 
-      {showIntro && (
-        <div className="intro" role="dialog" aria-modal="true">
-          <button
-            className="intro__scrim"
-            type="button"
-            aria-label="Start"
-            onClick={handleStart}
-          />
-          <div className="intro__panel">
-            <h2 className="intro__title">Welcome</h2>
-            <p className="intro__sub">
-              This portfolio is a poker table. Here's how to play your hand:
-            </p>
-            <ul className="intro__steps">
-              <li>
-                <span style={{ color: '#1a2128' }}>♠</span>
-                <span>Click a player's name or hand to read that section.</span>
-              </li>
-              <li>
-                <span style={{ color: '#b3122a' }}>♥</span>
-                <span>Press the deck to deal the community cards.</span>
-              </li>
-              <li>
-                <span style={{ color: '#2b7a4b' }}>♣</span>
-                <span>Click any card to bring it up — click it again or anywhere to put it back.</span>
-              </li>
-            </ul>
-            <p className="intro__rotate">
-              Tip: turn your phone sideways for the best view of the table.
-            </p>
-            <button className="intro__btn" type="button" onClick={handleStart}>
-              Deal me in
-            </button>
-          </div>
-        </div>
+      {/* The whole portfolio as text, always in the page for screen readers and
+          search engines; the canvas above carries none of it. */}
+      <main className="visually-hidden" aria-labelledby="portfolio-title">
+        <h1 id="portfolio-title">{owner.name}</h1>
+        <p>{owner.tagline}</p>
+        <PortfolioSections level={2} idPrefix="pt" untabbable />
+      </main>
+
+      {intro && (
+        <IntroDialog firstVisit={intro === 'welcome'} onClose={closeIntro} onViewList={openTextView} />
       )}
+      {textOpen && <TextView onClose={() => setTextOpen(false)} />}
     </div>
   )
 }

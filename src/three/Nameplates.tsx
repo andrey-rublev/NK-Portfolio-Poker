@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { COMPACT_VIEW, seatAnchors } from './layout'
+import { SETTLED, frameStep } from './frame'
 
 /** Larger plates on phones so the seat labels stay readable from further away. */
 const PLATE_SCALE = COMPACT_VIEW ? 1.32 : 1
@@ -83,7 +84,7 @@ function plateTexture(name: string, accent: string): THREE.Texture {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   do {
-    ctx.font = `800 ${size}px "Mulish", system-ui, sans-serif`
+    ctx.font = `800 ${size}px "Mulish Variable", system-ui, sans-serif`
     size -= 2
   } while (ctx.measureText(label).width > W - 130 && size > 18)
   ctx.fillStyle = 'rgba(255,248,222,0.5)'
@@ -99,10 +100,9 @@ function plateTexture(name: string, accent: string): THREE.Texture {
 }
 
 /**
- * Plate textures are built once and kept. The plates unmount whenever a card
- * is focused, so without this every release rebuilt five canvas textures and
- * abandoned the previous five on the GPU -- a leak that grew with every card
- * the visitor opened.
+ * Plate textures are built once and kept, so remounting a plate (or the whole
+ * scene) never rebuilds five canvas textures and abandons the old ones on the
+ * GPU.
  */
 const plateCache = new Map<string, THREE.Texture>()
 
@@ -134,14 +134,22 @@ function Plate({ name, accent, x, z, interactive, onSelect }: PlateProps) {
   const ref = useRef<THREE.Sprite>(null)
   const [hovered, setHovered] = useState(false)
   const grow = useRef(0)
+  const invalidate = useThree((s) => s.invalidate)
+
+  useEffect(() => {
+    invalidate()
+  }, [invalidate, hovered, interactive])
 
   // Ease toward the hovered size rather than snapping, matching the easing
-  // used elsewhere in the scene (frame-rate independent).
-  useFrame((_, dt) => {
+  // used elsewhere in the scene (frame-rate independent). Frames are drawn on
+  // demand, so keep requesting them until the plate has arrived.
+  useFrame((state, delta) => {
     const sprite = ref.current
     if (!sprite) return
     const want = hovered && interactive ? 1 : 0
-    grow.current = THREE.MathUtils.lerp(grow.current, want, 1 - Math.exp(-14 * dt))
+    grow.current = THREE.MathUtils.lerp(grow.current, want, 1 - Math.exp(-14 * frameStep(delta)))
+    if (Math.abs(grow.current - want) < SETTLED) grow.current = want
+    else state.invalidate()
     const s = 1 + grow.current * 0.1
     sprite.scale.set(BASE_W * s, BASE_H * s, 1)
     sprite.position.y = 0.8 + grow.current * 0.05

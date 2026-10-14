@@ -1,14 +1,13 @@
 /**
- * Whether to suppress animations. Honors the OS `prefers-reduced-motion`
- * setting, but allows an explicit override via URL for testing or for users who
- * want motion regardless of their OS default:
+ * Whether to suppress decorative motion (the camera swoop, pulsing cues). Follows
+ * the OS "reduce motion" setting, with a URL override either way for testing:
  *   ?motion=1 / ?motion=on  → force animations ON
  *   ?motion=0 / ?motion=off → force reduced motion
  */
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined') return false
-  // Animations are part of the experience, so they're ON by default.
-  // Opt out explicitly with ?motion=0 (or ?motion=off).
   const flag = new URLSearchParams(window.location.search).get('motion')
-  return flag === '0' || flag === 'off'
+  if (flag === '1' || flag === 'on') return false
+  if (flag === '0' || flag === 'off') return true
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 }

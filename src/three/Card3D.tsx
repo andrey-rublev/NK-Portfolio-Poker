@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { createCardFaces } from './cardTextures'
 import { getCardGeometry } from './cardGeometry'
 import { CARD, DECK_TOP } from './layout'
 import type { CardSlot } from './layout'
+import { SETTLED, frameStep } from './frame'
 
 const FACE_DOWN_X = Math.PI / 2
 const FACE_UP_X = -Math.PI / 2
@@ -40,6 +41,8 @@ interface Card3DProps {
 export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DProps) {
   const group = useRef<THREE.Group>(null)
   const backMat = useRef<THREE.MeshStandardMaterial>(null)
+  const unlit = useRef<THREE.Mesh>(null)
+  const invalidate = useThree((s) => s.invalidate)
   const [hovered, setHovered] = useState(false)
   const [outOfDeck, setOutOfDeck] = useState(dealt)
   const faces = useMemo(() => createCardFaces(slot.section, slot.role), [slot.section, slot.role])
@@ -57,14 +60,21 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     return () => window.clearTimeout(id)
   }, [dealt, outOfDeck, slot.dealIndex])
 
+  // Frames are drawn on demand: start one whenever this card has somewhere new
+  // to go. useFrame below keeps requesting them until the card settles.
+  useEffect(() => {
+    invalidate()
+  }, [invalidate, dealt, outOfDeck, focused, hovered, interactive])
+
   const isCommunity = slot.role === 'community'
   const rest = slot.position
   const focusX = isCommunity ? 0 : slot.role === 'label' ? -1.05 : 1.05
   const focusScale = isCommunity ? 1.65 : 1.5
 
-  useFrame((state, dt) => {
+  useFrame((state, delta) => {
     const g = group.current
     if (!g) return
+    const dt = frameStep(delta)
 
     // Smoothed base pose (deck / rest / hover).
     let tp: [number, number, number] = rest
@@ -93,6 +103,18 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     b.rot[2] = lerp(b.rot[2], tr[2], k)
     b.scale = lerp(b.scale, ts, k)
 
+    // Snap each eased value once it has effectively arrived, and keep asking
+    // for frames until everything has.
+    let moving = false
+    for (let i = 0; i < 3; i += 1) {
+      if (Math.abs(b.pos[i] - tp[i]) < SETTLED) b.pos[i] = tp[i]
+      else moving = true
+      if (Math.abs(b.rot[i] - tr[i]) < SETTLED) b.rot[i] = tr[i]
+      else moving = true
+    }
+    if (Math.abs(b.scale - ts) < SETTLED) b.scale = ts
+    else moving = true
+
     // Lift in an arc whenever the card is edge-on (mid-flip) so it never knifes
     // through the felt when dealt face-up.
     const edgeOn =
@@ -106,9 +128,23 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
 
     // Lower rate = slower pick-up (focus in) and put-down (focus out).
     // Time-corrected (≈ the old per-frame 0.06 at 60 fps).
-    prog.current = lerp(prog.current, focused ? 1 : 0, 1 - Math.exp(-3.7 * dt))
+    const want = focused ? 1 : 0
+    prog.current = lerp(prog.current, want, 1 - Math.exp(-3.7 * dt))
+    if (Math.abs(prog.current - want) < SETTLED) prog.current = want
+    else moving = true
+    if (moving) state.invalidate()
     const p = prog.current
     const lifted = p > 0.001
+
+    // A lifted card is for reading, so it fades over to an unlit copy that
+    // shows the paper and ink exactly as designed, rather than as the table's
+    // warm, dim lighting and tone mapping render them.
+    const u = unlit.current
+    if (u) {
+      const glow = THREE.MathUtils.smoothstep(p, 0.1, 0.6)
+      u.visible = glow > 0
+      if (u.visible) for (const m of u.material as THREE.Material[]) m.opacity = glow
+    }
 
     // A lifted card draws after the nameplates, so it covers them rather than
     // the plates (which ignore depth) printing over its text.
@@ -201,15 +237,16 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     <>
       {/* Static, invisible hit target at the card's rest spot. Hovering it
           raises the visual card, but clicking the original footprint (even after
-          it has raised) still selects the card. */}
+          it has raised) still selects the card. Invisible objects are never
+          drawn but still catch pointer events. */}
       <mesh
+        visible={false}
         position={[rest[0], CARD.restY + 0.18, rest[2]]}
         onPointerOver={onOver}
         onPointerOut={onOut}
         onClick={onClick}
       >
         <boxGeometry args={[CARD.w + 0.06, 0.7, CARD.h + 0.06]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
 
       {/* Materials are `transparent` at full opacity purely for draw order:
@@ -222,9 +259,18 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
           <meshStandardMaterial ref={backMat} attach="material-1" map={faces.back} transparent roughness={0.85} metalness={0} />
           <meshStandardMaterial attach="material-2" color="#efe6d2" transparent roughness={0.7} />
         </mesh>
+        {/* The unlit reading copy, drawn over the lit card (same depth, later
+            in the group's order) and faded in as the card lifts. */}
+        <mesh ref={unlit} geometry={getCardGeometry()} renderOrder={1} visible={false}>
+          <meshBasicMaterial attach="material-0" map={faces.front} transparent toneMapped={false} />
+          <meshBasicMaterial attach="material-1" map={faces.content ?? faces.back} transparent toneMapped={false} />
+          <meshBasicMaterial attach="material-2" color="#efe6d2" transparent toneMapped={false} />
+        </mesh>
         {showLinks && actions && (
-          // A community card is read from its back, so its links sit on that side.
-          <Html position={[0, -0.5, isCommunity ? -0.06 : 0.06]} center>
+          // A community card is read from its back, so its links sit on that
+          // side. Their z-index stays under the page's own buttons and dialogs
+          // (drei's default would float them above everything).
+          <Html position={[0, -0.5, isCommunity ? -0.06 : 0.06]} center zIndexRange={[16, 16]}>
             <div className="card-link-row">
               {actions.map((a) => (
                 <a key={a.href} href={a.href} target="_blank" rel="noopener noreferrer">

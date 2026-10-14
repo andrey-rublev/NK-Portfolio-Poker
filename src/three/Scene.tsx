@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PokerTable } from './PokerTable'
@@ -15,12 +15,13 @@ import {
   TABLE,
   type CardSlot,
 } from './layout'
-import { getSharedBack } from './cardTextures'
+import { getSharedBack, onCardFacesUpdated } from './cardTextures'
 import { getCardGeometry } from './cardGeometry'
 import { createFloorTexture } from './floorTexture'
 import { Nameplates } from './Nameplates'
 import { DealCue } from './DealCue'
 import { prefersReducedMotion } from './motion'
+import { frameStep } from './frame'
 
 const LOOK_AT = new THREE.Vector3(0, 0.1, -0.2)
 const INTRO_SECONDS = 1.5
@@ -51,30 +52,41 @@ function communityDealt(slot: CardSlot, boardStage: number): boolean {
   return boardStage >= need
 }
 
+/** Constant height so the deck's top stays at DECK_TOP — cards always deal off
+    the top (no floating card, no dealing from the middle as the deck shrinks). */
+const DECK_CARDS = 12
+
 function Deck({ onPress }: { onPress: () => void }) {
   const back = useMemo(() => getSharedBack(), [])
-  // Constant height so the deck's top stays at DECK_TOP — cards always deal off
-  // the top (no floating card, no dealing from the middle as the deck shrinks).
-  const remaining = 12
+  const deck = useRef<THREE.InstancedMesh>(null)
+
+  // One instanced draw for the whole stack instead of one mesh per card.
+  useLayoutEffect(() => {
+    const m = deck.current
+    if (!m) return
+    const o = new THREE.Object3D()
+    for (let i = 0; i < DECK_CARDS; i += 1) {
+      o.position.set(0, i * CARD.thickness * 1.04, 0)
+      o.rotation.set(-Math.PI / 2, 0, (i % 2 ? 1 : -1) * 0.012)
+      o.updateMatrix()
+      m.setMatrixAt(i, o.matrix)
+    }
+    m.instanceMatrix.needsUpdate = true
+    m.computeBoundingSphere()
+  }, [])
 
   return (
     <group position={DECK_POSITION}>
-      {Array.from({ length: remaining }).map((_, i) => (
-        <mesh
-          key={i}
-          geometry={getCardGeometry()}
-          position-y={i * CARD.thickness * 1.04}
-          rotation-x={-Math.PI / 2}
-          rotation-z={(i % 2 ? 1 : -1) * 0.012}
-        >
-          <meshStandardMaterial attach="material-0" map={back} roughness={0.6} />
-          <meshStandardMaterial attach="material-1" color="#efe6d2" roughness={0.7} />
-          <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
-        </mesh>
-      ))}
-      {/* Click target covering the deck */}
+      <instancedMesh ref={deck} args={[getCardGeometry(), undefined, DECK_CARDS]}>
+        <meshStandardMaterial attach="material-0" map={back} roughness={0.6} />
+        <meshStandardMaterial attach="material-1" color="#efe6d2" roughness={0.7} />
+        <meshStandardMaterial attach="material-2" color="#efe6d2" roughness={0.7} />
+      </instancedMesh>
+      {/* Click target covering the deck. Invisible objects are never drawn but
+          still catch pointer events. */}
       <mesh
-        position-y={remaining * CARD.thickness * 1.04 + 0.2}
+        visible={false}
+        position-y={DECK_CARDS * CARD.thickness * 1.04 + 0.2}
         rotation-x={-Math.PI / 2}
         onClick={(e) => {
           e.stopPropagation()
@@ -89,7 +101,6 @@ function Deck({ onPress }: { onPress: () => void }) {
         }}
       >
         <boxGeometry args={[CARD.w + 0.2, CARD.h + 0.2, 0.4]} />
-        <meshStandardMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
   )
@@ -107,11 +118,15 @@ function BurnPile({ boardStage }: { boardStage: number }) {
   const flyRef = useRef<THREE.Group>(null)
   const prog = useRef(1)
   const prev = useRef(boardStage)
+  const invalidate = useThree((s) => s.invalidate)
 
   useEffect(() => {
-    if (boardStage > prev.current) prog.current = 0 // start the toss-in
+    if (boardStage > prev.current) {
+      prog.current = 0 // start the toss-in
+      invalidate()
+    }
     prev.current = boardStage
-  }, [boardStage])
+  }, [boardStage, invalidate])
 
   // Deck position expressed relative to the burn-pile group origin.
   const deckLocal = useMemo<[number, number, number]>(
@@ -128,10 +143,13 @@ function BurnPile({ boardStage }: { boardStage: number }) {
   const restAngle = burnRestAngle(Math.max(0, topIndex))
   const spinFrom = restAngle + (topIndex % 2 ? -1 : 1) * 1.0
 
-  useFrame((_, dt) => {
+  useFrame((state, delta) => {
     const g = flyRef.current
     if (!g) return
-    if (prog.current < 1) prog.current = Math.min(1, prog.current + dt / 0.5)
+    if (prog.current < 1) {
+      prog.current = Math.min(1, prog.current + frameStep(delta) / 0.5)
+      state.invalidate()
+    }
     const p = easeOutCubic(prog.current)
     const arc = Math.sin(Math.min(1, prog.current) * Math.PI) * 0.7
     g.position.set(
@@ -176,7 +194,7 @@ function BurnPile({ boardStage }: { boardStage: number }) {
 const _camDir = new THREE.Vector3()
 
 /**
- * A transparent plane that hovers just in front of the camera while a card is
+ * An invisible plane that hovers just in front of the camera while a card is
  * focused, so a click ANYWHERE (felt, players, or the card itself) dismisses it.
  * Only mounted while something is focused, so it never blocks normal play.
  */
@@ -193,7 +211,7 @@ function DismissCatcher({ onDismiss }: { onDismiss: () => void }) {
   return (
     <mesh
       ref={ref}
-      renderOrder={50}
+      visible={false}
       onClick={(e) => {
         e.stopPropagation()
         onDismiss()
@@ -201,7 +219,6 @@ function DismissCatcher({ onDismiss }: { onDismiss: () => void }) {
       onPointerDown={(e) => e.stopPropagation()}
     >
       <planeGeometry args={[80, 80]} />
-      <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} />
     </mesh>
   )
 }
@@ -228,8 +245,11 @@ function CameraController({ dealt }: { dealt: boolean }) {
     if (reducedMotion.current) {
       e = 1
     } else if (dealt) {
-      if (startT.current === null) startT.current = state.clock.elapsedTime
-      e = easeOutCubic(Math.min(1, (state.clock.elapsedTime - startT.current) / INTRO_SECONDS))
+      // Timed from the first frame of the flight, so a pause before it (frames
+      // are drawn on demand) doesn't eat into the animation.
+      if (startT.current === null) startT.current = performance.now()
+      e = easeOutCubic(Math.min(1, (performance.now() - startT.current) / 1000 / INTRO_SECONDS))
+      if (e < 1) state.invalidate()
     }
     cam.position.set(
       THREE.MathUtils.lerp(INTRO_START[0], hx, e),
@@ -241,7 +261,7 @@ function CameraController({ dealt }: { dealt: boolean }) {
   return null
 }
 
-interface SceneProps {
+export interface SceneProps {
   dealt: boolean
   focusedKey: string | null
   /** Players bet chips. */
@@ -271,6 +291,16 @@ export function Scene({
   onDeckPress,
   onDismiss,
 }: SceneProps) {
+  const invalidate = useThree((s) => s.invalidate)
+
+  // Frames are drawn on demand. Each animation keeps requesting frames until it
+  // settles; this starts them off whenever the hand moves on, and redraws when
+  // the About photo finishes loading into its card.
+  useEffect(() => {
+    invalidate()
+  }, [invalidate, dealt, focusedKey, betStage, burnStage, revealStage, dealCue])
+  useEffect(() => onCardFacesUpdated(invalidate), [invalidate])
+
   return (
     <>
       <color attach="background" args={['#160a10']} />

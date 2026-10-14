@@ -1,7 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Mulish:wght@400;500;600;700;800;900&family=Sora:wght@400;500;600;700&display=swap');
-
 :root {
-  font-family: 'Mulish', system-ui, sans-serif;
+  font-family: 'Mulish Variable', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #f8f0e1;
@@ -119,18 +117,24 @@ html[data-scroll-shim='on']::-webkit-scrollbar {
   height: 0;
 }
 
+/* A visible keyboard focus ring for the controls floating over the table. */
+:where(button, a):focus-visible {
+  outline: 2px solid #ffe9bd;
+  outline-offset: 3px;
+}
+
 ::selection {
   background: rgba(235, 191, 102, 0.36);
   color: #fffaf1;
 }
 
-/* Animations are part of the experience and stay on by default. They're
-   disabled only when explicitly opted out via ?motion=0 (which sets
-   data-reduced-motion on <html>), so this respects intent without the OS
-   setting silently killing the scene's motion. */
+/* Reduced motion: App sets data-reduced-motion on <html> from the OS setting
+   (or a ?motion= override, see motion.ts), and this one rule covers every CSS
+   animation on the page. */
 [data-reduced-motion='true'] *,
 [data-reduced-motion='true'] *::before,
-[data-reduced-motion='true'] *::after {
+[data-reduced-motion='true'] *::after,
+[data-reduced-motion='true'] ::backdrop {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;

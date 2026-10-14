@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { CARD, chipSpots } from './layout'
 import { getChipTextures } from './chipTexture'
+import { frameStep } from './frame'
 
 const RED = '#c0282a'
 const BLUE = '#1f5fa8'
@@ -26,52 +27,81 @@ const POT_CENTER: [number, number] = [0.72, 0.92]
 const RED_COUNTS = [12, 6, 15, 9, 4]
 const BLUE_COUNTS = [3, 8, 2, 5, 6]
 
-function ChipStack({
-  position,
-  count,
-  color,
-  seed = 0,
-}: {
-  position: [number, number, number]
-  count: number
-  color: string
-  seed?: number
-}) {
-  const { face, edge } = useMemo(() => getChipTextures(color), [color])
+/*
+ * Every chip of one colour is drawn as a single InstancedMesh -- one draw per
+ * material group instead of one per chip -- so the geometry and materials are
+ * shared, built once, and kept for the life of the page.
+ */
+let chipGeometry: THREE.CylinderGeometry | null = null
+const getChipGeometry = () => (chipGeometry ??= new THREE.CylinderGeometry(CHIP_R, CHIP_R, CHIP_H, 36))
+
+const materialCache = new Map<string, THREE.MeshStandardMaterial[]>()
+
+/** [rim, top, bottom] -- the cylinder's three material groups. */
+function getChipMaterials(color: string): THREE.MeshStandardMaterial[] {
+  let mats = materialCache.get(color)
+  if (!mats) {
+    const { face, edge } = getChipTextures(color)
+    const top = new THREE.MeshStandardMaterial({ map: face, roughness: 0.42, metalness: 0.05 })
+    mats = [new THREE.MeshStandardMaterial({ map: edge, roughness: 0.5, metalness: 0.05 }), top, top]
+    materialCache.set(color, mats)
+  }
+  return mats
+}
+
+const _chip = new THREE.Object3D()
+
+/** A static set of chips of one colour, one instance per chip. */
+function ChipInstances({ color, matrices }: { color: string; matrices: THREE.Matrix4[] }) {
+  const ref = useRef<THREE.InstancedMesh>(null)
+  useLayoutEffect(() => {
+    const m = ref.current
+    if (!m) return
+    matrices.forEach((matrix, i) => m.setMatrixAt(i, matrix))
+    m.instanceMatrix.needsUpdate = true
+    m.computeBoundingSphere()
+  }, [matrices])
   return (
-    <group position={position}>
-      {Array.from({ length: count }).map((_, i) => (
-        <mesh
-          key={i}
-          position-y={CARD.restY + CHIP_H / 2 + i * CHIP_H}
-          rotation-y={randRot(seed + i)}
-          castShadow
-          receiveShadow
-        >
-          <cylinderGeometry args={[CHIP_R, CHIP_R, CHIP_H, 36]} />
-          <meshStandardMaterial attach="material-0" map={edge} roughness={0.5} metalness={0.05} />
-          <meshStandardMaterial attach="material-1" map={face} roughness={0.42} metalness={0.05} />
-          <meshStandardMaterial attach="material-2" map={face} roughness={0.42} metalness={0.05} />
-        </mesh>
-      ))}
-    </group>
+    <instancedMesh
+      ref={ref}
+      args={[getChipGeometry(), getChipMaterials(color), matrices.length]}
+      castShadow
+      receiveShadow
+    />
   )
 }
 
-/** A tall red stack with a shorter blue stack beside it, in front of each seat. */
-function SeatChips({ x, z, idx }: { x: number; z: number; idx: number }) {
-  // Tangential offset (perpendicular to the radial) keeps both stacks at the
-  // same radius — side by side along the rail, neither sliding onto the cards.
-  const len = Math.hypot(x, z) || 1
-  const px = -z / len
-  const pz = x / len
-  const off = CHIP_R * 1.05
-  const redPos: [number, number, number] = [x - px * off, 0, z - pz * off]
-  const bluePos: [number, number, number] = [x + px * off, 0, z + pz * off]
+/**
+ * A tall red stack with a shorter blue stack beside it, in front of each seat.
+ * A tangential offset (perpendicular to the radial) keeps both stacks at the
+ * same radius -- side by side along the rail, neither sliding onto the cards.
+ */
+function SeatStacks() {
+  const stacks = useMemo(() => {
+    const red: THREE.Matrix4[] = []
+    const blue: THREE.Matrix4[] = []
+    const stack = (out: THREE.Matrix4[], x: number, z: number, count: number, seed: number) => {
+      for (let i = 0; i < count; i += 1) {
+        _chip.position.set(x, CARD.restY + CHIP_H / 2 + i * CHIP_H, z)
+        _chip.rotation.set(0, randRot(seed + i), 0)
+        _chip.updateMatrix()
+        out.push(_chip.matrix.clone())
+      }
+    }
+    chipSpots.forEach(({ x, z }, idx) => {
+      const len = Math.hypot(x, z) || 1
+      const px = -z / len
+      const pz = x / len
+      const off = CHIP_R * 1.05
+      stack(red, x - px * off, z - pz * off, RED_COUNTS[idx % RED_COUNTS.length], idx * 13)
+      stack(blue, x + px * off, z + pz * off, BLUE_COUNTS[idx % BLUE_COUNTS.length], idx * 13 + 101)
+    })
+    return { red, blue }
+  }, [])
   return (
     <>
-      <ChipStack position={redPos} count={RED_COUNTS[idx % RED_COUNTS.length]} color={RED} seed={idx * 13} />
-      <ChipStack position={bluePos} count={BLUE_COUNTS[idx % BLUE_COUNTS.length]} color={BLUE} seed={idx * 13 + 101} />
+      <ChipInstances color={RED} matrices={stacks.red} />
+      <ChipInstances color={BLUE} matrices={stacks.blue} />
     </>
   )
 }
@@ -97,7 +127,7 @@ function dealerTopTexture(): THREE.Texture {
   ctx.arc(cx, cx, S / 2 - 34, 0, Math.PI * 2)
   ctx.stroke()
   ctx.fillStyle = '#1f3a6b'
-  ctx.font = '900 150px "Mulish", system-ui, sans-serif'
+  ctx.font = '900 150px "Mulish Variable", system-ui, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText('D', cx, cx + 8)
@@ -125,26 +155,35 @@ interface Bet {
   seat: number
   from: [number, number, number]
   land: [number, number, number]
-  color: string
+  /** Fixed rotation about the chip's axis, so the pot doesn't look stamped. */
+  spin: number
 }
 
 /**
  * On each street (flop/turn/river) every player picks one chip off their stack
  * and tosses it into the pot — the SAME contribution each, landing as its own
  * separate stack ringed around the pot, so the pot grows in equal columns.
+ * Each colour's pot chips are one InstancedMesh; a street's chips join it as
+ * that street is bet.
  */
 function PotThrows({ boardStage }: { boardStage: number }) {
   const prog = useRef(1)
   const prev = useRef(boardStage)
-  const refs = useRef<(THREE.Group | null)[]>([])
+  const dirty = useRef(true)
+  const red = useRef<THREE.InstancedMesh>(null)
+  const blue = useRef<THREE.InstancedMesh>(null)
+  const invalidate = useThree((s) => s.invalidate)
 
   useEffect(() => {
     if (boardStage > prev.current) prog.current = 0
     prev.current = boardStage
-  }, [boardStage])
+    dirty.current = true
+    invalidate()
+  }, [boardStage, invalidate])
 
-  const bets = useMemo<Bet[]>(() => {
-    const list: Bet[] = []
+  // Ordered by street, so the chips bet so far are always a prefix of each list.
+  const bets = useMemo(() => {
+    const byColor: Record<string, Bet[]> = { [RED]: [], [BLUE]: [] }
     const n = chipSpots.length
     for (let street = 1; street <= 3; street += 1) {
       chipSpots.forEach((spot, seat) => {
@@ -154,59 +193,77 @@ function PotThrows({ boardStage }: { boardStage: number }) {
         const a = (seat / n) * Math.PI * 2 + Math.PI / 2
         const lx = POT_CENTER[0] + Math.cos(a) * 0.38
         const lz = POT_CENTER[1] + Math.sin(a) * 0.38
-        list.push({
+        byColor[seat % 2 === 0 ? RED : BLUE].push({
           street,
           seat,
           from: [spot.x, topY, spot.z],
           land: [lx, CARD.restY + CHIP_H / 2 + (street - 1) * CHIP_H, lz],
-          color: seat % 2 === 0 ? RED : BLUE,
+          spin: randRot(seat * 31 + street),
         })
       })
     }
-    return list
+    return byColor
   }, [])
 
-  useFrame((_, dt) => {
-    if (prog.current < 1) prog.current = Math.min(1, prog.current + dt / 0.8)
-    bets.forEach((bet, i) => {
-      const g = refs.current[i]
-      if (!g || bet.street !== boardStage) return
-      const stagger = bet.seat * 0.05
-      const t = clamp01((prog.current - stagger) / 0.7)
-      const p = easeOut(t)
-      const arc = Math.sin(t * Math.PI) * 0.95
-      g.position.set(
-        lerp(bet.from[0], bet.land[0], p),
-        lerp(bet.from[1], bet.land[1], p) + arc,
-        lerp(bet.from[2], bet.land[2], p),
-      )
-      g.rotation.x = t * Math.PI * 2 // tumble, ending flat
-    })
+  useFrame((state, delta) => {
+    if (prog.current < 1) {
+      prog.current = Math.min(1, prog.current + frameStep(delta) / 0.8)
+      state.invalidate()
+    } else if (!dirty.current) {
+      return
+    }
+    dirty.current = false
+    const meshes: [THREE.InstancedMesh | null, Bet[]][] = [
+      [red.current, bets[RED]],
+      [blue.current, bets[BLUE]],
+    ]
+    for (const [mesh, list] of meshes) {
+      if (!mesh) continue
+      let count = 0
+      for (const bet of list) {
+        if (bet.street > boardStage) break
+        if (bet.street === boardStage) {
+          const t = clamp01((prog.current - bet.seat * 0.05) / 0.7)
+          const p = easeOut(t)
+          _chip.position.set(
+            lerp(bet.from[0], bet.land[0], p),
+            lerp(bet.from[1], bet.land[1], p) + Math.sin(t * Math.PI) * 0.95,
+            lerp(bet.from[2], bet.land[2], p),
+          )
+          _chip.rotation.set(t * Math.PI * 2, bet.spin, 0) // tumble, ending flat
+        } else {
+          _chip.position.set(...bet.land)
+          _chip.rotation.set(0, bet.spin, 0)
+        }
+        _chip.updateMatrix()
+        mesh.setMatrixAt(count, _chip.matrix)
+        count += 1
+      }
+      mesh.count = count
+      mesh.instanceMatrix.needsUpdate = true
+    }
   })
 
+  // Not frustum-culled: the instances move, which would leave a cached bounding
+  // sphere stale. The pot is always on screen anyway.
   return (
     <>
-      {bets.map((bet, i) => {
-        if (boardStage < bet.street) return null
-        const flying = bet.street === boardStage
-        const { face, edge } = getChipTextures(bet.color)
-        return (
-          <group
-            key={i}
-            ref={(el) => {
-              refs.current[i] = el
-            }}
-            position={flying ? bet.from : bet.land}
-          >
-            <mesh castShadow receiveShadow rotation-y={randRot(bet.seat * 31 + bet.street)}>
-              <cylinderGeometry args={[CHIP_R, CHIP_R, CHIP_H, 36]} />
-              <meshStandardMaterial attach="material-0" map={edge} roughness={0.5} metalness={0.05} />
-              <meshStandardMaterial attach="material-1" map={face} roughness={0.42} metalness={0.05} />
-              <meshStandardMaterial attach="material-2" map={face} roughness={0.42} metalness={0.05} />
-            </mesh>
-          </group>
-        )
-      })}
+      <instancedMesh
+        ref={red}
+        args={[getChipGeometry(), getChipMaterials(RED), bets[RED].length]}
+        count={0}
+        frustumCulled={false}
+        castShadow
+        receiveShadow
+      />
+      <instancedMesh
+        ref={blue}
+        args={[getChipGeometry(), getChipMaterials(BLUE), bets[BLUE].length]}
+        count={0}
+        frustumCulled={false}
+        castShadow
+        receiveShadow
+      />
     </>
   )
 }
@@ -215,9 +272,7 @@ function PotThrows({ boardStage }: { boardStage: number }) {
 export function Chips({ boardStage }: { boardStage: number }) {
   return (
     <>
-      {chipSpots.map((spot, si) => (
-        <SeatChips key={spot.seatId} x={spot.x} z={spot.z} idx={si} />
-      ))}
+      <SeatStacks />
       <PotThrows boardStage={boardStage} />
       <DealerButton position={[1.85, CARD.restY + (CHIP_H * 1.3) / 2, 1.5]} />
     </>

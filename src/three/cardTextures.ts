@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { CardGroup, PortfolioCardData } from '../data/portfolio'
 import type { CardRole } from './layout'
 import { inkColor } from '../theme'
+import { drawCardBack } from './cardBack'
 
 const W = 512
 const H = 731
@@ -396,134 +397,6 @@ function drawCommunityContent(s: PortfolioCardData, scale = 1): HTMLCanvasElemen
   return c
 }
 
-/**
- * One classic, identical card back: a cream border framing a deep-red field, a
- * fine all-over diamond lattice, and a central radial medallion (starburst +
- * flower-of-life rosette). Symmetric and instantly readable as a card back.
- */
-function drawBack(): HTMLCanvasElement {
-  const { c, ctx } = canvas2d()
-  const cx = W / 2
-  const cy = H / 2
-  const RED = '#c3122b'
-  const RED_DK = '#8a0c1d'
-  const CREAM = '#f4ecd6'
-  const LACE = 'rgba(244,236,214,0.22)'
-
-  // Cream card stock — the classic wide white border.
-  ctx.fillStyle = CREAM
-  ctx.fillRect(0, 0, W, H)
-
-  // Red printed panel with a soft vignette.
-  const M = 26
-  const vg = ctx.createRadialGradient(cx, cy, 50, cx, cy, H * 0.62)
-  vg.addColorStop(0, RED)
-  vg.addColorStop(1, RED_DK)
-  ctx.fillStyle = vg
-  roundedRect(ctx, M, M, W - 2 * M, H - 2 * M, 24)
-  ctx.fill()
-
-  // Cream keylines framing the panel.
-  ctx.strokeStyle = CREAM
-  ctx.lineWidth = 6
-  roundedRect(ctx, M + 11, M + 11, W - 2 * (M + 11), H - 2 * (M + 11), 17)
-  ctx.stroke()
-  ctx.lineWidth = 2
-  roundedRect(ctx, M + 19, M + 19, W - 2 * (M + 19), H - 2 * (M + 19), 13)
-  ctx.stroke()
-
-  // Fine, regular diamond lattice filling the panel (a clean all-over texture).
-  ctx.save()
-  roundedRect(ctx, M + 19, M + 19, W - 2 * (M + 19), H - 2 * (M + 19), 11)
-  ctx.clip()
-  ctx.strokeStyle = LACE
-  ctx.lineWidth = 1.1
-  const gap = 26
-  for (let d = -H; d < W; d += gap) {
-    ctx.beginPath()
-    ctx.moveTo(d, 0)
-    ctx.lineTo(d + H, H)
-    ctx.stroke()
-  }
-  for (let d = 0; d < W + H; d += gap) {
-    ctx.beginPath()
-    ctx.moveTo(d, 0)
-    ctx.lineTo(d - H, H)
-    ctx.stroke()
-  }
-  ctx.fillStyle = 'rgba(244,236,214,0.2)'
-  for (let yy = M; yy < H - M; yy += gap) {
-    for (let xx = M; xx < W - M; xx += gap) {
-      ctx.beginPath()
-      ctx.arc(xx, yy, 1.5, 0, Math.PI * 2)
-      ctx.fill()
-    }
-  }
-  ctx.restore()
-
-  // Central guilloché medallion: fine interlaced rings of circles on a disc.
-  ctx.save()
-  ctx.translate(cx, cy)
-  ctx.fillStyle = CREAM
-  ctx.beginPath()
-  ctx.arc(0, 0, 152, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = RED
-  ctx.beginPath()
-  ctx.arc(0, 0, 142, 0, Math.PI * 2)
-  ctx.fill()
-
-  // Starburst petals around the rim.
-  ctx.fillStyle = CREAM
-  const petals = 36
-  for (let i = 0; i < petals; i += 1) {
-    const a = ((Math.PI * 2) / petals) * i
-    ctx.save()
-    ctx.rotate(a)
-    ctx.beginPath()
-    ctx.ellipse(0, -134, 4, 12, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
-  }
-
-  // Framing rings.
-  ctx.strokeStyle = CREAM
-  ctx.lineWidth = 3
-  ctx.beginPath()
-  ctx.arc(0, 0, 120, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.lineWidth = 1.4
-  ctx.beginPath()
-  ctx.arc(0, 0, 112, 0, Math.PI * 2)
-  ctx.stroke()
-
-  // Two interlaced rings of overlapping circles (the guilloché rosette).
-  ctx.lineWidth = 1.4
-  const guilloche = (count: number, ringR: number, circR: number) => {
-    for (let i = 0; i < count; i += 1) {
-      const a = ((Math.PI * 2) / count) * i
-      ctx.beginPath()
-      ctx.arc(Math.cos(a) * ringR, Math.sin(a) * ringR, circR, 0, Math.PI * 2)
-      ctx.stroke()
-    }
-  }
-  guilloche(18, 84, 60)
-  guilloche(12, 50, 50)
-
-  // Central hub.
-  ctx.fillStyle = CREAM
-  ctx.beginPath()
-  ctx.arc(0, 0, 15, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = RED
-  ctx.beginPath()
-  ctx.arc(0, 0, 7.5, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-
-  return c
-}
-
 /* ---------- About card: headshot on the left, bio on the right ---------- */
 
 const ABOUT_PHOTO = { x: PAD - 6, y: 152, w: W - (PAD - 6) * 2, h: 468 }
@@ -631,7 +504,7 @@ function notifyUpdated() {
 }
 
 export function getSharedBack(): THREE.Texture {
-  if (!sharedBack) sharedBack = toTex(drawBack())
+  if (!sharedBack) sharedBack = toTex(drawCardBack())
   return sharedBack
 }
 

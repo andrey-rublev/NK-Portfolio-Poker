@@ -213,12 +213,28 @@ function DealerButton({ position }: { position: [number, number, number] }) {
   )
 }
 
-/** Chips each player puts in on the flop, the turn and the river. */
-const BET_CHIPS = [2, 3, 4]
-/** Chips land anywhere within this distance of the pot's middle. */
-const POT_SPREAD = 0.5
-/** Longest a chip can lean, resting half on another chip (radians). */
-const MAX_LEAN = 0.24
+/**
+ * Each player's bet on the flop, the turn and the river, as the chips they
+ * throw in (indices into CHIPS). Everyone bets the same.
+ */
+const BETS = [
+  [0, 1],
+  [0, 1, 2],
+  [0, 1, 2, 2],
+]
+/**
+ * How far from the pot's middle each street's chips can land. Later bets land
+ * nearer the middle, so they come down on the pile already there.
+ */
+const POT_SPREAD = [0.5, 0.42, 0.38]
+/**
+ * Spots each chip tries before settling in the lowest: a chip that lands on
+ * the top of the heap slides off it, so the pot grows into a low mound rather
+ * than a tower.
+ */
+const POT_TRIES = 3
+/** The steepest a chip can lean against the pile (radians). */
+const MAX_LEAN = 0.3
 
 interface Bet {
   street: number // 1 = flop, 2 = turn, 3 = river
@@ -230,16 +246,75 @@ interface Bet {
   rest: THREE.Quaternion
 }
 
+/** A chip in the pot: its centre, and the way (u) and steepness its faces slope down. */
+interface Landed {
+  x: number
+  y: number
+  z: number
+  ux: number
+  uz: number
+  slope: number
+}
+
+/** Height of the pile's surface at (px, pz): the highest chip face there, or the felt. */
+function pileTop(pot: Landed[], px: number, pz: number): number {
+  let top = CARD.restY
+  for (const c of pot) {
+    const dx = px - c.x
+    const dz = pz - c.z
+    if (dx * dx + dz * dz > CHIP_R * CHIP_R) continue
+    top = Math.max(top, c.y + CHIP_H / 2 - c.slope * (dx * c.ux + dz * c.uz))
+  }
+  return top
+}
+
+/** Points under a chip where it is checked against the pile: its middle, and two rings. */
+const FOOTPRINT: [number, number][] = [[0, 0]]
+for (const [r, n] of [[0.5, 6], [0.95, 12]]) {
+  for (let i = 0; i < n; i += 1) {
+    const a = (i / n) * Math.PI * 2
+    FOOTPRINT.push([Math.cos(a) * r * CHIP_R, Math.sin(a) * r * CHIP_R])
+  }
+}
+
 const X_AXIS = new THREE.Vector3(1, 0, 0)
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
-const _lean = new THREE.Vector3()
+const _tilt = new THREE.Vector3()
 const _qTumble = new THREE.Quaternion()
 
 /**
- * Where every chip bet in the hand comes to rest, in the order they're thrown:
- * scattered over the pot, each on top of the highest chip it lands across. A
- * chip that only catches the edge of the one below leans off it, so the pot
- * builds into an untidy pile rather than neat columns.
+ * How a chip dropped at (x, z) settles onto the pile: it sits on the highest
+ * point under its face, and if that point is off to one side it tips away from
+ * it, as far as the chips below allow -- so it never passes through another.
+ */
+function settle(pot: Landed[], x: number, z: number): Landed {
+  const under = FOOTPRINT.map(([fx, fz]) => pileTop(pot, x + fx, z + fz))
+  let high = 0
+  under.forEach((h, i) => {
+    if (h > under[high] + 1e-6) high = i
+  })
+  const [hx, hz] = FOOTPRINT[high]
+  const off = Math.hypot(hx, hz)
+  let ux = 0
+  let uz = 0
+  let slope = 0
+  if (off > 0 && under[high] - under[0] > 1e-4) {
+    // Held up off-centre: tip away from that point until the face would touch
+    // the pile anywhere else.
+    ux = -hx / off
+    uz = -hz / off
+    slope = Math.tan(MAX_LEAN)
+    FOOTPRINT.forEach(([fx, fz], i) => {
+      const along = (fx - hx) * ux + (fz - hz) * uz
+      if (along > 1e-6) slope = Math.min(slope, (under[high] - under[i]) / along)
+    })
+  }
+  return { x, y: under[high] - slope * off + CHIP_H / 2, z, ux, uz, slope }
+}
+
+/**
+ * Where every chip bet in the hand comes to rest, in the order they're thrown,
+ * heaping up on one another untidily (see settle and POT_TRIES).
  */
 function potLandings(): Bet[][] {
   let s = 17
@@ -247,59 +322,44 @@ function potLandings(): Bet[][] {
     s = (s * 1664525 + 1013904223) >>> 0
     return s / 4294967296
   }
-  const landed: { x: number; z: number; top: number }[] = []
+  const pot: Landed[] = []
   const byChip: Bet[][] = CHIPS.map(() => [])
-  for (let street = 1; street <= 3; street += 1) {
-    // Everyone bets the same chips on a street, from their stack of them.
-    const d = street - 1
+  BETS.forEach((bet, b) => {
+    const street = b + 1
     chipSpots.forEach((_, seat) => {
-      const [sx, sz] = stackSpot(seat, d)
-      const fromY = CARD.restY + COUNTS[d][seat % COUNTS[d].length] * CHIP_H + 0.02
-      for (let k = 0; k < BET_CHIPS[d]; k += 1) {
-        const a = rand() * Math.PI * 2
-        const r = POT_SPREAD * Math.sqrt(rand())
-        const x = POT_CENTER[0] + Math.cos(a) * r
-        const z = POT_CENTER[1] + Math.sin(a) * r
-        // The highest chip it lands across holds it up.
-        let below: (typeof landed)[number] | null = null
-        for (const c of landed) {
-          if (Math.hypot(c.x - x, c.z - z) < CHIP_R * 1.85 && (!below || c.top > below.top)) below = c
+      bet.forEach((d, k) => {
+        let chip: Landed | null = null
+        for (let t = 0; t < POT_TRIES; t += 1) {
+          const a = rand() * Math.PI * 2
+          const r = POT_SPREAD[b] * Math.sqrt(rand())
+          const tried = settle(pot, POT_CENTER[0] + Math.cos(a) * r, POT_CENTER[1] + Math.sin(a) * r)
+          if (!chip || tried.y < chip.y) chip = tried
         }
-        const base = below ? below.top : CARD.restY
+        const { x, y, z, ux, uz, slope } = chip!
+        pot.push(chip!)
+
         const rest = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, rand() * Math.PI * 2)
-        let y = base + CHIP_H / 2
-        if (below) {
-          const dx = x - below.x
-          const dz = z - below.z
-          const off = Math.hypot(dx, dz)
-          if (off > CHIP_R * 0.7) {
-            // Only its edge is on the chip below, so it tips away from it, its
-            // far side resting lower down.
-            const lean = Math.min(MAX_LEAN, (base - CARD.restY) / (CHIP_R * 2))
-            _lean.set(dz / off, 0, -dx / off)
-            rest.premultiply(new THREE.Quaternion().setFromAxisAngle(_lean, lean))
-            y -= Math.sin(lean) * CHIP_R
-          }
-        }
-        landed.push({ x, z, top: y + CHIP_H / 2 })
+        if (slope > 0) rest.premultiply(new THREE.Quaternion().setFromAxisAngle(_tilt.set(uz, 0, -ux), Math.atan(slope)))
+        const [sx, sz] = stackSpot(seat, d)
         byChip[d].push({
           street,
           delay: seat * 0.05 + k * 0.05,
-          from: [sx, fromY, sz],
+          from: [sx, CARD.restY + COUNTS[d][seat % COUNTS[d].length] * CHIP_H + 0.02, sz],
           land: [x, y, z],
           rest,
         })
-      }
+      })
     })
-  }
+  })
   return byChip
 }
 
 /**
  * On each street (flop/turn/river) every player throws the same bet into the
- * pot -- two 5s on the flop, three 25s on the turn, four 100s on the river --
- * a chip at a time, and they land in a heap. Each denomination's pot chips
- * are one InstancedMesh; a street's chips join it as that street is bet.
+ * pot -- a 5 and a 25 on the flop, a 5, a 25 and a 100 on the turn, and a 5, a
+ * 25 and two 100s on the river -- a chip at a time, from their stacks, and the
+ * chips heap up in the middle. Each denomination's pot chips are one
+ * InstancedMesh; a street's chips join them as that street is bet.
  */
 function PotThrows({ boardStage }: { boardStage: number }) {
   const prog = useRef(1)

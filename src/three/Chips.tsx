@@ -34,7 +34,7 @@ function jitter(n: number): number {
 }
 
 /** The pot sits just right of centre; the burn pile is to its left. */
-const POT_CENTER: [number, number] = [0.72, 0.92]
+const POT_CENTER: [number, number] = [0.72, 1.0]
 
 /** Differing bankrolls per seat: how many chips of each denomination (see CHIPS). */
 const COUNTS = [
@@ -213,22 +213,93 @@ function DealerButton({ position }: { position: [number, number, number] }) {
   )
 }
 
+/** Chips each player puts in on the flop, the turn and the river. */
+const BET_CHIPS = [2, 3, 4]
+/** Chips land anywhere within this distance of the pot's middle. */
+const POT_SPREAD = 0.5
+/** Longest a chip can lean, resting half on another chip (radians). */
+const MAX_LEAN = 0.24
+
 interface Bet {
   street: number // 1 = flop, 2 = turn, 3 = river
-  seat: number
+  /** How far into the throw (0 to 1) this chip leaves the player's hand. */
+  delay: number
   from: [number, number, number]
   land: [number, number, number]
-  /** Fixed rotation about the chip's axis, so the pot doesn't look stamped. */
-  spin: number
+  /** How it lies once it lands: leaning, and turned about its own axis. */
+  rest: THREE.Quaternion
+}
+
+const X_AXIS = new THREE.Vector3(1, 0, 0)
+const Y_AXIS = new THREE.Vector3(0, 1, 0)
+const _lean = new THREE.Vector3()
+const _qTumble = new THREE.Quaternion()
+
+/**
+ * Where every chip bet in the hand comes to rest, in the order they're thrown:
+ * scattered over the pot, each on top of the highest chip it lands across. A
+ * chip that only catches the edge of the one below leans off it, so the pot
+ * builds into an untidy pile rather than neat columns.
+ */
+function potLandings(): Bet[][] {
+  let s = 17
+  const rand = () => {
+    s = (s * 1664525 + 1013904223) >>> 0
+    return s / 4294967296
+  }
+  const landed: { x: number; z: number; top: number }[] = []
+  const byChip: Bet[][] = CHIPS.map(() => [])
+  for (let street = 1; street <= 3; street += 1) {
+    // Everyone bets the same chips on a street, from their stack of them.
+    const d = street - 1
+    chipSpots.forEach((_, seat) => {
+      const [sx, sz] = stackSpot(seat, d)
+      const fromY = CARD.restY + COUNTS[d][seat % COUNTS[d].length] * CHIP_H + 0.02
+      for (let k = 0; k < BET_CHIPS[d]; k += 1) {
+        const a = rand() * Math.PI * 2
+        const r = POT_SPREAD * Math.sqrt(rand())
+        const x = POT_CENTER[0] + Math.cos(a) * r
+        const z = POT_CENTER[1] + Math.sin(a) * r
+        // The highest chip it lands across holds it up.
+        let below: (typeof landed)[number] | null = null
+        for (const c of landed) {
+          if (Math.hypot(c.x - x, c.z - z) < CHIP_R * 1.85 && (!below || c.top > below.top)) below = c
+        }
+        const base = below ? below.top : CARD.restY
+        const rest = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, rand() * Math.PI * 2)
+        let y = base + CHIP_H / 2
+        if (below) {
+          const dx = x - below.x
+          const dz = z - below.z
+          const off = Math.hypot(dx, dz)
+          if (off > CHIP_R * 0.7) {
+            // Only its edge is on the chip below, so it tips away from it, its
+            // far side resting lower down.
+            const lean = Math.min(MAX_LEAN, (base - CARD.restY) / (CHIP_R * 2))
+            _lean.set(dz / off, 0, -dx / off)
+            rest.premultiply(new THREE.Quaternion().setFromAxisAngle(_lean, lean))
+            y -= Math.sin(lean) * CHIP_R
+          }
+        }
+        landed.push({ x, z, top: y + CHIP_H / 2 })
+        byChip[d].push({
+          street,
+          delay: seat * 0.05 + k * 0.05,
+          from: [sx, fromY, sz],
+          land: [x, y, z],
+          rest,
+        })
+      }
+    })
+  }
+  return byChip
 }
 
 /**
- * On each street (flop/turn/river) every player picks one chip off a stack and
- * tosses it into the pot — the SAME bet each: a 5 on the flop, a 25 on the
- * turn, a 100 on the river. Each lands on its own column ringed around the
- * pot, so the pot grows in equal columns.
- * Each denomination's pot chips are one InstancedMesh; a street's chips join
- * it as that street is bet.
+ * On each street (flop/turn/river) every player throws the same bet into the
+ * pot -- two 5s on the flop, three 25s on the turn, four 100s on the river --
+ * a chip at a time, and they land in a heap. Each denomination's pot chips
+ * are one InstancedMesh; a street's chips join it as that street is bet.
  */
 function PotThrows({ boardStage }: { boardStage: number }) {
   const prog = useRef(1)
@@ -246,35 +317,11 @@ function PotThrows({ boardStage }: { boardStage: number }) {
 
   // One list per denomination, ordered by street, so the chips bet so far are
   // always a prefix of each list.
-  const bets = useMemo(() => {
-    const byChip: Bet[][] = CHIPS.map(() => [])
-    const n = chipSpots.length
-    for (let street = 1; street <= 3; street += 1) {
-      chipSpots.forEach((_, seat) => {
-        // Everyone bets the same chip on a street, from their stack of it.
-        const d = street - 1
-        const [sx, sz] = stackSpot(seat, d)
-        const topY = CARD.restY + COUNTS[d][seat % COUNTS[d].length] * CHIP_H + 0.02
-        // One separate landing column per seat, ringed tightly around the pot —
-        // close together but still a hair more than a chip diameter apart.
-        const a = (seat / n) * Math.PI * 2 + Math.PI / 2
-        const lx = POT_CENTER[0] + Math.cos(a) * 0.38
-        const lz = POT_CENTER[1] + Math.sin(a) * 0.38
-        byChip[d].push({
-          street,
-          seat,
-          from: [sx, topY, sz],
-          land: [lx, CARD.restY + CHIP_H / 2 + (street - 1) * CHIP_H, lz],
-          spin: randRot(seat * 31 + street),
-        })
-      })
-    }
-    return byChip
-  }, [])
+  const bets = useMemo(() => potLandings(), [])
 
   useFrame((state, delta) => {
     if (prog.current < 1) {
-      prog.current = Math.min(1, prog.current + frameStep(delta) / 0.8)
+      prog.current = Math.min(1, prog.current + frameStep(delta) / 0.9)
       state.invalidate()
     } else if (!dirty.current) {
       return
@@ -286,19 +333,21 @@ function PotThrows({ boardStage }: { boardStage: number }) {
       let count = 0
       for (const bet of list) {
         if (bet.street > boardStage) break
+        _chip.quaternion.copy(bet.rest)
         if (bet.street === boardStage) {
-          const t = clamp01((prog.current - bet.seat * 0.05) / 0.7)
+          const t = clamp01((prog.current - bet.delay) / 0.6)
           const p = easeOut(t)
           _chip.position.set(
             lerp(bet.from[0], bet.land[0], p),
             lerp(bet.from[1], bet.land[1], p) + Math.sin(t * Math.PI) * 0.95,
             lerp(bet.from[2], bet.land[2], p),
           )
-          _chip.rotation.set(t * Math.PI * 2, bet.spin, 0) // tumble, ending flat
+          // Tumbling end over end on the way, settling into its resting pose.
+          _chip.quaternion.multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
         } else {
           _chip.position.set(...bet.land)
-          _chip.rotation.set(0, bet.spin, 0)
         }
+        _chip.scale.setScalar(1)
         _chip.updateMatrix()
         mesh.setMatrixAt(count, _chip.matrix)
         count += 1

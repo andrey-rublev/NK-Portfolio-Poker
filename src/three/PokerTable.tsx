@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
-import { TABLE } from './layout'
+import { RAIL, TABLE } from './layout'
 import { createFeltTexture } from './feltTexture'
 import { getLeatherTexture, getWoodTexture } from './tableTextures'
 
@@ -159,17 +159,7 @@ function makeEllipseBand(
 export function PokerTable() {
   const felt = useMemo(() => createFeltTexture(), [])
   const railGeometry = useMemo(
-    () =>
-      makeRoundedRailGeometry(
-        TABLE.rx + 0.12,
-        TABLE.rz + 0.12,
-        TABLE.topY + 0.16,
-        0.42,
-        0.3,
-        0.14,
-        200,
-        5,
-      ),
+    () => makeRoundedRailGeometry(RAIL.rx, RAIL.rz, RAIL.y, RAIL.halfW, RAIL.halfH, RAIL.corner, 200, 5),
     [],
   )
 

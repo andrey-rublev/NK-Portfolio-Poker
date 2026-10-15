@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { playerSpots } from './layout'
+import { FLOOR, PLAYER_SETBACK, RAIL, playerSpots } from './layout'
 
 const SKINS = ['#e8b48c', '#c98e63', '#a9714a', '#d9a173', '#8d5a3a']
 const SHIRTS = ['#2f6f57', '#2d4a78', '#7a3340', '#5c4a86', '#b07a2e']
@@ -47,8 +47,36 @@ const SURFACES: Surface[] = ['body', 'cloth', 'skin', 'gloss', 'leather', 'frame
 
 type Vec3 = [number, number, number]
 
-/** The floor (y = -3.7) in a figure's local units (placed at y -0.35, scaled 1.95). */
-const FLOOR_Y = (-3.7 + 0.35) / 1.95
+/** Each figure is built in its own units, then set at this height and scale. */
+const FIG_Y = -0.35
+const FIG_SCALE = 1.95
+/** The floor in a figure's local units. */
+const FLOOR_Y = (FLOOR - FIG_Y) / FIG_SCALE
+/** The top of the rail, and how far in front of the figure it starts and ends. */
+const RAIL_TOP = (RAIL.y + RAIL.halfH - FIG_Y) / FIG_SCALE
+const RAIL_NEAR = (PLAYER_SETBACK - RAIL.halfW) / FIG_SCALE
+const RAIL_FLAT = (PLAYER_SETBACK - RAIL.halfW + RAIL.corner) / FIG_SCALE
+
+/**
+ * The arm's joints, for the right arm (the left mirrors it): the shoulder, an
+ * elbow hanging just outside the body and in front of it, and a wrist resting
+ * on the flat top of the rail, nearer the middle than the elbow.
+ */
+const SHOULDER: Vec3 = [0.3, 1.06, 0.03]
+const ELBOW: Vec3 = [0.36, 0.66, RAIL_NEAR - 0.15]
+const FOREARM_R = 0.07
+const WRIST: Vec3 = [0.2, RAIL_TOP + FOREARM_R + 0.01, RAIL_FLAT + 0.07]
+/** Hands rest palm-down on the rail, turned in toward each other. */
+const HAND_TURN = 0.42
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0)
+const Z_AXIS = new THREE.Vector3(0, 0, 1)
+const lerp3 = (a: Vec3, b: Vec3, t: number): Vec3 => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t,
+]
+const direction = (a: Vec3, b: Vec3) => new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize()
 
 /** Torso silhouette (radius, height) revolved into one smooth piece: hips → waist → chest → shoulders → neck. */
 const TORSO_PROFILE: [number, number][] = [
@@ -116,6 +144,13 @@ function buildPlayers(): Record<Surface, THREE.BufferGeometry> {
     mesh.scale.set(...scale)
     parent.add(mesh)
     meshes.push({ mesh, surface, color: new THREE.Color(color) })
+    return mesh
+  }
+  /** A capsule from joint a to joint b; its rounded ends make the joints. */
+  const limb = (parent: THREE.Object3D, a: Vec3, b: Vec3, r: number, color: string, surface: Surface) => {
+    const length = new THREE.Vector3(...b).distanceTo(new THREE.Vector3(...a))
+    const mesh = part(parent, capsule(r, length), color, surface, lerp3(a, b, 0.5))
+    mesh.quaternion.setFromUnitVectors(Y_AXIS, direction(a, b))
   }
   const box = (w: number, h: number, d: number, r: number) => new RoundedBoxGeometry(w, h, d, 2, r)
   const sphere = (r: number, w = 16, h = 12) => new THREE.SphereGeometry(r, w, h)
@@ -131,8 +166,8 @@ function buildPlayers(): Record<Surface, THREE.BufferGeometry> {
     const pants = pick(PANTS, spot.variant)
     const longSleeves = look.outfit !== 'polo'
 
-    const fig = group(root, [spot.x, -0.35, spot.z], [0, spot.faceYaw, 0])
-    fig.scale.setScalar(1.95)
+    const fig = group(root, [spot.x, FIG_Y, spot.z], [0, spot.faceYaw, 0])
+    fig.scale.setScalar(FIG_SCALE)
 
     // --- Chair: a high-top casino chair (the table stands well above the
     // floor) -- padded seat and back, one post down to a round base, and a
@@ -287,21 +322,29 @@ function buildPlayers(): Record<Surface, THREE.BufferGeometry> {
         break
     }
 
-    // --- Arms: shoulder → (bent elbow) → forearm → hand resting on the table edge ---
-    const forearmColor = longSleeves ? shirt : skin
+    // --- Arms: the upper arm hangs to an elbow just short of the rail, and the
+    // forearm leans on the rail with the hand resting flat on its top ---
     for (const side of [-1, 1]) {
-      const arm = group(fig, [side * 0.3, 1.05, 0.04], [-0.5, 0, side * 0.12])
-      part(arm, capsule(0.088, 0.34), shirt, 'cloth', [0, -0.22, 0])
-      // the forearm bends further forward and down to the felt
-      const fore = group(arm, [0, -0.45, 0], [-0.32, 0, 0])
-      part(fore, sphere(0.085), shirt, 'cloth', [0, 0, 0])
-      part(fore, capsule(0.075, 0.36), forearmColor, longSleeves ? 'cloth' : 'skin', [0, -0.2, 0])
+      const at = ([x, y, z]: Vec3): Vec3 => [side * x, y, z]
+      const shoulder = at(SHOULDER)
+      const elbow = at(ELBOW)
+      const wrist = at(WRIST)
+      limb(fig, shoulder, elbow, 0.085, shirt, 'cloth')
       if (longSleeves) {
-        part(fore, new THREE.TorusGeometry(0.072, 0.022, 8, 18), shade(shirt, -0.2), 'cloth', [0, -0.38, 0], [Math.PI / 2, 0, 0])
+        limb(fig, elbow, wrist, FOREARM_R, shirt, 'cloth')
+        // A cuff just short of the wrist.
+        const cuff = part(fig, new THREE.TorusGeometry(FOREARM_R, 0.02, 8, 18), shade(shirt, -0.2), 'cloth', lerp3(elbow, wrist, 0.86))
+        cuff.quaternion.setFromUnitVectors(Z_AXIS, direction(elbow, wrist))
+      } else {
+        // A short sleeve over the top of a bare forearm.
+        limb(fig, elbow, lerp3(elbow, wrist, 0.3), FOREARM_R + 0.012, shirt, 'cloth')
+        limb(fig, elbow, wrist, FOREARM_R * 0.9, skin, 'skin')
       }
-      // the hand rests palm-down, fingers forward, thumb tucked inward
-      part(fore, sphere(0.1, 16, 14), skin, 'skin', [0, -0.47, 0.06], [0.5, 0, 0], [1.05, 0.5, 1.5])
-      part(fore, capsule(0.026, 0.06), skin, 'skin', [-side * 0.085, -0.45, 0.07], [0.5, 0, side * 0.7])
+      // A mitten of a hand, palm down on the rail and turned in toward the
+      // other, with the thumb lying along its inner edge.
+      const hand = group(fig, [wrist[0], RAIL_TOP + 0.032, wrist[2]], [0, -side * HAND_TURN, 0])
+      part(hand, box(0.115, 0.06, 0.17, 0.028), skin, 'skin', [0, 0, 0.07])
+      part(hand, capsule(0.022, 0.06), skin, 'skin', [-side * 0.058, -0.004, 0.06], [Math.PI / 2, 0, side * 0.35])
     }
   })
 

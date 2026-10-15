@@ -6,6 +6,7 @@ import {
   type CardGroup,
 } from '../data/portfolio'
 import { inkColor } from '../theme'
+import { skillLogoUrl } from '../data/skillLogos'
 
 /** Every section in reading order: the five seat hands, then the board. */
 const SECTIONS = [...seatSections, ...communitySections]
@@ -82,8 +83,10 @@ export function PortfolioSections({ level, idPrefix, showPhoto, untabbable }: Po
                 <ul className={isTagList(g) ? 'pt-tags' : 'pt-list'}>
                   {g.bullets.map((b) => {
                     const href = hrefFor(b)
+                    const logo = skillLogoUrl(b)
                     return (
                       <li key={b}>
+                        {logo && <img className="pt-logo" src={logo} alt="" width={16} height={16} />}
                         {href ? (
                           <a href={href} tabIndex={tabIndex}>
                             {b}

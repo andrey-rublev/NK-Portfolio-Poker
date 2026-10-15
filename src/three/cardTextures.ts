@@ -3,6 +3,7 @@ import type { CardGroup, PortfolioCardData } from '../data/portfolio'
 import type { CardRole } from './layout'
 import { inkColor } from '../theme'
 import { drawCardBack } from './cardBack'
+import { skillLogoImage } from '../data/skillLogos'
 
 const W = 512
 const H = 731
@@ -122,6 +123,8 @@ interface Item {
   lines: string[]
   /** Marks the first item of a group, used as a preferred page break. */
   groupStart: boolean
+  /** Drawn in place of the bullet (a skill's logo). */
+  logo?: HTMLImageElement
 }
 
 function buildItems(ctx: Ctx, groups: CardGroup[], m: Metrics): Item[] {
@@ -137,6 +140,7 @@ function buildItems(ctx: Ctx, groups: CardGroup[], m: Metrics): Item[] {
         kind: 'bullet',
         lines: wrapLines(ctx, b, CONTENT_W - m.indent),
         groupStart: i === 0 && !group.heading,
+        logo: skillLogoImage(b),
       })
     })
   }
@@ -198,7 +202,13 @@ function drawItems(
     } else {
       ctx.font = m.bulletFont
       ctx.fillStyle = ink
-      ctx.fillText('•', PAD, y)
+      if (it.logo) {
+        // Centred on the first line, in the bullet's column.
+        const size = m.bulletLh * 0.74
+        ctx.drawImage(it.logo, PAD - size * 0.14, y + (m.bulletLh - size) / 2 - m.bulletLh * 0.06, size, size)
+      } else {
+        ctx.fillText('•', PAD, y)
+      }
       ctx.fillStyle = BODY
       for (const ln of it.lines) {
         ctx.fillText(ln, PAD + m.indent, y)

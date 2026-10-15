@@ -128,9 +128,9 @@ html[data-scroll-shim='on']::-webkit-scrollbar {
   color: #fffaf1;
 }
 
-/* Reduced motion: App sets data-reduced-motion on <html> from the OS setting
-   (or a ?motion= override, see motion.ts), and this one rule covers every CSS
-   animation on the page. */
+/* Motion off: App sets data-reduced-motion on <html> when the visitor asks for
+   ?motion=0 (see motion.ts), and this one rule covers every CSS animation on
+   the page. */
 [data-reduced-motion='true'] *,
 [data-reduced-motion='true'] *::before,
 [data-reduced-motion='true'] *::after,

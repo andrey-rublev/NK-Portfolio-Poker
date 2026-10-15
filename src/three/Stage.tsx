@@ -7,10 +7,12 @@ import { CAMERA_HOME } from './layout'
 /**
  * The 3D table, loaded as its own chunk (see App). Frames are drawn only when
  * something moves (`frameloop="demand"`; every animation requests its own
- * frames), so a still table or a card being read costs no GPU time at all.
+ * frames, and the people walking round the room ask for 30 a second while the
+ * table is in view), so a card being read or a dialog over the table costs no
+ * GPU time at all.
  *
  * That is also why the render resolution is fixed rather than adaptive: a
- * frame-rate monitor reads an idle table as a terrible frame rate. The table
+ * frame-rate monitor reads a paused table as a terrible frame rate. The table
  * renders at up to 2x; a lifted card, once it has landed, gets the display's
  * full density (up to 3x), since its text is the whole point and a still frame
  * costs one render.

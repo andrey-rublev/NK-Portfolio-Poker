@@ -36,7 +36,7 @@ export function createFloorTexture(): THREE.Texture {
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-  tex.repeat.set(10, 10)
+  tex.repeat.set(20, 20)
   tex.needsUpdate = true
   cached = tex
   return tex

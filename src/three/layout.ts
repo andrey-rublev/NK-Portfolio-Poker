@@ -14,6 +14,9 @@ export const COMPACT_VIEW =
   typeof window !== 'undefined' &&
   Math.min(window.innerWidth, window.innerHeight) < 700
 
+/** Height of the casino floor; the felt sits at y = 0. */
+export const FLOOR = -3.7
+
 /** World units. The felt sits at y = 0; camera looks down from +Z/+Y. */
 export const TABLE = {
   rx: COMPACT_VIEW ? 5.1 : 6,
@@ -21,6 +24,20 @@ export const TABLE = {
   topY: 0,
   skirt: 0.9,
   railTube: 0.42,
+}
+
+/**
+ * The padded rail: its centre line is an ellipse just outside the felt, and
+ * its cross-section is a rounded rectangle `halfW` across (radially) and
+ * `halfH` tall about height `y`.
+ */
+export const RAIL = {
+  rx: TABLE.rx + 0.12,
+  rz: TABLE.rz + 0.12,
+  y: TABLE.topY + 0.16,
+  halfW: 0.42,
+  halfH: 0.3,
+  corner: 0.14,
 }
 
 export const CARD = {
@@ -226,15 +243,25 @@ export interface PlayerSpot {
   variant: number
 }
 
-/** One seated player just outside the rail behind each seat, facing the table. */
+/** How far each player sits back from the rail's centre line. */
+export const PLAYER_SETBACK = 1.3
+
+/**
+ * One seated player behind each seat, squared up to the rail: every player
+ * sits the same distance back from it and faces straight across it, so their
+ * forearms rest on it the same way all round the table.
+ */
 export const playerSpots: PlayerSpot[] = tableSeats.map((seat, i) => {
-  const angle = SEAT_ANGLES[seat.id] ?? 90
-  const [x, z] = polar(angle, 1.32)
+  const a = ((SEAT_ANGLES[seat.id] ?? 90) * Math.PI) / 180
+  // The rail's outward normal where the seat meets it.
+  const nx = Math.cos(a) / RAIL.rx
+  const nz = -Math.sin(a) / RAIL.rz
+  const nl = Math.hypot(nx, nz)
   return {
     seatId: seat.id,
-    x,
-    z,
-    faceYaw: Math.atan2(-x, -z),
+    x: RAIL.rx * Math.cos(a) + (nx / nl) * PLAYER_SETBACK,
+    z: -RAIL.rz * Math.sin(a) + (nz / nl) * PLAYER_SETBACK,
+    faceYaw: Math.atan2(-nx, -nz),
     variant: i / Math.max(1, tableSeats.length - 1),
   }
 })

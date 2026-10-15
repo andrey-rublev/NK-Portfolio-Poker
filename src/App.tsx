@@ -1,8 +1,9 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { owner } from './data/portfolio'
 import { canvasFontsReady } from './fonts'
+import { skillLogosReady } from './data/skillLogos'
 import type { CardSlot } from './three/layout'
-import { prefersReducedMotion } from './three/motion'
+import { motionOff } from './three/motion'
 import {
   SHIM_COLLAPSE_PX,
   canFullscreen,
@@ -21,9 +22,10 @@ import './ui.css'
 // three.js and the scene are most of the download, so they load as a separate
 // chunk: the page and the welcome card appear first, and the table streams in
 // behind them. The card faces are painted onto canvases, which can't swap a
-// font in later the way HTML does, so the table also waits for Mulish.
+// font or a picture in later the way HTML does, so the table also waits for
+// Mulish and the skill logos.
 const Stage = lazy(() =>
-  Promise.all([import('./three/Stage'), canvasFontsReady()]).then(([stage]) => stage),
+  Promise.all([import('./three/Stage'), canvasFontsReady(), skillLogosReady()]).then(([stage]) => stage),
 )
 
 const DEAL_CUES = ['Deal the flop', 'Deal the turn', 'Deal the river']
@@ -43,7 +45,7 @@ function ListIcon() {
 }
 
 function App() {
-  const [reducedMotion] = useState(prefersReducedMotion)
+  const [reducedMotion] = useState(motionOff)
   const [webgl] = useState(hasWebGL)
   const [dealt, setDealt] = useState(false)
   // The one hand/community card currently lifted to the camera (null = none).
@@ -184,7 +186,7 @@ function App() {
   )
 
   return (
-    <div className={focusedKey ? 'app-shell is-reading' : 'app-shell'}>
+    <div className="app-shell">
       {webgl ? (
         <StageBoundary fallback={noTable}>
           <Suspense
@@ -201,6 +203,7 @@ function App() {
               burnStage={burnStage}
               revealStage={revealStage}
               dealCue={dealCue}
+              ambient={!focusedKey && !overlayOpen}
               onToggle={handleToggle}
               onSelectSeat={handleSeatSelect}
               onDeckPress={handleDeckPress}

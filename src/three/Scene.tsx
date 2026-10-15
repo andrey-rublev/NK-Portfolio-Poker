@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Environment, Lightformer } from '@react-three/drei'
 import * as THREE from 'three'
@@ -6,6 +6,7 @@ import { PokerTable } from './PokerTable'
 import { Card3D } from './Card3D'
 import { Chips } from './Chips'
 import { Players } from './Player'
+import { Casino } from './Casino'
 import {
   seatCards,
   communityCards,
@@ -13,6 +14,7 @@ import {
   BURN_POSITION,
   CARD,
   CAMERA_HOME,
+  FLOOR,
   TABLE,
   type CardSlot,
 } from './layout'
@@ -21,7 +23,7 @@ import { getCardGeometry } from './cardGeometry'
 import { createFloorTexture } from './floorTexture'
 import { Nameplates } from './Nameplates'
 import { DealCue } from './DealCue'
-import { skipIntroZoom } from './motion'
+import { motionOff } from './motion'
 import { frameStep } from './frame'
 
 const LOOK_AT = new THREE.Vector3(0, 0.1, -0.2)
@@ -43,8 +45,8 @@ const TABLE_HALF_W = TABLE.rx + 0.85
 function Floor() {
   const tex = useMemo(() => createFloorTexture(), [])
   return (
-    <mesh rotation-x={-Math.PI / 2} position-y={-3.7} receiveShadow>
-      <planeGeometry args={[80, 80]} />
+    <mesh rotation-x={-Math.PI / 2} position-y={FLOOR} receiveShadow>
+      <planeGeometry args={[160, 160]} />
       <meshStandardMaterial map={tex} roughness={0.95} metalness={0} />
     </mesh>
   )
@@ -197,6 +199,54 @@ function BurnPile({ boardStage }: { boardStage: number }) {
 
 const _camDir = new THREE.Vector3()
 
+const vignetteMaterial = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  // An ellipse 75% of the screen wide and 70% tall, centred a little above
+  // the middle: clear inside 58% of it, darkening to half black at its rim.
+  fragmentShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      float r = length(vec2((vUv.x - 0.5) / 0.75, (vUv.y - 0.52) / 0.7));
+      gl_FragColor = vec4(0.016, 0.008, 0.012, 0.5 * clamp((r - 0.58) / 0.42, 0.0, 1.0));
+    }
+  `,
+})
+
+/**
+ * A soft vignette that draws the eye to the table. It is a screen-filling
+ * plane halfway between the camera and the table, so it darkens the table and
+ * the room but never a card lifted up to read, which comes to rest nearer the
+ * camera -- the edges of the screen stay exactly as dark whether or not a card
+ * is up.
+ */
+function Vignette() {
+  const ref = useRef<THREE.Mesh>(null)
+  useFrame(({ camera, size }) => {
+    const m = ref.current
+    if (!m) return
+    const cam = camera as THREE.PerspectiveCamera
+    const depth = cam.position.distanceTo(LOOK_AT) * 0.5
+    const halfH = depth * Math.tan(((cam.fov * Math.PI) / 180) / 2)
+    camera.getWorldDirection(_camDir)
+    m.position.copy(camera.position).addScaledVector(_camDir, depth)
+    m.quaternion.copy(camera.quaternion)
+    m.scale.set(halfH * 2 * (size.width / Math.max(1, size.height)), halfH * 2, 1)
+  })
+  return (
+    <mesh ref={ref} material={vignetteMaterial} frustumCulled={false} raycast={() => null}>
+      <planeGeometry />
+    </mesh>
+  )
+}
+
 /**
  * An invisible plane that hovers just in front of the camera while a card is
  * focused, so a click ANYWHERE (felt, players, or the card itself) dismisses it.
@@ -229,7 +279,7 @@ function DismissCatcher({ onDismiss }: { onDismiss: () => void }) {
 
 function CameraController({ dealt }: { dealt: boolean }) {
   const size = useThree((s) => s.size)
-  const skipZoom = useRef(skipIntroZoom())
+  const skipZoom = useRef(motionOff())
   const startT = useRef<number | null>(null)
 
   useFrame((state) => {
@@ -284,6 +334,8 @@ export interface SceneProps {
   revealStage: number
   /** Label for the cue pointing at the deck, or null when there is nothing to deal. */
   dealCue: string | null
+  /** Whether the room around the table is in view and should keep moving. */
+  ambient: boolean
   onToggle: (slot: CardSlot) => void
   /** Clicking a seat's nameplate lifts that seat's hand. */
   onSelectSeat: (seatId: string) => void
@@ -298,12 +350,14 @@ export function Scene({
   burnStage,
   revealStage,
   dealCue,
+  ambient,
   onToggle,
   onSelectSeat,
   onDeckPress,
   onDismiss,
 }: SceneProps) {
   const invalidate = useThree((s) => s.invalidate)
+  const [still] = useState(motionOff)
 
   // Frames are drawn on demand. Each animation keeps requesting frames until it
   // settles; this starts them off whenever the hand moves on, and redraws when
@@ -359,6 +413,7 @@ export function Scene({
       <pointLight position={[9, 4, 6]} intensity={8} color="#9fd8ff" />
 
       <Floor />
+      <Casino animate={ambient} still={still} />
       <PokerTable />
       <Chips boardStage={betStage} />
       <Players />
@@ -395,6 +450,7 @@ export function Scene({
       {focusedKey && <DismissCatcher onDismiss={onDismiss} />}
 
       <CameraController dealt={dealt} />
+      <Vignette />
     </>
   )
 }

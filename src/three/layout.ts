@@ -159,6 +159,9 @@ export const communityCards: CommunitySlot[] = communitySections.map(
   },
 )
 
+/** The board card with the contact details, which the page's Contact button lifts. */
+export const CONTACT_CARD_KEY = communityCards.find((s) => s.section.id === 'contact')?.id ?? null
+
 /** Deck origin — front-center toward the dealer, clear of every seat and stack. */
 export const DECK_POSITION: [number, number, number] = [
   0,
@@ -166,10 +169,17 @@ export const DECK_POSITION: [number, number, number] = [
   TABLE.rz * 0.66,
 ]
 
-/** Cards are dealt off the TOP of the deck (not the base — no "bottom dealing"). */
+/** Cards in the deck. It never shrinks, so its top is always the same height. */
+export const DECK_CARDS = 12
+
+/**
+ * Where a card waits to be dealt: lying on the top of the deck, one card's
+ * spacing above its top card. Cards are dealt off the TOP of the deck (not the
+ * base — no "bottom dealing").
+ */
 export const DECK_TOP: [number, number, number] = [
   DECK_POSITION[0],
-  CARD.restY + 0.34,
+  CARD.restY + DECK_CARDS * CARD.thickness * 1.04,
   DECK_POSITION[2],
 ]
 

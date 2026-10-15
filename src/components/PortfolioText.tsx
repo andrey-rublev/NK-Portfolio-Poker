@@ -6,7 +6,7 @@ import {
   type CardGroup,
 } from '../data/portfolio'
 import { inkColor } from '../theme'
-import { skillLogoUrl } from '../data/skillLogos'
+import { orgLogoUrl, skillLogoUrl } from '../data/logos'
 
 /** Every section in reading order: the five seat hands, then the board. */
 const SECTIONS = [...seatSections, ...communitySections]
@@ -27,6 +27,17 @@ function hrefFor(text: string): string | null {
 /** Short, link-free, sentence-free lines (skills, hobbies) read best as tags. */
 function isTagList(group: CardGroup): boolean {
   return group.bullets.every((b) => b.length <= 32 && !b.endsWith('.') && !hrefFor(b))
+}
+
+/** A job's or school's heading, led by its logo when there is one. */
+function GroupHeading({ as: Tag, heading }: { as: 'h3' | 'h4'; heading: string }) {
+  const logo = orgLogoUrl(heading)
+  return (
+    <Tag className="pt-group__heading">
+      {logo && <img className="pt-org-logo" src={logo} alt="" />}
+      {heading}
+    </Tag>
+  )
 }
 
 const NewTab = () => <span className="visually-hidden"> (opens in a new tab)</span>
@@ -79,7 +90,7 @@ export function PortfolioSections({ level, idPrefix, showPhoto, untabbable }: Po
             )}
             {s.groups.map((g, i) => (
               <div key={i} className="pt-group">
-                {g.heading && <Sub className="pt-group__heading">{g.heading}</Sub>}
+                {g.heading && <GroupHeading as={Sub} heading={g.heading} />}
                 <ul className={isTagList(g) ? 'pt-tags' : 'pt-list'}>
                   {g.bullets.map((b) => {
                     const href = hrefFor(b)

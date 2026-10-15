@@ -1,8 +1,8 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { owner } from './data/portfolio'
 import { canvasFontsReady } from './fonts'
-import { skillLogosReady } from './data/skillLogos'
-import type { CardSlot } from './three/layout'
+import { logosReady } from './data/logos'
+import { CONTACT_CARD_KEY, type CardSlot } from './three/layout'
 import { motionOff } from './three/motion'
 import {
   SHIM_COLLAPSE_PX,
@@ -23,9 +23,9 @@ import './ui.css'
 // chunk: the page and the welcome card appear first, and the table streams in
 // behind them. The card faces are painted onto canvases, which can't swap a
 // font or a picture in later the way HTML does, so the table also waits for
-// Mulish and the skill logos.
+// Mulish and the logos.
 const Stage = lazy(() =>
-  Promise.all([import('./three/Stage'), canvasFontsReady(), skillLogosReady()]).then(([stage]) => stage),
+  Promise.all([import('./three/Stage'), canvasFontsReady(), logosReady()]).then(([stage]) => stage),
 )
 
 const DEAL_CUES = ['Deal the flop', 'Deal the turn', 'Deal the river']
@@ -40,6 +40,17 @@ function ListIcon() {
         strokeWidth="2"
         strokeLinecap="round"
       />
+    </svg>
+  )
+}
+
+function ContactIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+      <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2.5" y="4.5" width="15" height="11" rx="2" />
+        <path d="M3.5 6l6.5 5 6.5-5" />
+      </g>
     </svg>
   )
 }
@@ -203,7 +214,7 @@ function App() {
               burnStage={burnStage}
               revealStage={revealStage}
               dealCue={dealCue}
-              ambient={!focusedKey && !overlayOpen}
+              ambient={!overlayOpen}
               onToggle={handleToggle}
               onSelectSeat={handleSeatSelect}
               onDeckPress={handleDeckPress}
@@ -221,12 +232,22 @@ function App() {
       </header>
 
       {!focusedKey && (
-        // The label shortens to "List" on phones; the accessible name stays whole.
-        <button type="button" className="list-btn" onClick={openTextView} aria-label="View as list">
-          <ListIcon />
-          <span className="list-btn__long">View as list</span>
-          <span className="list-btn__short">List</span>
-        </button>
+        <div className="top-actions">
+          {/* The contact card is the last one dealt, so it can also be lifted
+              straight off the deck from here. Icon only on phones. */}
+          {CONTACT_CARD_KEY && (
+            <button type="button" className="top-btn" onClick={() => setFocusedKey(CONTACT_CARD_KEY)} aria-label="Contact">
+              <ContactIcon />
+              <span className="top-btn__label">Contact</span>
+            </button>
+          )}
+          {/* The label shortens to "List" on phones; the accessible name stays whole. */}
+          <button type="button" className="top-btn" onClick={openTextView} aria-label="View as list">
+            <ListIcon />
+            <span className="top-btn__long">View as list</span>
+            <span className="top-btn__short">List</span>
+          </button>
+        </div>
       )}
 
       {webgl && (

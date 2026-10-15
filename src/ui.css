@@ -126,7 +126,7 @@ html[data-scroll-shim='on'] .app-shell canvas {
 /* Clickable link(s) anchored to the bottom of a focused card (drei Html). */
 .card-link-row {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   justify-content: center;
   white-space: nowrap;
   /* Wait for the card to land (and a community card to turn over). */
@@ -135,12 +135,12 @@ html[data-scroll-shim='on'] .app-shell canvas {
 
 .card-link-row a {
   display: inline-block;
-  padding: 0.5rem 0.95rem;
+  padding: 0.8rem 1.6rem;
   border-radius: 999px;
   background: #16202a;
   color: #fff6e2;
   font-family: 'Mulish Variable', system-ui, sans-serif;
-  font-size: 0.8rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   border: 1px solid rgba(255, 244, 222, 0.2);
@@ -459,11 +459,17 @@ dialog.text-view :focus-visible {
 }
 
 /* ---------- "View as list" button + panel ---------- */
-.list-btn {
+/* Contact and View as list, side by side in the top right corner. */
+.top-actions {
   position: fixed;
   top: calc(clamp(16px, 3vw, 38px) + env(safe-area-inset-top, 0px));
   right: calc(clamp(16px, 3vw, 38px) + env(safe-area-inset-right, 0px));
   z-index: 20;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.top-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -482,12 +488,12 @@ dialog.text-view :focus-visible {
   transition: transform 0.18s ease, background 0.18s ease;
 }
 
-.list-btn:hover {
+.top-btn:hover {
   transform: translateY(-2px);
   background: rgba(10, 38, 27, 0.85);
 }
 
-.list-btn__short {
+.top-btn__short {
   display: none;
 }
 
@@ -638,11 +644,22 @@ dialog.text-view {
 }
 
 .pt-group__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
   margin: 0 0 0.3rem;
   color: var(--ink);
   font-size: 1rem;
   font-weight: 800;
   line-height: 1.35;
+}
+
+/* A job's or school's logo, in a fixed-width slot so the headings line up. */
+.pt-org-logo {
+  flex: none;
+  width: 2.1rem;
+  height: 1.35em;
+  object-fit: contain;
 }
 
 .pt-list {
@@ -678,7 +695,7 @@ dialog.text-view {
 .pt-tags li {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--accent) 60%, white);
@@ -807,8 +824,8 @@ dialog.text-view {
   }
 
   .card-link-row a {
-    padding: 0.65rem 1.2rem;
-    font-size: 0.95rem;
+    padding: 0.8rem 1.5rem;
+    font-size: 1.05rem;
   }
 
   .help-btn {
@@ -821,16 +838,17 @@ dialog.text-view {
     font-size: 1rem;
   }
 
-  .list-btn {
+  .top-btn {
     padding: 0.65rem 0.9rem;
     font-size: 0.9rem;
   }
 
-  .list-btn__long {
+  .top-btn__long,
+  .top-btn__label {
     display: none;
   }
 
-  .list-btn__short {
+  .top-btn__short {
     display: inline;
   }
 
@@ -994,9 +1012,13 @@ dialog.text-view {
     font-size: 0.7rem;
   }
 
-  .list-btn {
+  .top-actions {
     top: calc(8px + env(safe-area-inset-top, 0px));
     right: calc(10px + env(safe-area-inset-right, 0px));
+    gap: 0.4rem;
+  }
+
+  .top-btn {
     padding: 0.35rem 0.7rem;
     font-size: 0.72rem;
   }

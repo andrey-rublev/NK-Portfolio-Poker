@@ -224,8 +224,9 @@ interface Bet {
 
 /**
  * On each street (flop/turn/river) every player picks one chip off a stack and
- * tosses it into the pot — the SAME contribution each, landing as its own
- * separate stack ringed around the pot, so the pot grows in equal columns.
+ * tosses it into the pot — the SAME bet each: a 5 on the flop, a 25 on the
+ * turn, a 100 on the river. Each lands on its own column ringed around the
+ * pot, so the pot grows in equal columns.
  * Each denomination's pot chips are one InstancedMesh; a street's chips join
  * it as that street is bet.
  */
@@ -250,8 +251,8 @@ function PotThrows({ boardStage }: { boardStage: number }) {
     const n = chipSpots.length
     for (let street = 1; street <= 3; street += 1) {
       chipSpots.forEach((_, seat) => {
-        // Each seat bets from one of its stacks.
-        const d = seat % CHIPS.length
+        // Everyone bets the same chip on a street, from their stack of it.
+        const d = street - 1
         const [sx, sz] = stackSpot(seat, d)
         const topY = CARD.restY + COUNTS[d][seat % COUNTS[d].length] * CHIP_H + 0.02
         // One separate landing column per seat, ringed tightly around the pot —

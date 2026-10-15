@@ -3,7 +3,7 @@ import type { CardGroup, PortfolioCardData } from '../data/portfolio'
 import type { CardRole } from './layout'
 import { inkColor } from '../theme'
 import { drawCardBack } from './cardBack'
-import { skillLogoImage } from '../data/skillLogos'
+import { logoImage, orgLogoUrl, skillLogoUrl } from '../data/logos'
 
 const W = 512
 const H = 731
@@ -48,7 +48,11 @@ function roundedRect(
 
 type Ctx = CanvasRenderingContext2D
 
-const PAD = 46
+/** Side margin of the writing, and where the first line starts on a card. */
+const PAD = 58
+const TOP = 64
+/** Space kept clear below the last line. */
+const BOTTOM = 46
 const CONTENT_W = W - PAD * 2
 const BODY = '#28323e'
 
@@ -62,6 +66,13 @@ interface Metrics {
   groupGap: number
   subGap: number
   indent: number
+  /** The box a heading's logo is fitted into, and where its text then starts. */
+  subLogoW: number
+  subLogoH: number
+  subLogoIndent: number
+  /** A skill's logo, and where its name starts after the logo and a dash. */
+  logoSize: number
+  logoIndent: number
 }
 
 function metrics(s: number): Metrics {
@@ -74,6 +85,11 @@ function metrics(s: number): Metrics {
     groupGap: 18 * s,
     subGap: 4 * s,
     indent: 28 * s,
+    subLogoW: 58 * s,
+    subLogoH: 32 * s,
+    subLogoIndent: 70 * s,
+    logoSize: 23 * s,
+    logoIndent: 60 * s,
   }
 }
 
@@ -123,7 +139,7 @@ interface Item {
   lines: string[]
   /** Marks the first item of a group, used as a preferred page break. */
   groupStart: boolean
-  /** Drawn in place of the bullet (a skill's logo). */
+  /** A heading's organisation, or a bullet's skill, drawn before its text. */
   logo?: HTMLImageElement
 }
 
@@ -132,15 +148,18 @@ function buildItems(ctx: Ctx, groups: CardGroup[], m: Metrics): Item[] {
   for (const group of groups) {
     if (group.heading) {
       ctx.font = m.subFont
-      items.push({ kind: 'sub', lines: wrapLines(ctx, group.heading, CONTENT_W), groupStart: true })
+      const logo = logoImage(orgLogoUrl(group.heading))
+      const indent = logo ? m.subLogoIndent : 0
+      items.push({ kind: 'sub', lines: wrapLines(ctx, group.heading, CONTENT_W - indent), groupStart: true, logo })
     }
     group.bullets.forEach((b, i) => {
       ctx.font = m.bulletFont
+      const logo = logoImage(skillLogoUrl(b))
       items.push({
         kind: 'bullet',
-        lines: wrapLines(ctx, b, CONTENT_W - m.indent),
+        lines: wrapLines(ctx, b, CONTENT_W - (logo ? m.logoIndent : m.indent)),
         groupStart: i === 0 && !group.heading,
-        logo: skillLogoImage(b),
+        logo,
       })
     })
   }
@@ -194,8 +213,16 @@ function drawItems(
       if (i !== from) y += m.groupGap
       ctx.font = m.subFont
       ctx.fillStyle = ink
+      if (it.logo) {
+        // Fitted into its box, centred on the heading's first line.
+        const fit = Math.min(m.subLogoW / it.logo.naturalWidth, m.subLogoH / it.logo.naturalHeight)
+        const w = it.logo.naturalWidth * fit
+        const h = it.logo.naturalHeight * fit
+        ctx.drawImage(it.logo, PAD + (m.subLogoW - w) / 2, y + (m.subLh - h) / 2 - m.subLh * 0.06, w, h)
+      }
+      const x = it.logo ? PAD + m.subLogoIndent : PAD
       for (const ln of it.lines) {
-        ctx.fillText(ln, PAD, y)
+        ctx.fillText(ln, x, y)
         y += m.subLh
       }
       y += m.subGap
@@ -203,15 +230,17 @@ function drawItems(
       ctx.font = m.bulletFont
       ctx.fillStyle = ink
       if (it.logo) {
-        // Centred on the first line, in the bullet's column.
-        const size = m.bulletLh * 0.74
-        ctx.drawImage(it.logo, PAD - size * 0.14, y + (m.bulletLh - size) / 2 - m.bulletLh * 0.06, size, size)
+        // The logo centred on the first line, then a dash before the name.
+        const size = m.logoSize
+        ctx.drawImage(it.logo, PAD - size * 0.1, y + (m.bulletLh - size) / 2 - m.bulletLh * 0.06, size, size)
+        ctx.fillText('–', PAD + size + (m.logoIndent - size - ctx.measureText('–').width) / 2 - size * 0.1, y)
       } else {
         ctx.fillText('•', PAD, y)
       }
       ctx.fillStyle = BODY
+      const x = PAD + (it.logo ? m.logoIndent : m.indent)
       for (const ln of it.lines) {
-        ctx.fillText(ln, PAD + m.indent, y)
+        ctx.fillText(ln, x, y)
         y += m.bulletLh
       }
       y += m.bulletGap
@@ -237,7 +266,7 @@ function drawHeader(ctx: Ctx, label: string, accent: string): number {
     size -= 2
     lines = wrapBig(headerFont(ctx, size), tokens, CONTENT_W)
   }
-  let y = 52
+  let y = TOP
   ctx.fillStyle = inkColor(accent)
   for (const ln of lines) {
     ctx.fillText(ln, PAD, y)
@@ -281,9 +310,9 @@ function buildHandSpread(s: PortfolioCardData, scale = 1): Spread {
   paper(right.ctx, s.accent)
 
   const yLeft = drawHeader(left.ctx, s.label, s.accent)
-  const yRight = 52
-  const leftCap = H - 46 - yLeft
-  const rightCap = H - 46 - yRight
+  const yRight = TOP
+  const leftCap = H - BOTTOM - yLeft
+  const rightCap = H - BOTTOM - yRight
 
   // Try progressively smaller text until the groups split cleanly across the
   // two cards; shrinking beats clipping or orphaning half a role.
@@ -402,14 +431,14 @@ function drawCommunityContent(s: PortfolioCardData, scale = 1): HTMLCanvasElemen
   const { c, ctx } = canvas2d(scale)
   paper(ctx, s.accent)
   const y0 = drawHeader(ctx, s.label, s.accent)
-  const { items, m } = fitItems(ctx, s.groups, H - 46 - y0)
+  const { items, m } = fitItems(ctx, s.groups, H - BOTTOM - y0)
   drawItems(ctx, items, 0, items.length, y0, s.accent, m)
   return c
 }
 
 /* ---------- About card: headshot on the left, bio on the right ---------- */
 
-const ABOUT_PHOTO = { x: PAD - 6, y: 152, w: W - (PAD - 6) * 2, h: 468 }
+const ABOUT_PHOTO = { x: PAD - 6, y: 160, w: W - (PAD - 6) * 2, h: 460 }
 
 function drawAboutLeft(s: PortfolioCardData, scale = 1): HTMLCanvasElement {
   const { c, ctx } = canvas2d(scale)
@@ -444,8 +473,8 @@ function drawAboutLeft(s: PortfolioCardData, scale = 1): HTMLCanvasElement {
 function drawAboutRight(s: PortfolioCardData, scale = 1): HTMLCanvasElement {
   const { c, ctx } = canvas2d(scale)
   paper(ctx, s.accent)
-  const { items, m } = fitItems(ctx, s.groups, H - 46 - 60)
-  drawItems(ctx, items, 0, items.length, 60, s.accent, m)
+  const { items, m } = fitItems(ctx, s.groups, H - BOTTOM - TOP)
+  drawItems(ctx, items, 0, items.length, TOP, s.accent, m)
   return c
 }
 

@@ -10,6 +10,7 @@ import { Casino } from './Casino'
 import {
   seatCards,
   communityCards,
+  DECK_CARDS,
   DECK_POSITION,
   BURN_POSITION,
   CARD,
@@ -57,10 +58,6 @@ function communityDealt(slot: CardSlot, boardStage: number): boolean {
   const need = cs.stage === 'flop' ? 1 : cs.stage === 'turn' ? 2 : 3
   return boardStage >= need
 }
-
-/** Constant height so the deck's top stays at DECK_TOP — cards always deal off
-    the top (no floating card, no dealing from the middle as the deck shrinks). */
-const DECK_CARDS = 12
 
 function Deck({ onPress }: { onPress: () => void }) {
   const back = useMemo(() => getSharedBack(), [])

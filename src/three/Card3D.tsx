@@ -10,6 +10,10 @@ import { SETTLED, frameStep } from './frame'
 
 const FACE_DOWN_X = Math.PI / 2
 const FACE_UP_X = -Math.PI / 2
+/** How long a card takes to fly from the deck to its spot. */
+const DEAL_SECONDS = 0.6
+/** A hovered card rises and tips toward the camera by this much. */
+const HOVER_TILT = 0.3
 
 const lerp = THREE.MathUtils.lerp
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
@@ -53,6 +57,8 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     scale: 1,
   })
   const prog = useRef(0)
+  // How far through its flight from the deck the card is (1 once it has landed).
+  const flight = useRef(0)
 
   useEffect(() => {
     if (!dealt || outOfDeck) return
@@ -76,32 +82,48 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     if (!g) return
     const dt = frameStep(delta)
 
-    // Smoothed base pose (deck / rest / hover).
+    // Base pose (deck / rest / hover). Hand cards rest face down and the
+    // board's face up; either kind rises and tips toward you when hovered.
+    const face = isCommunity ? FACE_UP_X : FACE_DOWN_X
     let tp: [number, number, number] = rest
-    let tr: [number, number, number] = [FACE_DOWN_X, slot.yaw, 0]
+    let tr: [number, number, number] = [face, slot.yaw, 0]
     let ts = 1
     if (!outOfDeck) {
       tp = DECK_TOP
       tr = [FACE_DOWN_X, 0, 0]
-    } else if (isCommunity) {
-      tr = [FACE_UP_X, 0, 0]
     } else if (hovered && interactive && !focused) {
       tp = [rest[0], rest[1] + 0.26, rest[2] - 0.1]
-      tr = [FACE_DOWN_X - 0.3, slot.yaw, 0]
+      tr = [isCommunity ? face + HOVER_TILT : face - HOVER_TILT, slot.yaw, 0]
       ts = 1.05
     }
 
     const b = base.current
-    // Time-corrected smoothing so motion takes the same real-world time at any
-    // frame rate (≈ the old per-frame 0.16 at 60 fps).
-    const k = 1 - Math.exp(-10.5 * dt)
-    b.pos[0] = lerp(b.pos[0], tp[0], k)
-    b.pos[1] = lerp(b.pos[1], tp[1], k)
-    b.pos[2] = lerp(b.pos[2], tp[2], k)
-    b.rot[0] = lerp(b.rot[0], tr[0], k)
-    b.rot[1] = lerp(b.rot[1], tr[1], k)
-    b.rot[2] = lerp(b.rot[2], tr[2], k)
-    b.scale = lerp(b.scale, ts, k)
+    if (outOfDeck && flight.current < 1) {
+      // The deal: lift off the top of the deck and glide to the spot in a low
+      // arc, turning to face its player (or over, for the board) on the way.
+      flight.current = Math.min(1, flight.current + dt / DEAL_SECONDS)
+      const e = easeOut(flight.current)
+      const reach = Math.hypot(rest[0] - DECK_TOP[0], rest[2] - DECK_TOP[2])
+      // A board card's turn over already lifts it (see flipArc below).
+      const arc = isCommunity ? 0.2 : 0.3 + reach * 0.07
+      for (let i = 0; i < 3; i += 1) b.pos[i] = lerp(DECK_TOP[i], rest[i], e)
+      b.pos[1] += Math.sin(Math.PI * e) * arc
+      b.rot[0] = lerp(FACE_DOWN_X, face, e)
+      b.rot[1] = lerp(0, slot.yaw, e)
+      b.rot[2] = 0
+      b.scale = 1
+    } else {
+      // Time-corrected smoothing so motion takes the same real-world time at
+      // any frame rate (≈ the old per-frame 0.16 at 60 fps).
+      const k = 1 - Math.exp(-10.5 * dt)
+      b.pos[0] = lerp(b.pos[0], tp[0], k)
+      b.pos[1] = lerp(b.pos[1], tp[1], k)
+      b.pos[2] = lerp(b.pos[2], tp[2], k)
+      b.rot[0] = lerp(b.rot[0], tr[0], k)
+      b.rot[1] = lerp(b.rot[1], tr[1], k)
+      b.rot[2] = lerp(b.rot[2], tr[2], k)
+      b.scale = lerp(b.scale, ts, k)
+    }
 
     // Snap each eased value once it has effectively arrived, and keep asking
     // for frames until everything has.
@@ -114,6 +136,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     }
     if (Math.abs(b.scale - ts) < SETTLED) b.scale = ts
     else moving = true
+    if (outOfDeck && flight.current < 1) moving = true
 
     // Lift in an arc whenever the card is edge-on (mid-flip) so it never knifes
     // through the felt when dealt face-up.

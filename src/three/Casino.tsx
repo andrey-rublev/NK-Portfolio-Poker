@@ -667,9 +667,9 @@ function Walkers({ still }: { still: boolean }) {
 
 /**
  * The room round the table. While `animate` is on, frames are drawn at a
- * steady 30 a second so the walkers keep walking; it is switched off while a
- * card is being read or a dialog covers the table, so a still page still costs
- * nothing to show. The walkers stand still altogether when motion is off.
+ * steady 30 a second so the walkers keep walking, a lifted card or not; it is
+ * switched off while a dialog covers the table, which then costs nothing to
+ * show. The walkers stand still altogether when motion is off.
  */
 export function Casino({ animate, still }: { animate: boolean; still: boolean }) {
   const room = useMemo(() => buildRoom(), [])

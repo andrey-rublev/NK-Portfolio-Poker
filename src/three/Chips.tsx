@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { CARD, chipSpots } from './layout'
+import { TABLE, chipSpots } from './layout'
 import { getChipTextures } from './chipTexture'
 import { frameStep } from './frame'
 
@@ -16,10 +16,12 @@ const CHIP_R = 0.2
 const CHIP_H = 0.045
 /** Radius of the rounding where the rim meets each face. */
 const CHIP_BEVEL = 0.012
+/** Where a chip lying on the table rests its bottom face. */
+const FELT_Y = TABLE.topY + 0.004
 
-const lerp = THREE.MathUtils.lerp
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
+const easeInOut = (t: number) => t * t * (3 - 2 * t)
 
 /** Stable pseudo-random angle so each chip in a stack sits at its own rotation. */
 function randRot(n: number): number {
@@ -39,12 +41,51 @@ function jitter(n: number): number {
  */
 const POT_CENTER: [number, number] = [0.65, 1.15]
 
-/** Differing bankrolls per seat: how many chips of each denomination (see CHIPS). */
+/** Each seat's bankroll: how many chips of each denomination (see CHIPS). */
 const COUNTS = [
-  [12, 6, 15, 9, 4],
-  [3, 8, 2, 5, 6],
-  [2, 3, 5, 1, 4],
+  [12, 6, 14, 9, 5],
+  [7, 9, 6, 8, 10],
+  [4, 5, 6, 3, 5],
 ]
+
+/**
+ * Each player's bet in each round -- pre-flop, flop, turn, river -- as the
+ * chips they throw in (indices into CHIPS). Everyone bets the same, so every
+ * seat needs at least 3 of the 5s, 5 of the 25s and 3 of the 100s.
+ */
+const BETS = [
+  [0, 1],
+  [0, 1, 1],
+  [0, 1, 2],
+  [1, 2, 2],
+]
+/** How far from the pot's middle a thrown chip can land. */
+const POT_SPREAD = 0.5
+/**
+ * Spots each thrown chip tries before settling in the lowest: one that lands
+ * on top of the heap slides off it, so the pot stays a low mound.
+ */
+const POT_TRIES = 3
+/** The steepest a chip can lean against the pile (radians). */
+const MAX_LEAN = 0.3
+/** How far toward the middle the dealer pushes the last round's chips. */
+const GATHER_PULL = 0.5
+/**
+ * The heap is kept below this height: as the dealer gathers each round's chips
+ * onto it, it sinks into the felt just enough, so it looks as if every chip bet
+ * is somewhere in the pile without the pile growing much.
+ */
+const PILE_TOP = FELT_Y + CHIP_H * 4.5
+/** Seconds the dealer takes to gather the last round's chips onto the heap. */
+const GATHER_SECONDS = 0.45
+/** The next bets start flying this far into the gather. */
+const THROW_START = GATHER_SECONDS * 0.6
+/** Seconds a thrown chip is in the air. */
+const FLIGHT_SECONDS = 0.6
+/** Gap between one chip leaving a hand and the next, and between players. */
+const THROW_GAP = 0.05
+/** Long enough for a round's gather and every throw to finish. */
+const ROUND_SECONDS = THROW_START + THROW_GAP * 8 + FLIGHT_SECONDS
 
 /**
  * A clay chip: flat faces and a rim rounded over at both edges. Groups: 0 the
@@ -82,9 +123,10 @@ function buildChipGeometry(): THREE.BufferGeometry {
 }
 
 /*
- * Every chip of one denomination is drawn as a single InstancedMesh -- one draw
- * per material group instead of one per chip -- so the geometry and materials
- * are shared, built once, and kept for the life of the page.
+ * Every chip of one denomination -- in the players' stacks, in the air and in
+ * the pot -- is drawn as a single InstancedMesh, one draw per material group
+ * instead of one per chip. The geometry and materials are shared, built once,
+ * and kept for the life of the page.
  */
 let chipGeometry: THREE.BufferGeometry | null = null
 const getChipGeometry = () => (chipGeometry ??= buildChipGeometry())
@@ -103,28 +145,6 @@ function getChipMaterials(chip: (typeof CHIPS)[number]): THREE.MeshStandardMater
   return mats
 }
 
-const _chip = new THREE.Object3D()
-
-/** A static set of chips of one denomination, one instance per chip. */
-function ChipInstances({ chip, matrices }: { chip: (typeof CHIPS)[number]; matrices: THREE.Matrix4[] }) {
-  const ref = useRef<THREE.InstancedMesh>(null)
-  useLayoutEffect(() => {
-    const m = ref.current
-    if (!m) return
-    matrices.forEach((matrix, i) => m.setMatrixAt(i, matrix))
-    m.instanceMatrix.needsUpdate = true
-    m.computeBoundingSphere()
-  }, [matrices])
-  return (
-    <instancedMesh
-      ref={ref}
-      args={[getChipGeometry(), getChipMaterials(chip), matrices.length]}
-      castShadow
-      receiveShadow
-    />
-  )
-}
-
 /** Where seat `seat`'s stack of denomination `d` stands. */
 function stackSpot(seat: number, d: number): [number, number] {
   const { x, z } = chipSpots[seat]
@@ -139,34 +159,287 @@ function stackSpot(seat: number, d: number): [number, number] {
   return [x - (x / len) * off * 1.75, z - (z / len) * off * 1.75]
 }
 
+/* ---------- The pile: how chips come to rest on one another ---------- */
+
+/** A chip lying in the pot: its centre, and the way (u) and steepness its faces slope down. */
+interface Landed {
+  x: number
+  y: number
+  z: number
+  ux: number
+  uz: number
+  slope: number
+}
+
+/** Height of the pile's surface at (px, pz): the highest chip face there, or the felt. */
+function pileTop(pot: Landed[], px: number, pz: number): number {
+  let top = FELT_Y
+  for (const c of pot) {
+    const dx = px - c.x
+    const dz = pz - c.z
+    if (dx * dx + dz * dz > CHIP_R * CHIP_R) continue
+    top = Math.max(top, c.y + CHIP_H / 2 - c.slope * (dx * c.ux + dz * c.uz))
+  }
+  return top
+}
+
+/** Points under a chip where it is checked against the pile: its middle, and two rings. */
+const FOOTPRINT: [number, number][] = [[0, 0]]
+for (const [r, n] of [[0.5, 6], [0.95, 12]]) {
+  for (let i = 0; i < n; i += 1) {
+    const a = (i / n) * Math.PI * 2
+    FOOTPRINT.push([Math.cos(a) * r * CHIP_R, Math.sin(a) * r * CHIP_R])
+  }
+}
+
 /**
- * Three stacks in front of each seat -- two side by side along the rail and a
- * third in front of them -- each a hair out of true, as hand-stacked chips are.
+ * How a chip dropped at (x, z) settles onto the pile: it sits on the highest
+ * point under its face, and if that point is off to one side it tips away from
+ * it, as far as the chips below allow -- so it never passes through another.
  */
-function SeatStacks() {
-  const stacks = useMemo(
-    () =>
-      CHIPS.map((_, d) => {
-        const out: THREE.Matrix4[] = []
-        chipSpots.forEach((_, seat) => {
-          const [x, z] = stackSpot(seat, d)
-          const count = COUNTS[d][seat % COUNTS[d].length]
-          for (let i = 0; i < count; i += 1) {
-            const n = seat * 97 + d * 31 + i
-            _chip.position.set(x + jitter(n) * 0.006, CARD.restY + CHIP_H / 2 + i * CHIP_H, z + jitter(n + 0.5) * 0.006)
-            _chip.rotation.set(0, randRot(n), 0)
-            _chip.updateMatrix()
-            out.push(_chip.matrix.clone())
-          }
+function settle(pot: Landed[], x: number, z: number): Landed {
+  const under = FOOTPRINT.map(([fx, fz]) => pileTop(pot, x + fx, z + fz))
+  let high = 0
+  under.forEach((h, i) => {
+    if (h > under[high] + 1e-6) high = i
+  })
+  const [hx, hz] = FOOTPRINT[high]
+  const off = Math.hypot(hx, hz)
+  let ux = 0
+  let uz = 0
+  let slope = 0
+  if (off > 0 && under[high] - under[0] > 1e-4) {
+    // Held up off-centre: tip away from that point until the face would touch
+    // the pile anywhere else.
+    ux = -hx / off
+    uz = -hz / off
+    slope = Math.tan(MAX_LEAN)
+    FOOTPRINT.forEach(([fx, fz], i) => {
+      const along = (fx - hx) * ux + (fz - hz) * uz
+      if (along > 1e-6) slope = Math.min(slope, (under[high] - under[i]) / along)
+    })
+  }
+  return { x, y: under[high] - slope * off + CHIP_H / 2, z, ux, uz, slope }
+}
+
+/* ---------- The hand's chips, worked out once ---------- */
+
+interface Pose {
+  p: THREE.Vector3
+  q: THREE.Quaternion
+}
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0)
+const X_AXIS = new THREE.Vector3(1, 0, 0)
+const _tilt = new THREE.Vector3()
+
+/** A chip lying as `at` describes, turned `yaw` about its own axis. */
+function poseOf(at: Landed, yaw: number): Pose {
+  const q = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, yaw)
+  if (at.slope > 0) q.premultiply(new THREE.Quaternion().setFromAxisAngle(_tilt.set(at.uz, 0, -at.ux), Math.atan(at.slope)))
+  return { p: new THREE.Vector3(at.x, at.y, at.z), q }
+}
+
+/** A chip a player bets: which stack chip it is, when it goes, and where it lies after each round. */
+interface Bet {
+  d: number
+  round: number
+  /** The chip in the player's stack (an index into that denomination's stack chips). */
+  stackChip: number
+  /** Seconds into the round's throwing before it leaves the player's hand. */
+  delay: number
+  /** Where it lies at the end of each round from its own on (indexed by round). */
+  poses: Pose[]
+}
+
+/**
+ * Every chip of the hand: the players' stacks, and the chips they bet, round
+ * by round. Each bet is the top chip of the player's stack, so the stacks go
+ * down as the hand goes on. A round's bets land on the pot and heap up; as the
+ * next round starts the dealer pushes them in toward the middle onto the heap,
+ * which sinks into the felt just far enough to stay low (see PILE_TOP).
+ */
+function handPlan(): { stacks: Pose[][]; bets: Bet[] } {
+  let s = 17
+  const rand = () => {
+    s = (s * 1664525 + 1013904223) >>> 0
+    return s / 4294967296
+  }
+
+  // The players' stacks, bottom chip first, and each stack's current top.
+  const stacks: Pose[][] = CHIPS.map(() => [])
+  const top: number[][] = CHIPS.map(() => [])
+  chipSpots.forEach((_, seat) => {
+    CHIPS.forEach((_, d) => {
+      const [x, z] = stackSpot(seat, d)
+      for (let i = 0; i < COUNTS[d][seat]; i += 1) {
+        const n = seat * 97 + d * 31 + i
+        stacks[d].push({
+          p: new THREE.Vector3(x + jitter(n) * 0.006, FELT_Y + CHIP_H / 2 + i * CHIP_H, z + jitter(n + 0.5) * 0.006),
+          q: new THREE.Quaternion().setFromAxisAngle(Y_AXIS, randRot(n)),
         })
-        return out
-      }),
-    [],
-  )
+      }
+      top[d][seat] = stacks[d].length - 1
+    })
+  })
+
+  const bets: Bet[] = []
+  // The pot's chips as they lie now.
+  const pot: { bet: Bet; yaw: number; at: Landed }[] = []
+  BETS.forEach((bet, round) => {
+    if (round > 0) {
+      // The dealer pushes last round's chips in toward the middle, the
+      // nearest first, each settling onto the heap...
+      const heap = pot.filter((c) => c.bet.round < round - 1).map((c) => c.at)
+      const loose = pot
+        .filter((c) => c.bet.round === round - 1)
+        .sort((a, b) => Math.hypot(a.at.x - POT_CENTER[0], a.at.z - POT_CENTER[1]) - Math.hypot(b.at.x - POT_CENTER[0], b.at.z - POT_CENTER[1]))
+      for (const c of loose) {
+        c.at = settle(
+          heap,
+          POT_CENTER[0] + (c.at.x - POT_CENTER[0]) * GATHER_PULL,
+          POT_CENTER[1] + (c.at.z - POT_CENTER[1]) * GATHER_PULL,
+        )
+        heap.push(c.at)
+      }
+      // ...and the whole heap sinks just enough to stay low.
+      const sink = Math.max(0, Math.max(...pot.map((c) => c.at.y + CHIP_H / 2)) - PILE_TOP)
+      for (const c of pot) {
+        c.at = { ...c.at, y: c.at.y - sink }
+        c.bet.poses[round] = poseOf(c.at, c.yaw)
+      }
+    }
+
+    // This round's bets land on and around the heap.
+    const pile = pot.map((c) => c.at)
+    chipSpots.forEach((_, seat) => {
+      bet.forEach((d, k) => {
+        let at: Landed | null = null
+        for (let t = 0; t < POT_TRIES; t += 1) {
+          const a = rand() * Math.PI * 2
+          const r = POT_SPREAD * Math.sqrt(rand())
+          const tried = settle(pile, POT_CENTER[0] + Math.cos(a) * r, POT_CENTER[1] + Math.sin(a) * r)
+          if (!at || tried.y < at.y) at = tried
+        }
+        pile.push(at!)
+        const yaw = rand() * Math.PI * 2
+        const b: Bet = { d, round, stackChip: top[d][seat], delay: (seat + k) * THROW_GAP, poses: [] }
+        top[d][seat] -= 1
+        b.poses[round] = poseOf(at!, yaw)
+        bets.push(b)
+        pot.push({ bet: b, yaw, at: at! })
+      })
+    })
+  })
+  return { stacks, bets }
+}
+
+const _chip = new THREE.Object3D()
+const _q = new THREE.Quaternion()
+const _qTumble = new THREE.Quaternion()
+
+/**
+ * Every chip on the table after `rounds` rounds of betting (pre-flop as the
+ * hand is dealt, then the flop, turn and river): the stacks in front of each
+ * player, and the pot. In each round every player throws the same few chips,
+ * of mixed colours, off the tops of their stacks into the pot, where they heap
+ * up. As the next round starts the dealer first pushes them in onto the heap.
+ */
+function TableChips({ rounds }: { rounds: number }) {
+  // Seconds since the latest round began (it starts long settled).
+  const clock = useRef(Infinity)
+  const prev = useRef(rounds)
+  const meshes = useRef<(THREE.InstancedMesh | null)[]>([])
+  const invalidate = useThree((s) => s.invalidate)
+  const plan = useMemo(() => handPlan(), [])
+
+  useEffect(() => {
+    if (rounds > prev.current) clock.current = 0
+    prev.current = rounds
+    invalidate()
+  }, [rounds, invalidate])
+
+  useFrame((state, delta) => {
+    if (clock.current < ROUND_SECONDS) {
+      clock.current += frameStep(delta)
+      state.invalidate()
+    }
+    const t = clock.current
+    const now = rounds - 1 // the round being bet, or last bet
+    const gather = now >= 1 ? easeInOut(clamp01(t / GATHER_SECONDS)) : 1
+    const start = now >= 1 ? THROW_START : 0
+    const counts = CHIPS.map(() => 0)
+    const put = (d: number, p: THREE.Vector3, q: THREE.Quaternion) => {
+      const mesh = meshes.current[d]
+      if (!mesh) return
+      _chip.position.copy(p)
+      _chip.quaternion.copy(q)
+      _chip.updateMatrix()
+      mesh.setMatrixAt(counts[d], _chip.matrix)
+      counts[d] += 1
+    }
+
+    // Which stack chips have been bet (and so are no longer in the stacks).
+    const thrown = plan.stacks.map((list) => new Uint8Array(list.length))
+    for (const b of plan.bets) {
+      if (b.round > now) continue
+      const from = plan.stacks[b.d][b.stackChip]
+      if (b.round === now) {
+        // In the air: off the top of the stack, tumbling end over end in an
+        // arc, and settling into the pose it lands in.
+        const f = clamp01((t - start - b.delay) / FLIGHT_SECONDS)
+        if (f <= 0) continue
+        const land = b.poses[now]
+        const p = easeOut(f)
+        _chip.position.lerpVectors(from.p, land.p, p)
+        _chip.position.y += Math.sin(f * Math.PI) * 0.95
+        _q.slerpQuaternions(from.q, land.q, p).multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
+        put(b.d, _chip.position, _q)
+      } else {
+        // In the pot, being pushed in (and sunk) by the dealer at the start
+        // of this round.
+        const a = b.poses[now - 1]
+        const z = b.poses[now]
+        _chip.position.lerpVectors(a.p, z.p, gather)
+        // Sunk out of sight below the felt.
+        if (_chip.position.y + CHIP_H / 2 < FELT_Y) {
+          thrown[b.d][b.stackChip] = 1
+          continue
+        }
+        _q.slerpQuaternions(a.q, z.q, gather)
+        put(b.d, _chip.position, _q)
+      }
+      thrown[b.d][b.stackChip] = 1
+    }
+    plan.stacks.forEach((list, d) => {
+      list.forEach((c, i) => {
+        if (!thrown[d][i]) put(d, c.p, c.q)
+      })
+    })
+
+    meshes.current.forEach((mesh, d) => {
+      if (!mesh) return
+      mesh.count = counts[d]
+      mesh.instanceMatrix.needsUpdate = true
+    })
+  })
+
+  // Not frustum-culled: the instances move, which would leave a cached bounding
+  // sphere stale. The chips are always on screen anyway.
   return (
     <>
       {CHIPS.map((chip, d) => (
-        <ChipInstances key={chip.value} chip={chip} matrices={stacks[d]} />
+        <instancedMesh
+          key={chip.value}
+          ref={(m) => {
+            meshes.current[d] = m
+          }}
+          args={[getChipGeometry(), getChipMaterials(chip), plan.stacks[d].length]}
+          count={0}
+          frustumCulled={false}
+          castShadow
+          receiveShadow
+        />
       ))}
     </>
   )
@@ -217,325 +490,14 @@ function DealerButton({ position }: { position: [number, number, number] }) {
 }
 
 /**
- * Each player's bet in each round -- pre-flop, flop, turn, river -- as the
- * chips they throw in (indices into CHIPS). Everyone bets the same.
- */
-const BETS = [
-  [0, 1],
-  [0, 1, 1],
-  [0, 1, 2],
-  [1, 2, 2],
-]
-const WORTH = [5, 25, 100]
-/** How far from the pot's middle a thrown chip can land. */
-const POT_SPREAD = 0.5
-/**
- * Spots each thrown chip tries before settling in the lowest: one that lands
- * on top of the heap slides off it, so the pot stays a low mound.
- */
-const POT_TRIES = 3
-/** The steepest a chip can lean against the pile (radians). */
-const MAX_LEAN = 0.3
-/** Chips per stack once the dealer has tidied the pot. */
-const STACK_MAX = 5
-/** Where the dealer's tidy stacks stand, round the pot's middle. */
-const STACK_SLOTS: [number, number][] = [[0, 0]]
-for (let i = 0; i < 6; i += 1) {
-  const a = (i / 6) * Math.PI * 2 + Math.PI / 6
-  STACK_SLOTS.push([Math.cos(a) * 0.42, Math.sin(a) * 0.42])
-}
-/** Seconds the dealer takes to gather the last round's chips into stacks. */
-const GATHER_SECONDS = 0.45
-/** The next bets start flying this far into the gather. */
-const THROW_START = GATHER_SECONDS * 0.6
-/** Seconds a thrown chip is in the air. */
-const FLIGHT_SECONDS = 0.6
-/** Gap between one chip leaving a hand and the next, and between players. */
-const THROW_GAP = 0.05
-/** Long enough for a round's gather and every throw to finish. */
-const ROUND_SECONDS = THROW_START + THROW_GAP * 8 + FLIGHT_SECONDS
-
-/** A chip thrown into the pot in one round. */
-interface Throw {
-  d: number
-  /** Seconds into the round's throwing before it leaves the player's hand. */
-  delay: number
-  from: [number, number, number]
-  land: [number, number, number]
-  /** How it lies once it lands: leaning, and turned about its own axis. */
-  rest: THREE.Quaternion
-}
-
-/** A chip in one of the dealer's tidy stacks. */
-interface Stacked {
-  d: number
-  at: [number, number, number]
-  rest: THREE.Quaternion
-}
-
-/** A chip in the pot: its centre, and the way (u) and steepness its faces slope down. */
-interface Landed {
-  x: number
-  y: number
-  z: number
-  ux: number
-  uz: number
-  slope: number
-}
-
-/** Height of the pile's surface at (px, pz): the highest chip face there, or the felt. */
-function pileTop(pot: Landed[], px: number, pz: number): number {
-  let top = CARD.restY
-  for (const c of pot) {
-    const dx = px - c.x
-    const dz = pz - c.z
-    if (dx * dx + dz * dz > CHIP_R * CHIP_R) continue
-    top = Math.max(top, c.y + CHIP_H / 2 - c.slope * (dx * c.ux + dz * c.uz))
-  }
-  return top
-}
-
-/** Points under a chip where it is checked against the pile: its middle, and two rings. */
-const FOOTPRINT: [number, number][] = [[0, 0]]
-for (const [r, n] of [[0.5, 6], [0.95, 12]]) {
-  for (let i = 0; i < n; i += 1) {
-    const a = (i / n) * Math.PI * 2
-    FOOTPRINT.push([Math.cos(a) * r * CHIP_R, Math.sin(a) * r * CHIP_R])
-  }
-}
-
-const X_AXIS = new THREE.Vector3(1, 0, 0)
-const Y_AXIS = new THREE.Vector3(0, 1, 0)
-const _tilt = new THREE.Vector3()
-const _qTumble = new THREE.Quaternion()
-const _qFlight = new THREE.Quaternion()
-const smooth = THREE.MathUtils.smoothstep
-
-/**
- * How a chip dropped at (x, z) settles onto the pile: it sits on the highest
- * point under its face, and if that point is off to one side it tips away from
- * it, as far as the chips below allow -- so it never passes through another.
- */
-function settle(pot: Landed[], x: number, z: number): Landed {
-  const under = FOOTPRINT.map(([fx, fz]) => pileTop(pot, x + fx, z + fz))
-  let high = 0
-  under.forEach((h, i) => {
-    if (h > under[high] + 1e-6) high = i
-  })
-  const [hx, hz] = FOOTPRINT[high]
-  const off = Math.hypot(hx, hz)
-  let ux = 0
-  let uz = 0
-  let slope = 0
-  if (off > 0 && under[high] - under[0] > 1e-4) {
-    // Held up off-centre: tip away from that point until the face would touch
-    // the pile anywhere else.
-    ux = -hx / off
-    uz = -hz / off
-    slope = Math.tan(MAX_LEAN)
-    FOOTPRINT.forEach(([fx, fz], i) => {
-      const along = (fx - hx) * ux + (fz - hz) * uz
-      if (along > 1e-6) slope = Math.min(slope, (under[high] - under[i]) / along)
-    })
-  }
-  return { x, y: under[high] - slope * off + CHIP_H / 2, z, ux, uz, slope }
-}
-
-/**
- * The whole hand's pot, worked out once: the chips thrown in each round, and
- * the tidy stacks the dealer makes of everything bet by the end of each round,
- * colouring up to as few chips as the total allows -- so the pot shrinks back
- * down before the next round's bets land on and around it.
- */
-function potPlan(): { throws: Throw[][]; stacks: Stacked[][] } {
-  let s = 17
-  const rand = () => {
-    s = (s * 1664525 + 1013904223) >>> 0
-    return s / 4294967296
-  }
-  const throws: Throw[][] = []
-  const stacks: Stacked[][] = []
-  let total = 0
-  BETS.forEach((bet, round) => {
-    // This round's chips settle onto the stacks left by the rounds before.
-    const pile: Landed[] = (stacks[round - 1] ?? []).map(({ at }) => ({ x: at[0], y: at[1], z: at[2], ux: 0, uz: 0, slope: 0 }))
-    const thrown: Throw[] = []
-    chipSpots.forEach((_, seat) => {
-      bet.forEach((d, k) => {
-        let chip: Landed | null = null
-        for (let t = 0; t < POT_TRIES; t += 1) {
-          const a = rand() * Math.PI * 2
-          const r = POT_SPREAD * Math.sqrt(rand())
-          const tried = settle(pile, POT_CENTER[0] + Math.cos(a) * r, POT_CENTER[1] + Math.sin(a) * r)
-          if (!chip || tried.y < chip.y) chip = tried
-        }
-        const { x, y, z, ux, uz, slope } = chip!
-        pile.push(chip!)
-        const rest = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, rand() * Math.PI * 2)
-        if (slope > 0) rest.premultiply(new THREE.Quaternion().setFromAxisAngle(_tilt.set(uz, 0, -ux), Math.atan(slope)))
-        const [sx, sz] = stackSpot(seat, d)
-        thrown.push({
-          d,
-          delay: (seat + k) * THROW_GAP,
-          from: [sx, CARD.restY + COUNTS[d][seat % COUNTS[d].length] * CHIP_H + 0.02, sz],
-          land: [x, y, z],
-          rest,
-        })
-        total += WORTH[d]
-      })
-    })
-    throws.push(thrown)
-
-    // The dealer's stacks of the pot so far: the biggest chips first, each
-    // denomination starting a stack of its own.
-    const stacked: Stacked[] = []
-    let left = total
-    let slot = -1
-    for (let d = CHIPS.length - 1; d >= 0; d -= 1) {
-      const n = Math.floor(left / WORTH[d])
-      left -= n * WORTH[d]
-      for (let i = 0; i < n; i += 1) {
-        if (i % STACK_MAX === 0) slot += 1
-        const [ox, oz] = STACK_SLOTS[slot % STACK_SLOTS.length]
-        const level = i % STACK_MAX
-        const n0 = round * 97 + slot * 13 + level
-        stacked.push({
-          d,
-          at: [
-            POT_CENTER[0] + ox + jitter(n0) * 0.008,
-            CARD.restY + CHIP_H / 2 + level * CHIP_H,
-            POT_CENTER[1] + oz + jitter(n0 + 0.5) * 0.008,
-          ],
-          rest: new THREE.Quaternion().setFromAxisAngle(Y_AXIS, rand() * Math.PI * 2),
-        })
-      }
-    }
-    stacks.push(stacked)
-  })
-  return { throws, stacks }
-}
-
-/**
- * The pot. In each betting round -- pre-flop as the hand is dealt, then the
- * flop, turn and river -- every player throws in the same bet, a few chips of
- * different colours, and they heap up in the middle. As the next round starts
- * the dealer gathers those loose chips into a few tidy stacks of bigger chips,
- * so the pot never grows over the board. Each denomination's pot chips are one
- * InstancedMesh.
- */
-function Pot({ rounds }: { rounds: number }) {
-  // Seconds since the latest round began (it starts long settled).
-  const clock = useRef(Infinity)
-  const prev = useRef(rounds)
-  const meshes = useRef<(THREE.InstancedMesh | null)[]>([])
-  const invalidate = useThree((s) => s.invalidate)
-  const plan = useMemo(() => potPlan(), [])
-  const capacity = useMemo(
-    () => CHIPS.map((_, d) => [...plan.throws.flat(), ...plan.stacks.flat()].filter((c) => c.d === d).length),
-    [plan],
-  )
-
-  useEffect(() => {
-    if (rounds > prev.current) clock.current = 0
-    prev.current = rounds
-    invalidate()
-  }, [rounds, invalidate])
-
-  useFrame((state, delta) => {
-    if (clock.current < ROUND_SECONDS) {
-      clock.current += frameStep(delta)
-      state.invalidate()
-    }
-    const t = clock.current
-    const counts = CHIPS.map(() => 0)
-    const put = (d: number, x: number, y: number, z: number, q: THREE.Quaternion, scale = 1) => {
-      const mesh = meshes.current[d]
-      if (!mesh || scale <= 0.001) return
-      _chip.position.set(x, y, z)
-      _chip.quaternion.copy(q)
-      _chip.scale.setScalar(scale)
-      _chip.updateMatrix()
-      mesh.setMatrixAt(counts[d], _chip.matrix)
-      counts[d] += 1
-    }
-
-    const now = rounds - 1 // the round being bet, or last bet
-    if (now >= 1) {
-      // The dealer gathers the last round's loose chips into the middle as
-      // the pot's stacks are made up again with bigger chips.
-      const g = clamp01(t / GATHER_SECONDS)
-      if (now >= 2) for (const c of plan.stacks[now - 2]) put(c.d, ...c.at, c.rest, 1 - smooth(g, 0.3, 0.9))
-      for (const c of plan.stacks[now - 1]) put(c.d, ...c.at, c.rest, smooth(g, 0.4, 1))
-      if (g < 1) {
-        const e = g * g * (3 - 2 * g)
-        for (const c of plan.throws[now - 1]) {
-          put(
-            c.d,
-            lerp(c.land[0], POT_CENTER[0], e * 0.7),
-            lerp(c.land[1], CARD.restY + CHIP_H / 2, e),
-            lerp(c.land[2], POT_CENTER[1], e * 0.7),
-            c.rest,
-            1 - smooth(g, 0.55, 1),
-          )
-        }
-      }
-    }
-    if (now >= 0) {
-      // This round's bets, thrown once the gather is under way.
-      const start = now >= 1 ? THROW_START : 0
-      for (const c of plan.throws[now]) {
-        const f = clamp01((t - start - c.delay) / FLIGHT_SECONDS)
-        if (f <= 0) continue
-        const p = easeOut(f)
-        // Tumbling end over end on the way, settling into its resting pose.
-        _qFlight.copy(c.rest).multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
-        put(
-          c.d,
-          lerp(c.from[0], c.land[0], p),
-          lerp(c.from[1], c.land[1], p) + Math.sin(f * Math.PI) * 0.95,
-          lerp(c.from[2], c.land[2], p),
-          _qFlight,
-        )
-      }
-    }
-    meshes.current.forEach((mesh, d) => {
-      if (!mesh) return
-      mesh.count = counts[d]
-      mesh.instanceMatrix.needsUpdate = true
-    })
-  })
-
-  // Not frustum-culled: the instances move, which would leave a cached bounding
-  // sphere stale. The pot is always on screen anyway.
-  return (
-    <>
-      {CHIPS.map((chip, d) => (
-        <instancedMesh
-          key={chip.value}
-          ref={(m) => {
-            meshes.current[d] = m
-          }}
-          args={[getChipGeometry(), getChipMaterials(chip), Math.max(1, capacity[d])]}
-          count={0}
-          frustumCulled={false}
-          castShadow
-          receiveShadow
-        />
-      ))}
-    </>
-  )
-}
-
-/**
- * Chip stacks beside each player, the dealer button, and the pot after
- * `rounds` rounds of betting.
+ * The chips -- players' stacks and the pot -- after `rounds` rounds of
+ * betting, and the dealer button.
  */
 export function Chips({ rounds }: { rounds: number }) {
   return (
     <>
-      <SeatStacks />
-      <Pot rounds={rounds} />
-      <DealerButton position={[1.85, CARD.restY + (CHIP_H * 1.3) / 2, 1.5]} />
+      <TableChips rounds={rounds} />
+      <DealerButton position={[1.85, FELT_Y + (CHIP_H * 1.3) / 2, 1.5]} />
     </>
   )
 }

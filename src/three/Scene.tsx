@@ -323,7 +323,7 @@ function CameraController({ dealt }: { dealt: boolean }) {
 export interface SceneProps {
   dealt: boolean
   focusedKey: string | null
-  /** Players bet chips. */
+  /** Rounds of betting so far: pre-flop, then one per street. */
   betStage: number
   /** Dealer burns a card. */
   burnStage: number
@@ -412,7 +412,7 @@ export function Scene({
       <Floor />
       <Casino animate={ambient} still={still} />
       <PokerTable />
-      <Chips boardStage={betStage} />
+      <Chips rounds={betStage} />
       <Players />
       <Nameplates interactive={dealt && focusedKey === null} onSelect={onSelectSeat} />
       <Deck onPress={onDeckPress} />

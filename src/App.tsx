@@ -61,9 +61,10 @@ function App() {
   const [dealt, setDealt] = useState(false)
   // The one hand/community card currently lifted to the camera (null = none).
   const [focusedKey, setFocusedKey] = useState<string | null>(null)
-  // A street plays out in order: players bet (chips), then the dealer burns a
-  // card, then the community card is revealed. Each stage lags the press so the
-  // three animations run one after another rather than all at once.
+  // Rounds of betting so far: pre-flop once the hands are dealt, then one for
+  // each street. A street plays out in order: players bet (chips), then the
+  // dealer burns a card, then the community card is revealed. Each stage lags
+  // the press so the three animations run one after another, not all at once.
   const [betStage, setBetStage] = useState(0)
   const [burnStage, setBurnStage] = useState(0)
   const [revealStage, setRevealStage] = useState(0)
@@ -71,8 +72,8 @@ function App() {
   // 'welcome' on arrival (closing it deals the hand), 'help' when reopened.
   const [intro, setIntro] = useState<'welcome' | 'help' | null>('welcome')
   const [textOpen, setTextOpen] = useState(false)
-  // The deck cue waits for the opening deal to finish, so it isn't competing
-  // with ten cards flying out of the deck.
+  // The deck cue waits for the opening deal and the pre-flop bets to finish, so
+  // it isn't competing with ten cards flying out of the deck.
   const [cueReady, setCueReady] = useState(false)
   // "Rotate your phone" tip — shown only on portrait phones (via CSS), and
   // dismissible. Rotating to landscape hides it automatically.
@@ -135,7 +136,9 @@ function App() {
     // The deal begins only once the visitor closes the welcome card.
     if (intro === 'welcome') {
       setDealt(true)
-      window.setTimeout(() => setCueReady(true), 2400)
+      // Pre-flop: everyone bets as the last hole card lands.
+      window.setTimeout(() => setBetStage(1), 2400)
+      window.setTimeout(() => setCueReady(true), 3600)
     }
     setIntro(null)
   }
@@ -156,17 +159,18 @@ function App() {
   }
 
   const handleDeckPress = () => {
-    if (dealing.current || revealStage >= 3) return
+    // Nothing to deal until the pre-flop bets are in.
+    if (dealing.current || betStage < 1 || revealStage >= 3) return
     dealing.current = true
-    // 1) players push chips into the pot
-    setBetStage((s) => Math.min(3, s + 1))
+    // 1) the dealer gathers the pot and players throw in their bets
+    setBetStage((s) => Math.min(4, s + 1))
     // 2) the dealer burns a card once the chips have landed
-    window.setTimeout(() => setBurnStage((s) => Math.min(3, s + 1)), 950)
+    window.setTimeout(() => setBurnStage((s) => Math.min(3, s + 1)), 1250)
     // 3) the community card is revealed once the burn has landed
-    window.setTimeout(() => setRevealStage((s) => Math.min(3, s + 1)), 1650)
+    window.setTimeout(() => setRevealStage((s) => Math.min(3, s + 1)), 1950)
     window.setTimeout(() => {
       dealing.current = false
-    }, 1750)
+    }, 2050)
   }
 
   const boardLabel = focusedKey
@@ -182,7 +186,7 @@ function App() {
   // Point at the deck whenever another street can be dealt: hidden while one is
   // still playing out (the chips move first) and while a card is being read.
   const dealCue =
-    cueReady && !focusedKey && betStage === revealStage && revealStage < 3
+    cueReady && !focusedKey && betStage === revealStage + 1 && revealStage < 3
       ? DEAL_CUES[revealStage]
       : null
 

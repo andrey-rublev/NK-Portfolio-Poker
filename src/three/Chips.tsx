@@ -33,8 +33,11 @@ function jitter(n: number): number {
   return (s - Math.floor(s)) * 2 - 1
 }
 
-/** The pot sits just right of centre; the burn pile is to its left. */
-const POT_CENTER: [number, number] = [0.72, 1.0]
+/**
+ * The pot sits just right of centre, in front of the board; the burn pile is
+ * to its left and the deck in front.
+ */
+const POT_CENTER: [number, number] = [0.65, 1.15]
 
 /** Differing bankrolls per seat: how many chips of each denomination (see CHIPS). */
 const COUNTS = [
@@ -214,35 +217,59 @@ function DealerButton({ position }: { position: [number, number, number] }) {
 }
 
 /**
- * Each player's bet on the flop, the turn and the river, as the chips they
- * throw in (indices into CHIPS). Everyone bets the same.
+ * Each player's bet in each round -- pre-flop, flop, turn, river -- as the
+ * chips they throw in (indices into CHIPS). Everyone bets the same.
  */
 const BETS = [
   [0, 1],
+  [0, 1, 1],
   [0, 1, 2],
-  [0, 1, 2, 2],
+  [1, 2, 2],
 ]
+const WORTH = [5, 25, 100]
+/** How far from the pot's middle a thrown chip can land. */
+const POT_SPREAD = 0.5
 /**
- * How far from the pot's middle each street's chips can land. Later bets land
- * nearer the middle, so they come down on the pile already there.
- */
-const POT_SPREAD = [0.5, 0.42, 0.38]
-/**
- * Spots each chip tries before settling in the lowest: a chip that lands on
- * the top of the heap slides off it, so the pot grows into a low mound rather
- * than a tower.
+ * Spots each thrown chip tries before settling in the lowest: one that lands
+ * on top of the heap slides off it, so the pot stays a low mound.
  */
 const POT_TRIES = 3
 /** The steepest a chip can lean against the pile (radians). */
 const MAX_LEAN = 0.3
+/** Chips per stack once the dealer has tidied the pot. */
+const STACK_MAX = 5
+/** Where the dealer's tidy stacks stand, round the pot's middle. */
+const STACK_SLOTS: [number, number][] = [[0, 0]]
+for (let i = 0; i < 6; i += 1) {
+  const a = (i / 6) * Math.PI * 2 + Math.PI / 6
+  STACK_SLOTS.push([Math.cos(a) * 0.42, Math.sin(a) * 0.42])
+}
+/** Seconds the dealer takes to gather the last round's chips into stacks. */
+const GATHER_SECONDS = 0.45
+/** The next bets start flying this far into the gather. */
+const THROW_START = GATHER_SECONDS * 0.6
+/** Seconds a thrown chip is in the air. */
+const FLIGHT_SECONDS = 0.6
+/** Gap between one chip leaving a hand and the next, and between players. */
+const THROW_GAP = 0.05
+/** Long enough for a round's gather and every throw to finish. */
+const ROUND_SECONDS = THROW_START + THROW_GAP * 8 + FLIGHT_SECONDS
 
-interface Bet {
-  street: number // 1 = flop, 2 = turn, 3 = river
-  /** How far into the throw (0 to 1) this chip leaves the player's hand. */
+/** A chip thrown into the pot in one round. */
+interface Throw {
+  d: number
+  /** Seconds into the round's throwing before it leaves the player's hand. */
   delay: number
   from: [number, number, number]
   land: [number, number, number]
   /** How it lies once it lands: leaning, and turned about its own axis. */
+  rest: THREE.Quaternion
+}
+
+/** A chip in one of the dealer's tidy stacks. */
+interface Stacked {
+  d: number
+  at: [number, number, number]
   rest: THREE.Quaternion
 }
 
@@ -281,6 +308,8 @@ const X_AXIS = new THREE.Vector3(1, 0, 0)
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
 const _tilt = new THREE.Vector3()
 const _qTumble = new THREE.Quaternion()
+const _qFlight = new THREE.Quaternion()
+const smooth = THREE.MathUtils.smoothstep
 
 /**
  * How a chip dropped at (x, z) settles onto the pile: it sits on the highest
@@ -313,106 +342,165 @@ function settle(pot: Landed[], x: number, z: number): Landed {
 }
 
 /**
- * Where every chip bet in the hand comes to rest, in the order they're thrown,
- * heaping up on one another untidily (see settle and POT_TRIES).
+ * The whole hand's pot, worked out once: the chips thrown in each round, and
+ * the tidy stacks the dealer makes of everything bet by the end of each round,
+ * colouring up to as few chips as the total allows -- so the pot shrinks back
+ * down before the next round's bets land on and around it.
  */
-function potLandings(): Bet[][] {
+function potPlan(): { throws: Throw[][]; stacks: Stacked[][] } {
   let s = 17
   const rand = () => {
     s = (s * 1664525 + 1013904223) >>> 0
     return s / 4294967296
   }
-  const pot: Landed[] = []
-  const byChip: Bet[][] = CHIPS.map(() => [])
-  BETS.forEach((bet, b) => {
-    const street = b + 1
+  const throws: Throw[][] = []
+  const stacks: Stacked[][] = []
+  let total = 0
+  BETS.forEach((bet, round) => {
+    // This round's chips settle onto the stacks left by the rounds before.
+    const pile: Landed[] = (stacks[round - 1] ?? []).map(({ at }) => ({ x: at[0], y: at[1], z: at[2], ux: 0, uz: 0, slope: 0 }))
+    const thrown: Throw[] = []
     chipSpots.forEach((_, seat) => {
       bet.forEach((d, k) => {
         let chip: Landed | null = null
         for (let t = 0; t < POT_TRIES; t += 1) {
           const a = rand() * Math.PI * 2
-          const r = POT_SPREAD[b] * Math.sqrt(rand())
-          const tried = settle(pot, POT_CENTER[0] + Math.cos(a) * r, POT_CENTER[1] + Math.sin(a) * r)
+          const r = POT_SPREAD * Math.sqrt(rand())
+          const tried = settle(pile, POT_CENTER[0] + Math.cos(a) * r, POT_CENTER[1] + Math.sin(a) * r)
           if (!chip || tried.y < chip.y) chip = tried
         }
         const { x, y, z, ux, uz, slope } = chip!
-        pot.push(chip!)
-
+        pile.push(chip!)
         const rest = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, rand() * Math.PI * 2)
         if (slope > 0) rest.premultiply(new THREE.Quaternion().setFromAxisAngle(_tilt.set(uz, 0, -ux), Math.atan(slope)))
         const [sx, sz] = stackSpot(seat, d)
-        byChip[d].push({
-          street,
-          delay: seat * 0.05 + k * 0.05,
+        thrown.push({
+          d,
+          delay: (seat + k) * THROW_GAP,
           from: [sx, CARD.restY + COUNTS[d][seat % COUNTS[d].length] * CHIP_H + 0.02, sz],
           land: [x, y, z],
           rest,
         })
+        total += WORTH[d]
       })
     })
+    throws.push(thrown)
+
+    // The dealer's stacks of the pot so far: the biggest chips first, each
+    // denomination starting a stack of its own.
+    const stacked: Stacked[] = []
+    let left = total
+    let slot = -1
+    for (let d = CHIPS.length - 1; d >= 0; d -= 1) {
+      const n = Math.floor(left / WORTH[d])
+      left -= n * WORTH[d]
+      for (let i = 0; i < n; i += 1) {
+        if (i % STACK_MAX === 0) slot += 1
+        const [ox, oz] = STACK_SLOTS[slot % STACK_SLOTS.length]
+        const level = i % STACK_MAX
+        const n0 = round * 97 + slot * 13 + level
+        stacked.push({
+          d,
+          at: [
+            POT_CENTER[0] + ox + jitter(n0) * 0.008,
+            CARD.restY + CHIP_H / 2 + level * CHIP_H,
+            POT_CENTER[1] + oz + jitter(n0 + 0.5) * 0.008,
+          ],
+          rest: new THREE.Quaternion().setFromAxisAngle(Y_AXIS, rand() * Math.PI * 2),
+        })
+      }
+    }
+    stacks.push(stacked)
   })
-  return byChip
+  return { throws, stacks }
 }
 
 /**
- * On each street (flop/turn/river) every player throws the same bet into the
- * pot -- a 5 and a 25 on the flop, a 5, a 25 and a 100 on the turn, and a 5, a
- * 25 and two 100s on the river -- a chip at a time, from their stacks, and the
- * chips heap up in the middle. Each denomination's pot chips are one
- * InstancedMesh; a street's chips join them as that street is bet.
+ * The pot. In each betting round -- pre-flop as the hand is dealt, then the
+ * flop, turn and river -- every player throws in the same bet, a few chips of
+ * different colours, and they heap up in the middle. As the next round starts
+ * the dealer gathers those loose chips into a few tidy stacks of bigger chips,
+ * so the pot never grows over the board. Each denomination's pot chips are one
+ * InstancedMesh.
  */
-function PotThrows({ boardStage }: { boardStage: number }) {
-  const prog = useRef(1)
-  const prev = useRef(boardStage)
-  const dirty = useRef(true)
+function Pot({ rounds }: { rounds: number }) {
+  // Seconds since the latest round began (it starts long settled).
+  const clock = useRef(Infinity)
+  const prev = useRef(rounds)
   const meshes = useRef<(THREE.InstancedMesh | null)[]>([])
   const invalidate = useThree((s) => s.invalidate)
+  const plan = useMemo(() => potPlan(), [])
+  const capacity = useMemo(
+    () => CHIPS.map((_, d) => [...plan.throws.flat(), ...plan.stacks.flat()].filter((c) => c.d === d).length),
+    [plan],
+  )
 
   useEffect(() => {
-    if (boardStage > prev.current) prog.current = 0
-    prev.current = boardStage
-    dirty.current = true
+    if (rounds > prev.current) clock.current = 0
+    prev.current = rounds
     invalidate()
-  }, [boardStage, invalidate])
-
-  // One list per denomination, ordered by street, so the chips bet so far are
-  // always a prefix of each list.
-  const bets = useMemo(() => potLandings(), [])
+  }, [rounds, invalidate])
 
   useFrame((state, delta) => {
-    if (prog.current < 1) {
-      prog.current = Math.min(1, prog.current + frameStep(delta) / 0.9)
+    if (clock.current < ROUND_SECONDS) {
+      clock.current += frameStep(delta)
       state.invalidate()
-    } else if (!dirty.current) {
-      return
     }
-    dirty.current = false
-    bets.forEach((list, d) => {
+    const t = clock.current
+    const counts = CHIPS.map(() => 0)
+    const put = (d: number, x: number, y: number, z: number, q: THREE.Quaternion, scale = 1) => {
       const mesh = meshes.current[d]
-      if (!mesh) return
-      let count = 0
-      for (const bet of list) {
-        if (bet.street > boardStage) break
-        _chip.quaternion.copy(bet.rest)
-        if (bet.street === boardStage) {
-          const t = clamp01((prog.current - bet.delay) / 0.6)
-          const p = easeOut(t)
-          _chip.position.set(
-            lerp(bet.from[0], bet.land[0], p),
-            lerp(bet.from[1], bet.land[1], p) + Math.sin(t * Math.PI) * 0.95,
-            lerp(bet.from[2], bet.land[2], p),
+      if (!mesh || scale <= 0.001) return
+      _chip.position.set(x, y, z)
+      _chip.quaternion.copy(q)
+      _chip.scale.setScalar(scale)
+      _chip.updateMatrix()
+      mesh.setMatrixAt(counts[d], _chip.matrix)
+      counts[d] += 1
+    }
+
+    const now = rounds - 1 // the round being bet, or last bet
+    if (now >= 1) {
+      // The dealer gathers the last round's loose chips into the middle as
+      // the pot's stacks are made up again with bigger chips.
+      const g = clamp01(t / GATHER_SECONDS)
+      if (now >= 2) for (const c of plan.stacks[now - 2]) put(c.d, ...c.at, c.rest, 1 - smooth(g, 0.3, 0.9))
+      for (const c of plan.stacks[now - 1]) put(c.d, ...c.at, c.rest, smooth(g, 0.4, 1))
+      if (g < 1) {
+        const e = g * g * (3 - 2 * g)
+        for (const c of plan.throws[now - 1]) {
+          put(
+            c.d,
+            lerp(c.land[0], POT_CENTER[0], e * 0.7),
+            lerp(c.land[1], CARD.restY + CHIP_H / 2, e),
+            lerp(c.land[2], POT_CENTER[1], e * 0.7),
+            c.rest,
+            1 - smooth(g, 0.55, 1),
           )
-          // Tumbling end over end on the way, settling into its resting pose.
-          _chip.quaternion.multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
-        } else {
-          _chip.position.set(...bet.land)
         }
-        _chip.scale.setScalar(1)
-        _chip.updateMatrix()
-        mesh.setMatrixAt(count, _chip.matrix)
-        count += 1
       }
-      mesh.count = count
+    }
+    if (now >= 0) {
+      // This round's bets, thrown once the gather is under way.
+      const start = now >= 1 ? THROW_START : 0
+      for (const c of plan.throws[now]) {
+        const f = clamp01((t - start - c.delay) / FLIGHT_SECONDS)
+        if (f <= 0) continue
+        const p = easeOut(f)
+        // Tumbling end over end on the way, settling into its resting pose.
+        _qFlight.copy(c.rest).multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
+        put(
+          c.d,
+          lerp(c.from[0], c.land[0], p),
+          lerp(c.from[1], c.land[1], p) + Math.sin(f * Math.PI) * 0.95,
+          lerp(c.from[2], c.land[2], p),
+          _qFlight,
+        )
+      }
+    }
+    meshes.current.forEach((mesh, d) => {
+      if (!mesh) return
+      mesh.count = counts[d]
       mesh.instanceMatrix.needsUpdate = true
     })
   })
@@ -427,7 +515,7 @@ function PotThrows({ boardStage }: { boardStage: number }) {
           ref={(m) => {
             meshes.current[d] = m
           }}
-          args={[getChipGeometry(), getChipMaterials(chip), Math.max(1, bets[d].length)]}
+          args={[getChipGeometry(), getChipMaterials(chip), Math.max(1, capacity[d])]}
           count={0}
           frustumCulled={false}
           castShadow
@@ -438,12 +526,15 @@ function PotThrows({ boardStage }: { boardStage: number }) {
   )
 }
 
-/** Chip stacks beside each player, the dealer button, and the betting pot. */
-export function Chips({ boardStage }: { boardStage: number }) {
+/**
+ * Chip stacks beside each player, the dealer button, and the pot after
+ * `rounds` rounds of betting.
+ */
+export function Chips({ rounds }: { rounds: number }) {
   return (
     <>
       <SeatStacks />
-      <PotThrows boardStage={boardStage} />
+      <Pot rounds={rounds} />
       <DealerButton position={[1.85, CARD.restY + (CHIP_H * 1.3) / 2, 1.5]} />
     </>
   )

@@ -51,15 +51,15 @@ const COUNTS = [
 /**
  * Each player's bet in each round -- pre-flop, flop, turn, river -- as the
  * chips they throw in (indices into CHIPS): a single chip pre-flop and on the
- * turn, a handful of mixed ones on the flop and the river. Everyone bets the
- * same, so every seat needs at least 1 of the 5s, 4 of the 25s and 3 of the
+ * turn, two of different colours on the flop and the river. Everyone bets the
+ * same, so every seat needs at least 1 of the 5s, 3 of the 25s and 2 of the
  * 100s.
  */
 const BETS = [
   [1],
-  [0, 1, 1],
+  [0, 1],
   [2],
-  [1, 2, 2],
+  [1, 2],
 ]
 /** How far from the pot's middle a thrown chip can land. */
 const POT_SPREAD = 0.5
@@ -76,7 +76,7 @@ const MAX_LEAN = 0.3
  * it looks as if every chip bet is somewhere in the pile without the pile
  * growing much.
  */
-const SUNK_TOP = FELT_Y + CHIP_H * 2.5
+const SUNK_TOP = FELT_Y + CHIP_H * 3.5
 /** Seconds a thrown chip is in the air. */
 const FLIGHT_SECONDS = 0.6
 /** Gap between one chip leaving a hand and the next, and between players. */
@@ -86,9 +86,9 @@ const THROW_GAP = 0.05
  * before it has finished ride it down the rest of the way.
  */
 const SINK_START = FLIGHT_SECONDS * 0.8
-const SINK_SECONDS = 0.3
-/** Long enough for every chip of a round to land. */
-const ROUND_SECONDS = THROW_GAP * 8 + FLIGHT_SECONDS
+const SINK_SECONDS = 0.8
+/** Long enough for every chip of a round to land, and the pile to sink. */
+const ROUND_SECONDS = Math.max(THROW_GAP * 8 + FLIGHT_SECONDS, SINK_START + SINK_SECONDS)
 
 /**
  * A clay chip: flat faces and a rim rounded over at both edges. Groups: 0 the

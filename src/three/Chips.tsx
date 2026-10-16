@@ -50,13 +50,15 @@ const COUNTS = [
 
 /**
  * Each player's bet in each round -- pre-flop, flop, turn, river -- as the
- * chips they throw in (indices into CHIPS). Everyone bets the same, so every
- * seat needs at least 3 of the 5s, 5 of the 25s and 3 of the 100s.
+ * chips they throw in (indices into CHIPS): a single chip pre-flop and on the
+ * turn, a handful of mixed ones on the flop and the river. Everyone bets the
+ * same, so every seat needs at least 1 of the 5s, 4 of the 25s and 3 of the
+ * 100s.
  */
 const BETS = [
-  [0, 1],
+  [1],
   [0, 1, 1],
-  [0, 1, 2],
+  [2],
   [1, 2, 2],
 ]
 /** How far from the pot's middle a thrown chip can land. */
@@ -328,9 +330,9 @@ const _qTumble = new THREE.Quaternion()
 /**
  * Every chip on the table after `rounds` rounds of betting (pre-flop as the
  * hand is dealt, then the flop, turn and river): the stacks in front of each
- * player, and the pot. In each round every player throws the same few chips,
- * of mixed colours, off the tops of their stacks into the pot; the pile already
- * there settles a little into the felt as they come down on top of it.
+ * player, and the pot. In each round every player throws the same bet (see
+ * BETS) off the tops of their stacks into the pot; the pile already there
+ * settles a little into the felt as the chips come down on top of it.
  */
 function TableChips({ rounds }: { rounds: number }) {
   // Seconds since the latest round began (it starts long settled).

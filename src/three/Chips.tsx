@@ -79,10 +79,12 @@ const SUNK_TOP = FELT_Y + CHIP_H * 2.5
 const FLIGHT_SECONDS = 0.6
 /** Gap between one chip leaving a hand and the next, and between players. */
 const THROW_GAP = 0.05
-/** The pile sinks while the first chips are coming down on it... */
-const SINK_START = FLIGHT_SECONDS * 0.4
-/** ...and has finished as the first one lands. */
-const SINK_SECONDS = FLIGHT_SECONDS - SINK_START
+/**
+ * The pile starts to sink as the first chips reach it, and any that land on it
+ * before it has finished ride it down the rest of the way.
+ */
+const SINK_START = FLIGHT_SECONDS * 0.8
+const SINK_SECONDS = 0.3
 /** Long enough for every chip of a round to land. */
 const ROUND_SECONDS = THROW_GAP * 8 + FLIGHT_SECONDS
 
@@ -258,7 +260,7 @@ interface Bet {
  * already there sinks a little into the felt (see SUNK_TOP), and they land on
  * and around it.
  */
-function handPlan(): { stacks: Pose[][]; bets: Bet[] } {
+function handPlan(): { stacks: Pose[][]; bets: Bet[]; sinks: number[] } {
   let s = 17
   const rand = () => {
     s = (s * 1664525 + 1013904223) >>> 0
@@ -283,16 +285,16 @@ function handPlan(): { stacks: Pose[][]; bets: Bet[] } {
   })
 
   const bets: Bet[] = []
+  // How far the pile sinks in each round.
+  const sinks: number[] = []
   // The pot's chips as they lie now.
   const pot: { bet: Bet; yaw: number; at: Landed }[] = []
   BETS.forEach((bet, round) => {
     // The pile sinks a little as this round's bets come down...
-    if (pot.length > 0) {
-      const sink = Math.max(0, Math.max(...pot.map((c) => c.at.y + CHIP_H / 2)) - SUNK_TOP)
-      for (const c of pot) {
-        c.at = { ...c.at, y: c.at.y - sink }
-        c.bet.poses[round] = poseOf(c.at, c.yaw)
-      }
+    sinks[round] = pot.length > 0 ? Math.max(0, Math.max(...pot.map((c) => c.at.y + CHIP_H / 2)) - SUNK_TOP) : 0
+    for (const c of pot) {
+      c.at = { ...c.at, y: c.at.y - sinks[round] }
+      c.bet.poses[round] = poseOf(c.at, c.yaw)
     }
 
     // ...and they land on and around it.
@@ -316,7 +318,7 @@ function handPlan(): { stacks: Pose[][]; bets: Bet[] } {
       })
     })
   })
-  return { stacks, bets }
+  return { stacks, bets, sinks }
 }
 
 const _chip = new THREE.Object3D()
@@ -352,6 +354,9 @@ function TableChips({ rounds }: { rounds: number }) {
     const t = clock.current
     const now = rounds - 1 // the round being bet, or last bet
     const sink = easeInOut(clamp01((t - SINK_START) / SINK_SECONDS))
+    // How much further the pile has still to sink: this round's chips land on
+    // it where it is, and go down with it.
+    const toSink = now >= 0 ? plan.sinks[now] * (1 - sink) : 0
     const counts = CHIPS.map(() => 0)
     const put = (d: number, p: THREE.Vector3, q: THREE.Quaternion) => {
       const mesh = meshes.current[d]
@@ -380,11 +385,13 @@ function TableChips({ rounds }: { rounds: number }) {
         const from = plan.stacks[b.d][b.stackChip]
         const p = easeOut(f)
         _chip.position.lerpVectors(from.p, land.p, p)
-        _chip.position.y += Math.sin(f * Math.PI) * 0.95
+        _chip.position.y += Math.sin(f * Math.PI) * 0.95 + toSink * p
         _q.slerpQuaternions(from.q, land.q, p).multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
         put(b.d, _chip.position, _q)
       } else if (b.round === now) {
-        put(b.d, land.p, land.q)
+        _chip.position.copy(land.p)
+        _chip.position.y += toSink
+        put(b.d, _chip.position, land.q)
       } else {
         // In the pile, sinking a little under this round's falling bets. A
         // chip sunk right under the felt is out of sight.

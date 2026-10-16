@@ -183,8 +183,11 @@ export const DECK_TOP: [number, number, number] = [
   DECK_POSITION[2],
 ]
 
-/** Burn cards stack face-down to the LEFT of the pot (which sits right of centre). */
-export const BURN_POSITION: [number, number, number] = [-0.95, CARD.restY, 1.12]
+/**
+ * Burn cards stack face-down to the left of the pot, clear of its chips and of
+ * the near-left seat's hand (closer in on the narrower phone table).
+ */
+export const BURN_POSITION: [number, number, number] = [COMPACT_VIEW ? -1.6 : -1.85, CARD.restY, 1.12]
 
 export interface SeatAnchor {
   seatId: string

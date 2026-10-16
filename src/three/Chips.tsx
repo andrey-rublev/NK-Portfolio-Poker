@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { TABLE, chipSpots } from './layout'
+import { COMPACT_VIEW, TABLE, chipSpots } from './layout'
 import { getChipTextures } from './chipTexture'
 import { frameStep } from './frame'
 
@@ -21,7 +21,6 @@ const FELT_Y = TABLE.topY + 0.004
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
-const easeInOut = (t: number) => t * t * (3 - 2 * t)
 
 /** Stable pseudo-random angle so each chip in a stack sits at its own rotation. */
 function randRot(n: number): number {
@@ -36,10 +35,16 @@ function jitter(n: number): number {
 }
 
 /**
- * The pot sits just right of centre, in front of the board; the burn pile is
- * to its left and the deck in front.
+ * The pot: a wide oval in front of the board, reaching left toward the burn
+ * pile, with the deck in front of it and the dealer button to its right.
  */
-const POT_CENTER: [number, number] = [0.65, 1.15]
+const POT_CENTER: [number, number] = [0.2, 1.1]
+/**
+ * Half-widths of the oval a thrown chip can land in (x across, z toward the
+ * deck); a little narrower on the phone table, where the burn pile is closer.
+ */
+const POT_RX = COMPACT_VIEW ? 0.8 : 1.05
+const POT_RZ = 0.45
 
 /** Each seat's bankroll: how many chips of each denomination (see CHIPS). */
 const COUNTS = [
@@ -61,34 +66,19 @@ const BETS = [
   [2],
   [1, 2],
 ]
-/** How far from the pot's middle a thrown chip can land. */
-const POT_SPREAD = 0.5
 /**
  * Spots each thrown chip tries before settling in the lowest: one that lands
- * on top of the heap slides off it, so the pot stays a low mound.
+ * on top of the heap slides off it, so the pot spreads out low.
  */
 const POT_TRIES = 3
 /** The steepest a chip can lean against the pile (radians). */
 const MAX_LEAN = 0.3
-/**
- * As each round's bets come down on the pot, the pile already there sinks a
- * little into the felt, to at most this height, under the falling chips -- so
- * it looks as if every chip bet is somewhere in the pile without the pile
- * growing much.
- */
-const SUNK_TOP = FELT_Y + CHIP_H * 3.5
 /** Seconds a thrown chip is in the air. */
 const FLIGHT_SECONDS = 0.6
 /** Gap between one chip leaving a hand and the next, and between players. */
 const THROW_GAP = 0.05
-/**
- * The pile starts to sink as the first chips reach it, and any that land on it
- * before it has finished ride it down the rest of the way.
- */
-const SINK_START = FLIGHT_SECONDS * 0.8
-const SINK_SECONDS = 0.8
-/** Long enough for every chip of a round to land, and the pile to sink. */
-const ROUND_SECONDS = Math.max(THROW_GAP * 8 + FLIGHT_SECONDS, SINK_START + SINK_SECONDS)
+/** Long enough for every chip of a round to land. */
+const ROUND_SECONDS = THROW_GAP * 8 + FLIGHT_SECONDS
 
 /**
  * A clay chip: flat faces and a rim rounded over at both edges. Groups: 0 the
@@ -243,7 +233,7 @@ function poseOf(at: Landed, yaw: number): Pose {
   return { p: new THREE.Vector3(at.x, at.y, at.z), q }
 }
 
-/** A chip a player bets: which stack chip it is, when it goes, and where it lies after each round. */
+/** A chip a player bets: which stack chip it is, when it goes, and where it lands. */
 interface Bet {
   d: number
   round: number
@@ -251,18 +241,16 @@ interface Bet {
   stackChip: number
   /** Seconds into the round before it leaves the player's hand. */
   delay: number
-  /** Where it lies in each round from the one it is bet in: where it lands, then lower each time the pile sinks (indexed by round). */
-  poses: Pose[]
+  land: Pose
 }
 
 /**
  * Every chip of the hand: the players' stacks, and the chips they bet, round
  * by round. Each bet is the top chip of the player's stack, so the stacks go
- * down as the hand goes on. As a round's bets come down on the pot, the pile
- * already there sinks a little into the felt (see SUNK_TOP), and they land on
- * and around it.
+ * down as the hand goes on. A round's bets land on and around the chips
+ * already in the pot, and stay where they land.
  */
-function handPlan(): { stacks: Pose[][]; bets: Bet[]; sinks: number[] } {
+function handPlan(): { stacks: Pose[][]; bets: Bet[] } {
   let s = 17
   const rand = () => {
     s = (s * 1664525 + 1013904223) >>> 0
@@ -287,40 +275,25 @@ function handPlan(): { stacks: Pose[][]; bets: Bet[]; sinks: number[] } {
   })
 
   const bets: Bet[] = []
-  // How far the pile sinks in each round.
-  const sinks: number[] = []
-  // The pot's chips as they lie now.
-  const pot: { bet: Bet; yaw: number; at: Landed }[] = []
+  // The chips in the pot.
+  const pile: Landed[] = []
   BETS.forEach((bet, round) => {
-    // The pile sinks a little as this round's bets come down...
-    sinks[round] = pot.length > 0 ? Math.max(0, Math.max(...pot.map((c) => c.at.y + CHIP_H / 2)) - SUNK_TOP) : 0
-    for (const c of pot) {
-      c.at = { ...c.at, y: c.at.y - sinks[round] }
-      c.bet.poses[round] = poseOf(c.at, c.yaw)
-    }
-
-    // ...and they land on and around it.
-    const pile = pot.map((c) => c.at)
     chipSpots.forEach((_, seat) => {
       bet.forEach((d, k) => {
         let at: Landed | null = null
         for (let t = 0; t < POT_TRIES; t += 1) {
           const a = rand() * Math.PI * 2
-          const r = POT_SPREAD * Math.sqrt(rand())
-          const tried = settle(pile, POT_CENTER[0] + Math.cos(a) * r, POT_CENTER[1] + Math.sin(a) * r)
+          const r = Math.sqrt(rand())
+          const tried = settle(pile, POT_CENTER[0] + Math.cos(a) * r * POT_RX, POT_CENTER[1] + Math.sin(a) * r * POT_RZ)
           if (!at || tried.y < at.y) at = tried
         }
         pile.push(at!)
-        const yaw = rand() * Math.PI * 2
-        const b: Bet = { d, round, stackChip: top[d][seat], delay: (seat + k) * THROW_GAP, poses: [] }
-        b.poses[round] = poseOf(at!, yaw)
+        bets.push({ d, round, stackChip: top[d][seat], delay: (seat + k) * THROW_GAP, land: poseOf(at!, rand() * Math.PI * 2) })
         top[d][seat] -= 1
-        bets.push(b)
-        pot.push({ bet: b, yaw, at: at! })
       })
     })
   })
-  return { stacks, bets, sinks }
+  return { stacks, bets }
 }
 
 const _chip = new THREE.Object3D()
@@ -331,8 +304,8 @@ const _qTumble = new THREE.Quaternion()
  * Every chip on the table after `rounds` rounds of betting (pre-flop as the
  * hand is dealt, then the flop, turn and river): the stacks in front of each
  * player, and the pot. In each round every player throws the same bet (see
- * BETS) off the tops of their stacks into the pot; the pile already there
- * settles a little into the felt as the chips come down on top of it.
+ * BETS) off the tops of their stacks into the pot, onto the chips already
+ * there.
  */
 function TableChips({ rounds }: { rounds: number }) {
   // Seconds since the latest round began (it starts long settled).
@@ -355,10 +328,6 @@ function TableChips({ rounds }: { rounds: number }) {
     }
     const t = clock.current
     const now = rounds - 1 // the round being bet, or last bet
-    const sink = easeInOut(clamp01((t - SINK_START) / SINK_SECONDS))
-    // How much further the pile has still to sink: this round's chips land on
-    // it where it is, and go down with it.
-    const toSink = now >= 0 ? plan.sinks[now] * (1 - sink) : 0
     const counts = CHIPS.map(() => 0)
     const put = (d: number, p: THREE.Vector3, q: THREE.Quaternion) => {
       const mesh = meshes.current[d]
@@ -380,25 +349,17 @@ function TableChips({ rounds }: { rounds: number }) {
         if (f <= 0) continue
       }
       thrown[b.d][b.stackChip] = 1
-      const land = b.poses[b.round]
       if (f < 1) {
         // In the air: off the top of the stack, tumbling end over end in an
         // arc, and settling into the pose it lands in.
         const from = plan.stacks[b.d][b.stackChip]
         const p = easeOut(f)
-        _chip.position.lerpVectors(from.p, land.p, p)
-        _chip.position.y += Math.sin(f * Math.PI) * 0.95 + toSink * p
-        _q.slerpQuaternions(from.q, land.q, p).multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
+        _chip.position.lerpVectors(from.p, b.land.p, p)
+        _chip.position.y += Math.sin(f * Math.PI) * 0.95
+        _q.slerpQuaternions(from.q, b.land.q, p).multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
         put(b.d, _chip.position, _q)
-      } else if (b.round === now) {
-        _chip.position.copy(land.p)
-        _chip.position.y += toSink
-        put(b.d, _chip.position, land.q)
       } else {
-        // In the pile, sinking a little under this round's falling bets. A
-        // chip sunk right under the felt is out of sight.
-        _chip.position.lerpVectors(b.poses[now - 1].p, b.poses[now].p, sink)
-        if (_chip.position.y + CHIP_H / 2 >= FELT_Y) put(b.d, _chip.position, b.poses[now].q)
+        put(b.d, b.land.p, b.land.q)
       }
     }
     plan.stacks.forEach((list, d) => {

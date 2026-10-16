@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { COMPACT_VIEW, TABLE, chipSpots } from './layout'
+import { BUTTON_POSITION, COMPACT_VIEW, TABLE, chipSpots } from './layout'
 import { getChipTextures } from './chipTexture'
 import { frameStep } from './frame'
 
@@ -35,16 +35,16 @@ function jitter(n: number): number {
 }
 
 /**
- * The pot: a wide oval in front of the board, reaching left toward the burn
- * pile, with the deck in front of it and the dealer button to its right.
+ * The pot: a wide, shallow oval between the board and the deck, with the burn
+ * pile to its left and the dealer button to its right.
  */
-const POT_CENTER: [number, number] = [0.2, 1.1]
+const POT_CENTER: [number, number] = COMPACT_VIEW ? [0.4, 1.24] : [0.6, 1.22]
 /**
  * Half-widths of the oval a thrown chip can land in (x across, z toward the
- * deck); a little narrower on the phone table, where the burn pile is closer.
+ * deck); a little smaller on the phone table, which is narrower.
  */
-const POT_RX = COMPACT_VIEW ? 0.8 : 1.05
-const POT_RZ = 0.45
+const POT_RX = COMPACT_VIEW ? 0.95 : 1.2
+const POT_RZ = COMPACT_VIEW ? 0.34 : 0.36
 
 /** Each seat's bankroll: how many chips of each denomination (see CHIPS). */
 const COUNTS = [
@@ -448,7 +448,7 @@ export function Chips({ rounds }: { rounds: number }) {
   return (
     <>
       <TableChips rounds={rounds} />
-      <DealerButton position={[1.85, FELT_Y + (CHIP_H * 1.3) / 2, 1.5]} />
+      <DealerButton position={[BUTTON_POSITION[0], FELT_Y + (CHIP_H * 1.3) / 2, BUTTON_POSITION[1]]} />
     </>
   )
 }

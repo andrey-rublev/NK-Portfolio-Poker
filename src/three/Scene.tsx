@@ -13,6 +13,7 @@ import {
   DECK_CARDS,
   DECK_POSITION,
   BURN_POSITION,
+  BOARD_SCALE,
   CARD,
   CAMERA_HOME,
   FLOOR,
@@ -174,6 +175,7 @@ function BurnPile({ boardStage }: { boardStage: number }) {
           position-y={i * CARD.thickness * 1.04}
           rotation-x={-Math.PI / 2}
           rotation-z={burnRestAngle(i)}
+          scale={BOARD_SCALE}
         >
           <meshStandardMaterial attach="material-0" map={back} roughness={0.6} />
           <meshStandardMaterial attach="material-1" map={back} roughness={0.6} />
@@ -183,7 +185,7 @@ function BurnPile({ boardStage }: { boardStage: number }) {
       {/* The most-recently burned card, tossed in from the deck */}
       {boardStage > 0 && (
         <group ref={flyRef}>
-          <mesh geometry={getCardGeometry()}>
+          <mesh geometry={getCardGeometry()} scale={BOARD_SCALE}>
             <meshStandardMaterial attach="material-0" map={back} roughness={0.6} />
             <meshStandardMaterial attach="material-1" map={back} roughness={0.6} />
             <meshStandardMaterial attach="material-2" color="#8c1a26" roughness={0.6} />

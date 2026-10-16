@@ -4,7 +4,7 @@ import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { createCardFaces, getReadingFace } from './cardTextures'
 import { getCardGeometry } from './cardGeometry'
-import { CARD, DECK_TOP } from './layout'
+import { BOARD_SCALE, CARD, DECK_TOP } from './layout'
 import type { CardSlot } from './layout'
 import { SETTLED, frameStep } from './frame'
 
@@ -87,14 +87,16 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     const face = isCommunity ? FACE_UP_X : FACE_DOWN_X
     let tp: [number, number, number] = rest
     let tr: [number, number, number] = [face, slot.yaw, 0]
-    let ts = 1
+    // Board cards rest a little smaller on the phone table (see BOARD_SCALE).
+    const restScale = isCommunity ? BOARD_SCALE : 1
+    let ts = restScale
     if (!outOfDeck) {
       tp = DECK_TOP
       tr = [FACE_DOWN_X, 0, 0]
     } else if (hovered && interactive && !focused) {
       tp = [rest[0], rest[1] + 0.26, rest[2] - 0.1]
       tr = [isCommunity ? face + HOVER_TILT : face - HOVER_TILT, slot.yaw, 0]
-      ts = 1.05
+      ts = restScale * 1.05
     }
 
     const b = base.current
@@ -111,7 +113,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
       b.rot[0] = lerp(FACE_DOWN_X, face, e)
       b.rot[1] = lerp(0, slot.yaw, e)
       b.rot[2] = 0
-      b.scale = 1
+      b.scale = lerp(1, restScale, e)
     } else {
       // Time-corrected smoothing so motion takes the same real-world time at
       // any frame rate (≈ the old per-frame 0.16 at 60 fps).
@@ -279,7 +281,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
         onPointerOut={onOut}
         onClick={onClick}
       >
-        <boxGeometry args={[CARD.w + 0.06, 0.7, CARD.h + 0.06]} />
+        <boxGeometry args={[CARD.w * (isCommunity ? BOARD_SCALE : 1) + 0.06, 0.7, CARD.h * (isCommunity ? BOARD_SCALE : 1) + 0.06]} />
       </mesh>
 
       {/* Materials are `transparent` at full opacity purely for draw order:

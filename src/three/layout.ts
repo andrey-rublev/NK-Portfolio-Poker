@@ -140,17 +140,26 @@ export interface CommunitySlot extends CardSlot {
   boardIndex: number
 }
 
-/** The five community cards, laid out in a row across the middle of the felt. */
+/**
+ * Board cards lie a little smaller on the narrow phone table, where five
+ * full-size cards in a row would run into the side players' hands.
+ */
+export const BOARD_SCALE = COMPACT_VIEW ? 0.92 : 1
+
+/**
+ * The five community cards, laid out in a row across the middle of the felt,
+ * clear of the hands either side, with the pot between them and the deck.
+ */
 export const communityCards: CommunitySlot[] = communitySections.map(
   (section, i) => {
-    const spacing = CARD.w * 1.14
+    const spacing = CARD.w * BOARD_SCALE * (COMPACT_VIEW ? 1.1 : 1.14)
     const x = (i - (communitySections.length - 1) / 2) * spacing
     return {
       id: `community-${section.id}`,
       section,
       role: 'community',
       handId: 'board',
-      position: [x, CARD.restY, -TABLE.rz * 0.12],
+      position: [x, CARD.restY, COMPACT_VIEW ? -0.1 : -0.2],
       yaw: 0,
       dealIndex: i,
       stage: i < 3 ? 'flop' : i === 3 ? 'turn' : 'river',
@@ -184,10 +193,14 @@ export const DECK_TOP: [number, number, number] = [
 ]
 
 /**
- * Burn cards stack face-down to the left of the pot, clear of its chips and of
- * the near-left seat's hand (closer in on the narrower phone table).
+ * Burn cards stack face-down to the left of the pot, clear of its chips, the
+ * board and the near-left seat's hand (closer in on the narrower phone table).
+ * They're the board's size.
  */
-export const BURN_POSITION: [number, number, number] = [COMPACT_VIEW ? -1.6 : -1.85, CARD.restY, 1.12]
+export const BURN_POSITION: [number, number, number] = COMPACT_VIEW ? [-1.3, CARD.restY, 1.45] : [-1.4, CARD.restY, 1.55]
+
+/** The dealer button, to the right of the pot. */
+export const BUTTON_POSITION: [number, number] = COMPACT_VIEW ? [1.9, 1.3] : [2.1, 1.75]
 
 export interface SeatAnchor {
   seatId: string

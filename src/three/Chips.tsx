@@ -69,21 +69,22 @@ const POT_TRIES = 3
 /** The steepest a chip can lean against the pile (radians). */
 const MAX_LEAN = 0.3
 /**
- * The pile is kept below this height: once a round's bets have all landed, it
- * sinks a little into the felt if it has grown taller, so it looks as if every
- * chip bet is somewhere in the pile without the pile growing much.
+ * As each round's bets come down on the pot, the pile already there sinks a
+ * little into the felt, to at most this height, under the falling chips -- so
+ * it looks as if every chip bet is somewhere in the pile without the pile
+ * growing much.
  */
-const PILE_TOP = FELT_Y + CHIP_H * 4.5
+const SUNK_TOP = FELT_Y + CHIP_H * 2.5
 /** Seconds a thrown chip is in the air. */
 const FLIGHT_SECONDS = 0.6
 /** Gap between one chip leaving a hand and the next, and between players. */
 const THROW_GAP = 0.05
-/** The pile starts to sink once the round's last chip has landed... */
-const SINK_START = THROW_GAP * 6 + FLIGHT_SECONDS
-/** ...and takes this long. */
-const SINK_SECONDS = 0.4
-/** Long enough for a round's throws and the sink after them. */
-const ROUND_SECONDS = SINK_START + SINK_SECONDS
+/** The pile sinks while the first chips are coming down on it... */
+const SINK_START = FLIGHT_SECONDS * 0.4
+/** ...and has finished as the first one lands. */
+const SINK_SECONDS = FLIGHT_SECONDS - SINK_START
+/** Long enough for every chip of a round to land. */
+const ROUND_SECONDS = THROW_GAP * 8 + FLIGHT_SECONDS
 
 /**
  * A clay chip: flat faces and a rim rounded over at both edges. Groups: 0 the
@@ -246,18 +247,16 @@ interface Bet {
   stackChip: number
   /** Seconds into the round before it leaves the player's hand. */
   delay: number
-  /** Where it lands. */
-  land: Pose
-  /** Where it lies at the end of each round from its own on, once the pile has sunk (indexed by round). */
+  /** Where it lies in each round from the one it is bet in: where it lands, then lower each time the pile sinks (indexed by round). */
   poses: Pose[]
 }
 
 /**
  * Every chip of the hand: the players' stacks, and the chips they bet, round
  * by round. Each bet is the top chip of the player's stack, so the stacks go
- * down as the hand goes on. A round's bets land on and around the pile already
- * in the pot, and once they're all down the pile sinks into the felt just far
- * enough to stay low (see PILE_TOP).
+ * down as the hand goes on. As a round's bets come down on the pot, the pile
+ * already there sinks a little into the felt (see SUNK_TOP), and they land on
+ * and around it.
  */
 function handPlan(): { stacks: Pose[][]; bets: Bet[] } {
   let s = 17
@@ -287,7 +286,16 @@ function handPlan(): { stacks: Pose[][]; bets: Bet[] } {
   // The pot's chips as they lie now.
   const pot: { bet: Bet; yaw: number; at: Landed }[] = []
   BETS.forEach((bet, round) => {
-    // This round's bets land on and around the pile.
+    // The pile sinks a little as this round's bets come down...
+    if (pot.length > 0) {
+      const sink = Math.max(0, Math.max(...pot.map((c) => c.at.y + CHIP_H / 2)) - SUNK_TOP)
+      for (const c of pot) {
+        c.at = { ...c.at, y: c.at.y - sink }
+        c.bet.poses[round] = poseOf(c.at, c.yaw)
+      }
+    }
+
+    // ...and they land on and around it.
     const pile = pot.map((c) => c.at)
     chipSpots.forEach((_, seat) => {
       bet.forEach((d, k) => {
@@ -300,19 +308,13 @@ function handPlan(): { stacks: Pose[][]; bets: Bet[] } {
         }
         pile.push(at!)
         const yaw = rand() * Math.PI * 2
-        const b: Bet = { d, round, stackChip: top[d][seat], delay: (seat + k) * THROW_GAP, land: poseOf(at!, yaw), poses: [] }
+        const b: Bet = { d, round, stackChip: top[d][seat], delay: (seat + k) * THROW_GAP, poses: [] }
+        b.poses[round] = poseOf(at!, yaw)
         top[d][seat] -= 1
         bets.push(b)
         pot.push({ bet: b, yaw, at: at! })
       })
     })
-
-    // Once they're all down, the whole pile sinks just enough to stay low.
-    const sink = Math.max(0, Math.max(...pot.map((c) => c.at.y + CHIP_H / 2)) - PILE_TOP)
-    for (const c of pot) {
-      c.at = { ...c.at, y: c.at.y - sink }
-      c.bet.poses[round] = poseOf(c.at, c.yaw)
-    }
   })
   return { stacks, bets }
 }
@@ -325,8 +327,8 @@ const _qTumble = new THREE.Quaternion()
  * Every chip on the table after `rounds` rounds of betting (pre-flop as the
  * hand is dealt, then the flop, turn and river): the stacks in front of each
  * player, and the pot. In each round every player throws the same few chips,
- * of mixed colours, off the tops of their stacks into the pot, where they heap
- * up on the chips already there; then the pile settles a little into the felt.
+ * of mixed colours, off the tops of their stacks into the pot; the pile already
+ * there settles a little into the felt as they come down on top of it.
  */
 function TableChips({ rounds }: { rounds: number }) {
   // Seconds since the latest round began (it starts long settled).
@@ -371,22 +373,24 @@ function TableChips({ rounds }: { rounds: number }) {
         if (f <= 0) continue
       }
       thrown[b.d][b.stackChip] = 1
+      const land = b.poses[b.round]
       if (f < 1) {
         // In the air: off the top of the stack, tumbling end over end in an
         // arc, and settling into the pose it lands in.
         const from = plan.stacks[b.d][b.stackChip]
         const p = easeOut(f)
-        _chip.position.lerpVectors(from.p, b.land.p, p)
+        _chip.position.lerpVectors(from.p, land.p, p)
         _chip.position.y += Math.sin(f * Math.PI) * 0.95
-        _q.slerpQuaternions(from.q, b.land.q, p).multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
+        _q.slerpQuaternions(from.q, land.q, p).multiply(_qTumble.setFromAxisAngle(X_AXIS, (1 - p) * Math.PI * 2))
         put(b.d, _chip.position, _q)
-        continue
+      } else if (b.round === now) {
+        put(b.d, land.p, land.q)
+      } else {
+        // In the pile, sinking a little under this round's falling bets. A
+        // chip sunk right under the felt is out of sight.
+        _chip.position.lerpVectors(b.poses[now - 1].p, b.poses[now].p, sink)
+        if (_chip.position.y + CHIP_H / 2 >= FELT_Y) put(b.d, _chip.position, b.poses[now].q)
       }
-      // In the pot, settling a little lower once the round's bets are all in.
-      const before = b.round === now ? b.land : b.poses[now - 1]
-      _chip.position.lerpVectors(before.p, b.poses[now].p, sink)
-      // A chip sunk right under the felt is out of sight.
-      if (_chip.position.y + CHIP_H / 2 >= FELT_Y) put(b.d, _chip.position, b.poses[now].q)
     }
     plan.stacks.forEach((list, d) => {
       list.forEach((c, i) => {

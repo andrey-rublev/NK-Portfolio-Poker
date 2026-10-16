@@ -4,7 +4,7 @@ import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { createCardFaces, getReadingFace } from './cardTextures'
 import { getCardGeometry } from './cardGeometry'
-import { BOARD_SCALE, CARD, DECK_TOP } from './layout'
+import { BOARD_SCALE, CARD, DECK_CARDS, DECK_POSITION, DECK_TOP } from './layout'
 import type { CardSlot } from './layout'
 import { SETTLED, frameStep } from './frame'
 
@@ -14,6 +14,21 @@ const FACE_UP_X = -Math.PI / 2
 const DEAL_SECONDS = 0.6
 /** A hovered card rises and tips toward the camera by this much. */
 const HOVER_TILT = 0.3
+/**
+ * A board card still in the deck can be called up early (the page's Contact
+ * button): it slides out of the deck's side from between the middle cards,
+ * face up, to a spot beside the deck, and back in again after it is read.
+ */
+const DECK_SLOT: [number, number, number] = [
+  DECK_POSITION[0],
+  CARD.restY + (DECK_CARDS / 2 - 0.5) * CARD.thickness * 1.04,
+  DECK_POSITION[2],
+]
+const DECK_SIDE: [number, number, number] = [DECK_POSITION[0] + CARD.w * 1.1, DECK_SLOT[1], DECK_SLOT[2]]
+/** Seconds to slide out of (or back into) the deck. */
+const PULL_SECONDS = 0.4
+/** A called-up card slides back into the deck once it is this nearly down. */
+const PULL_BACK_BELOW = 0.003
 
 const lerp = THREE.MathUtils.lerp
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
@@ -59,6 +74,8 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
   const prog = useRef(0)
   // How far through its flight from the deck the card is (1 once it has landed).
   const flight = useRef(0)
+  // How far a board card still in the deck has slid out of its side (see DECK_SLOT).
+  const pull = useRef(0)
 
   useEffect(() => {
     if (!dealt || outOfDeck) return
@@ -93,6 +110,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     if (!outOfDeck) {
       tp = DECK_TOP
       tr = [FACE_DOWN_X, 0, 0]
+      ts = 1
     } else if (hovered && interactive && !focused) {
       tp = [rest[0], rest[1] + 0.26, rest[2] - 0.1]
       tr = [isCommunity ? face + HOVER_TILT : face - HOVER_TILT, slot.yaw, 0]
@@ -151,9 +169,23 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     // player) before it is laid flat by the X rotation.
     _qBase.setFromEuler(_euler.set(b.rot[0], b.rot[1], 0, 'YXZ'))
 
+    // Called up from the deck: slide out of its side face up first, and back
+    // in once it has come down again.
+    const pullWant = !outOfDeck && (focused || prog.current > PULL_BACK_BELOW) ? 1 : 0
+    if (pull.current !== pullWant) {
+      const step = dt / PULL_SECONDS
+      pull.current = pullWant ? Math.min(1, pull.current + step) : Math.max(0, pull.current - step)
+      moving = true
+    }
+    if (pull.current > 0) {
+      _basePos.set(lerp(DECK_SLOT[0], DECK_SIDE[0], easeInOut(pull.current)), DECK_SLOT[1], DECK_SLOT[2])
+      _qBase.setFromEuler(_euler.set(FACE_UP_X, 0, 0, 'YXZ'))
+    }
+
     // Lower rate = slower pick-up (focus in) and put-down (focus out).
-    // Time-corrected (≈ the old per-frame 0.06 at 60 fps).
-    const want = focused ? 1 : 0
+    // Time-corrected (≈ the old per-frame 0.06 at 60 fps). A card called up
+    // from the deck rises once it is out.
+    const want = focused && (outOfDeck || pull.current >= 1) ? 1 : 0
     prog.current = lerp(prog.current, want, 1 - Math.exp(-3.7 * dt))
     if (Math.abs(prog.current - want) < SETTLED) prog.current = want
     else moving = true
@@ -306,7 +338,9 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
           // side. Their z-index stays under the page's own buttons and dialogs
           // (drei's default would float them above everything).
           <Html position={[0, -0.5, isCommunity ? -0.06 : 0.06]} center zIndexRange={[16, 16]}>
-            <div className="card-link-row">
+            {/* A card called up from the deck slides out before it rises, so
+                its links wait that much longer to appear. */}
+            <div className="card-link-row" style={outOfDeck ? undefined : { animationDelay: `${0.6 + PULL_SECONDS}s` }}>
               {actions.map((a) => (
                 <a key={a.href} href={a.href} target="_blank" rel="noopener noreferrer">
                   {a.label}

@@ -55,9 +55,14 @@ interface Card3DProps {
   focused: boolean
   interactive: boolean
   onToggle: (slot: CardSlot) => void
+  /** The card has come all the way up and turned to be read. */
+  onLanded?: () => void
 }
 
-export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DProps) {
+/** A lifted card counts as landed this far up: turned over, as good as still. */
+const LANDED = 0.98
+
+export function Card3D({ slot, dealt, focused, interactive, onToggle, onLanded }: Card3DProps) {
   const group = useRef<THREE.Group>(null)
   const backMat = useRef<THREE.MeshStandardMaterial>(null)
   const unlit = useRef<THREE.Mesh>(null)
@@ -80,6 +85,8 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
   // How far the card has slid out before rising: a board card still in the deck
   // out of its side (see DECK_SLOT), a hidden card out to its slideOut spot.
   const pull = useRef(0)
+  // Whether onLanded has been called for this lift.
+  const landed = useRef(false)
 
   useEffect(() => {
     if (!dealt || outOfDeck) return
@@ -196,6 +203,11 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     const want = focused && (!slides || pull.current >= 1) ? 1 : 0
     prog.current = lerp(prog.current, want, 1 - Math.exp(-3.7 * dt))
     if (Math.abs(prog.current - want) < SETTLED) prog.current = want
+    if (!focused) landed.current = false
+    else if (!landed.current && prog.current >= LANDED) {
+      landed.current = true
+      onLanded?.()
+    }
     else moving = true
     if (moving) state.invalidate()
     const p = prog.current

@@ -280,9 +280,13 @@
     }
   ],
   "secret": {
-    "id": "stealth",
-    "label": "Stealth Projects",
-    "groups": [],
+    "id": "more",
+    "label": "More",
+    "groups": [
+      {
+        "bullets": ["You found an easter egg! Here are some cool things I'm doing."]
+      }
+    ],
     "accent": "#c9a0ff",
     "suit": "spades",
     "rank": "J",

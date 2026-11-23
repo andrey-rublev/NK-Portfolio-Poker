@@ -345,6 +345,8 @@ export interface SceneProps {
   onDismiss: () => void
   /** The slot machines have paid out the secret card: lift it to be read. */
   onJackpot: () => void
+  /** The secret card has come all the way out. */
+  onSecretLanded: () => void
 }
 
 export function Scene({
@@ -360,6 +362,7 @@ export function Scene({
   onDeckPress,
   onDismiss,
   onJackpot,
+  onSecretLanded,
 }: SceneProps) {
   const invalidate = useThree((s) => s.invalidate)
   const [still] = useState(motionOff)
@@ -463,7 +466,14 @@ export function Scene({
       })}
 
       {secret && (
-        <Card3D slot={secret} dealt focused={focusedKey === SECRET_CARD_KEY} interactive={false} onToggle={onToggle} />
+        <Card3D
+          slot={secret}
+          dealt
+          focused={focusedKey === SECRET_CARD_KEY}
+          interactive={false}
+          onToggle={onToggle}
+          onLanded={onSecretLanded}
+        />
       )}
 
       {focusedKey && <DismissCatcher onDismiss={onDismiss} />}

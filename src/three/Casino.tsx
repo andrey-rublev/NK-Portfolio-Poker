@@ -750,6 +750,8 @@ function Walkers({ still }: { still: boolean }) {
 /* The slot machines nobody is playing                                       */
 /* ------------------------------------------------------------------------ */
 
+/** Machines to play before one pays out the secret card. */
+const JACKPOT_AFTER = 3
 /** Seconds from the press until each reel stops, left to right. */
 const REEL_STOPS = [0.9, 1.25, 1.6]
 /** The spin button stays pressed in this long. */
@@ -780,10 +782,10 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
 /**
  * The easter egg: the machines nobody is playing can be spun with their red
- * button. Each one's pay-line marks light once it has been played, and when the last
- * of them is spun it hits 7-7-7 and pays out the secret card through its ticket
- * slot (`onJackpot`, with the machine's x). Played again after that, any of them
- * pays out again.
+ * button. Each one's pay-line marks light once it has been played, and the
+ * third machine played hits 7-7-7 and pays out the secret card through its
+ * ticket slot (`onJackpot`, with the machine's x). Played again after that, any
+ * of them pays out again.
  */
 function SlotMachines({ reels, still, onJackpot }: { reels: THREE.BufferGeometry; still: boolean; onJackpot: (x: number) => void }) {
   const strip = useMemo(() => reelStripTexture(), [])
@@ -816,11 +818,11 @@ function SlotMachines({ reels, still, onJackpot }: { reels: THREE.BufferGeometry
     if (machine.spin) return
     machine.spun = true
     machine.pressedAt = time.current
-    const jackpot = machines.current.every((x) => x.spun)
+    const jackpot = machines.current.filter((x) => x.spun).length >= JACKPOT_AFTER
     let targets: number[]
     do {
       targets = jackpot ? [SEVEN, SEVEN, SEVEN] : [0, 1, 2].map(() => Math.floor(Math.random() * STRIP.length))
-      // Only the last machine to be played hits the jackpot.
+      // Only the machine that makes up the set hits the jackpot.
     } while (!jackpot && targets.every((t) => STRIP[t] === STRIP[SEVEN]))
     const from = [0, 1, 2].map((r) => wrap(reelPos.current[m * 3 + r]))
     // Reels roll downward (toward lower positions), each a turn more than the last.

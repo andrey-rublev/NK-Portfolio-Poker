@@ -121,16 +121,25 @@ function App() {
     }
   }, [])
 
+  // The slot machines' secret card can't be put back until it has come all the
+  // way out and turned over: a stray click while it flies up would send it
+  // straight back into its machine.
+  const [secretLanded, setSecretLanded] = useState(false)
+  const canPutBack = focusedKey !== SECRET_CARD_KEY || secretLanded
+  const putBack = () => {
+    if (canPutBack) setFocusedKey(null)
+  }
+
   // Esc puts a lifted card back. Open dialogs handle Esc themselves.
   const overlayOpen = intro !== null || textOpen
   useEffect(() => {
-    if (!focusedKey || overlayOpen) return
+    if (!focusedKey || overlayOpen || !canPutBack) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setFocusedKey(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [focusedKey, overlayOpen])
+  }, [focusedKey, overlayOpen, canPutBack])
 
   const closeIntro = () => {
     // The deal begins only once the visitor closes the welcome card.
@@ -222,8 +231,12 @@ function App() {
               onToggle={handleToggle}
               onSelectSeat={handleSeatSelect}
               onDeckPress={handleDeckPress}
-              onDismiss={() => setFocusedKey(null)}
-              onJackpot={() => setFocusedKey(SECRET_CARD_KEY)}
+              onDismiss={putBack}
+              onJackpot={() => {
+                setSecretLanded(false)
+                setFocusedKey(SECRET_CARD_KEY)
+              }}
+              onSecretLanded={() => setSecretLanded(true)}
             />
           </Suspense>
         </StageBoundary>

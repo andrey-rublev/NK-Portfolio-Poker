@@ -290,6 +290,6 @@
     "accent": "#c9a0ff",
     "suit": "spades",
     "rank": "J",
-    "actions": [{ "label": "Estimathon practice", "href": "" }]
+    "actions": [{ "label": "Estimathon practice", "href": "/estimathon" }]
   }
 }

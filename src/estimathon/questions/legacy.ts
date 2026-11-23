@@ -1,60 +1,7 @@
-/**
- * Estimathon practice questions. To add one, append an object to QUESTIONS:
- * `answer` is a plain number in `unit`, and each guide step pairs a number in
- * the Fermi estimate with where it comes from.
- */
+/** The first hand-written questions, in long form. Newer ones use the compact rows in the category files. */
+import type { Question } from './types'
 
-export type Category = 'population' | 'physics' | 'money' | 'history' | 'everyday'
-export type Difficulty = 'easy' | 'medium' | 'hard'
-
-export const CATEGORY_LABELS: Record<Category, string> = {
-  population: 'Population',
-  physics: 'Physics',
-  money: 'Money',
-  history: 'History',
-  everyday: 'Everyday objects',
-}
-
-export const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
-
-export interface GuideStep {
-  /** One link in the estimate, e.g. "US population ≈ 330 million". */
-  step: string
-  /** Where that number comes from. */
-  source: string
-}
-
-export interface Question {
-  id: string
-  prompt: string
-  answer: number
-  unit: string
-  category: Category
-  difficulty: Difficulty
-  /** Where the true answer comes from. */
-  answerSource: string
-  guide: GuideStep[]
-}
-
-export const QUESTIONS: Question[] = [
-  {
-    id: 'california-population',
-    prompt: 'How many people lived in California at the 2020 US Census?',
-    answer: 39_538_223,
-    unit: 'people',
-    category: 'population',
-    difficulty: 'easy',
-    answerSource: 'US Census Bureau, 2020 Census apportionment results',
-    guide: [
-      { step: 'US population ≈ 330 million', source: 'The 2020 census headline figure was 331 million, a number worth memorising.' },
-      {
-        step: 'California’s share ≈ 12%',
-        source: 'House seats are handed out by population, and California got 52 of the 435 (≈ 12%) after 2020.',
-      },
-      { step: '330 million × 0.12 ≈ 40 million', source: 'Multiply the two.' },
-      { step: 'A 35–45 million interval is a safe, tight call', source: 'Both inputs are solid, so a ratio near 1.3 is reasonable.' },
-    ],
-  },
+export const LEGACY_QUESTIONS: Question[] = [
   {
     id: 'japan-population',
     prompt: 'What was Japan’s population at its 2020 census?',
@@ -105,7 +52,7 @@ export const QUESTIONS: Question[] = [
     prompt: 'What is the average distance from the Earth to the Moon?',
     answer: 384_400,
     unit: 'km',
-    category: 'physics',
+    category: 'space',
     difficulty: 'easy',
     answerSource: 'NASA, Moon fact sheet (mean Earth–Moon distance)',
     guide: [
@@ -147,7 +94,7 @@ export const QUESTIONS: Question[] = [
     prompt: 'How long does sunlight take to reach the Earth?',
     answer: 499,
     unit: 'seconds',
-    category: 'physics',
+    category: 'space',
     difficulty: 'medium',
     answerSource: 'NASA (1 astronomical unit ÷ the speed of light)',
     guide: [

@@ -19,6 +19,16 @@ const width = (r: number | null) => (r === null ? '—' : `×${r.toFixed(2)}`)
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 const capitalise = (s: string) => s[0].toUpperCase() + s.slice(1)
 
+/** A fresh random order of every question (Fisher–Yates), so “Next” mixes categories. */
+function shuffled(list: Question[]) {
+  const out = [...list]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
 function Amount({ n, unit }: { n: number; unit: string }) {
   const inWords = numberInWords(n)
   return (
@@ -33,7 +43,8 @@ export default function EstimathonPage() {
   const [category, setCategory] = useState<Category | 'all'>('all')
   const [difficulty, setDifficulty] = useState<Difficulty | 'all'>('all')
   const [timer, setTimer] = useState(0)
-  const [questionId, setQuestionId] = useState(QUESTIONS[0].id)
+  const [deck] = useState(() => shuffled(QUESTIONS))
+  const [questionId, setQuestionId] = useState(deck[0].id)
   const [low, setLow] = useState('')
   const [high, setHigh] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -48,10 +59,10 @@ export default function EstimathonPage() {
 
   const filtered = useMemo(
     () =>
-      QUESTIONS.filter(
+      deck.filter(
         (q) => (category === 'all' || q.category === category) && (difficulty === 'all' || q.difficulty === difficulty),
       ),
-    [category, difficulty],
+    [deck, category, difficulty],
   )
   const index = filtered.findIndex((q) => q.id === questionId)
   const question = filtered[index] as Question | undefined
@@ -143,7 +154,7 @@ export default function EstimathonPage() {
   const changeFilter = (nextCategory: Category | 'all', nextDifficulty: Difficulty | 'all') => {
     setCategory(nextCategory)
     setDifficulty(nextDifficulty)
-    const list = QUESTIONS.filter(
+    const list = deck.filter(
       (q) =>
         (nextCategory === 'all' || q.category === nextCategory) &&
         (nextDifficulty === 'all' || q.difficulty === nextDifficulty),

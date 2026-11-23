@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
-import { FLOOR } from './layout'
+import { FLOOR, OPEN_SLOT_MACHINES, SLOT_MACHINES, SLOT_ROW_Z, TICKET_SLOT_Y } from './layout'
 import { frameStep } from './frame'
 
 /*
@@ -281,29 +281,113 @@ const SLOT_THEMES = [
 ]
 
 /**
- * A slot machine facing +z: cabinet, a lit screen (on the screen batch, using
- * one quarter of the reel artwork), a lit topper and trim, and a stool.
+ * The top of a slot machine's lower cabinet. They're low machines, so their
+ * reels sit inside the table view, not up against the top of the screen.
  */
-function slotMachine(still: Batch, glow: Batch, screens: Batch, g: THREE.Group, theme: number) {
+const CABINET_TOP = FLOOR + 2.3
+/** A machine's screen, on the front of its upper cabinet: one quarter of the reel art. */
+const SCREEN = { y: CABINET_TOP + 1.25, z: 0.265, tilt: -0.1, w: 1.7, h: 1.5 }
+/** Art pixels (in a 256px quarter of slotScreenTexture) to the screen's own units. */
+const screenX = (px: number) => (px / 256 - 0.5) * SCREEN.w
+const screenY = (px: number) => (0.5 - px / 256) * SCREEN.h
+/** The three reel windows on a playable machine's screen, laid over the art's. */
+const REEL = { x: [0, 1, 2].map((r) => screenX(54 + r * 74)), y: screenY(130), w: (64 / 256) * SCREEN.w, h: (132 / 256) * SCREEN.h }
+/** The top of the stool in front of a machine. */
+const STOOL_Y = CABINET_TOP - 0.6
+/** The deck of buttons along the front; the last, red one spins the reels. */
+const BUTTON_DECK = { y: CABINET_TOP + 0.18, z: 0.66, tilt: 0.28 }
+const SPIN_BUTTON_X = 1.5 * 0.42
+/**
+ * Markers either side of a playable machine's middle row (its pay line), which
+ * light once it has been played. They sit clear of the reels, so a line of
+ * sevens stays easy to read.
+ */
+const PAY_MARKS = (() => {
+  const x = REEL.x[2] + REEL.w / 2 + 0.07
+  return mergeGeometries([-x, x].map((mx) => box(0.09, 0.11, 0.004).translate(mx, REEL.y, 0.006)))
+})()
+
+/**
+ * A slot machine facing +z: cabinet, a lit screen (on the screen batch, using
+ * one quarter of the reel artwork), a lit topper and trim, a ticket slot, and a
+ * stool. A playable machine (given `reels`) gets its reel windows on that
+ * batch, to spin; its spin button and pay-line marks are drawn on their own (see
+ * SlotMachines).
+ */
+function slotMachine(still: Batch, glow: Batch, screens: Batch, g: THREE.Group, theme: number, reels?: Batch) {
   const t = SLOT_THEMES[theme]
-  still.add(g, box(2.1, 2.9, 1.9), '#121214', [0, FLOOR + 1.45, 0])
-  still.add(g, box(2.0, 0.2, 0.8), '#1d1d22', [0, FLOOR + 2.98, 0.6], [0.28, 0, 0])
-  still.add(g, box(2.1, 2.5, 1.2), t.body, [0, FLOOR + 4.15, -0.35], [-0.1, 0, 0])
+  still.add(g, box(2.1, CABINET_TOP - FLOOR, 1.9), '#121214', [0, (FLOOR + CABINET_TOP) / 2, 0])
+  still.add(g, box(2.0, 0.2, 0.8), '#1d1d22', [0, CABINET_TOP + 0.08, 0.6], [0.28, 0, 0])
+  still.add(g, box(2.1, 2.5, 1.2), t.body, [0, SCREEN.y, -0.35], [-0.1, 0, 0])
   // Buttons along the deck.
-  for (let i = 0; i < 4; i += 1) glow.add(g, box(0.26, 0.06, 0.18), i === 3 ? '#ff5a3b' : '#ffe7a0', [(i - 1.5) * 0.42, FLOOR + 3.08, 0.66], [0.28, 0, 0])
-  glow.add(g, box(2.16, 0.55, 1.1), t.light, [0, FLOOR + 5.7, -0.4])
-  for (const s of [-1, 1]) glow.add(g, box(0.06, 2.4, 0.06), t.light, [s * 1.04, FLOOR + 4.15, 0.27], [-0.1, 0, 0])
+  for (let i = 0; i < (reels ? 3 : 4); i += 1) {
+    glow.add(g, box(0.26, 0.06, 0.18), i === 3 ? '#ff5a3b' : '#ffe7a0', [(i - 1.5) * 0.42, BUTTON_DECK.y, BUTTON_DECK.z], [BUTTON_DECK.tilt, 0, 0])
+  }
+  glow.add(g, box(2.16, 0.55, 1.1), t.light, [0, SCREEN.y + 1.55, -0.4])
+  for (const s of [-1, 1]) glow.add(g, box(0.06, 2.4, 0.06), t.light, [s * 1.04, SCREEN.y, 0.27], [-0.1, 0, 0])
+  // The ticket slot, a dark slit in a chrome bezel under the deck.
+  still.add(g, box(0.76, 0.14, 0.02), '#8c8c94', [0, TICKET_SLOT_Y, 0.955])
+  still.add(g, box(0.6, 0.04, 0.02), '#050505', [0, TICKET_SLOT_Y, 0.965])
   // The screen: a plane on the cabinet's front, mapped to its quarter of the art.
-  const plane = new THREE.PlaneGeometry(1.7, 1.5)
+  const plane = new THREE.PlaneGeometry(SCREEN.w, SCREEN.h)
   const uv = plane.getAttribute('uv')
   const u0 = (theme % 2) * 0.5
   const v0 = theme < 2 ? 0.5 : 0
   for (let i = 0; i < uv.count; i += 1) uv.setXY(i, u0 + uv.getX(i) * 0.5, v0 + uv.getY(i) * 0.5)
-  screens.add(g, plane, '#ffffff', [0, FLOOR + 4.15, 0.265], [-0.1, 0, 0])
+  screens.add(g, plane, '#ffffff', [0, SCREEN.y, SCREEN.z], [SCREEN.tilt, 0, 0])
+  if (reels) {
+    const face = new THREE.Group()
+    face.position.set(0, SCREEN.y, SCREEN.z)
+    face.rotation.x = SCREEN.tilt
+    g.add(face)
+    for (const x of REEL.x) reels.add(face, new THREE.PlaneGeometry(REEL.w, REEL.h), '#ffffff', [x, REEL.y, 0.004])
+  }
   // The stool in front.
-  still.add(g, cyl(0.42, 0.42, 0.12, 18), '#3a1418', [0, FLOOR + 2.3, 1.75])
-  still.add(g, cyl(0.05, 0.06, 2.2, 10), '#1c130d', [0, FLOOR + 1.15, 1.75])
+  still.add(g, cyl(0.42, 0.42, 0.12, 18), '#3a1418', [0, STOOL_Y, 1.75])
+  still.add(g, cyl(0.05, 0.06, STOOL_Y - FLOOR, 10), '#1c130d', [0, (FLOOR + STOOL_Y) / 2, 1.75])
   still.add(g, cyl(0.3, 0.34, 0.05, 18), '#1c130d', [0, FLOOR + 0.03, 1.75])
+}
+
+/** One reel symbol, about 40px tall, centred on (x, y): 0 a seven, 1 cherries, 2 a bar, 3 a diamond. */
+function drawSymbol(ctx: CanvasRenderingContext2D, kind: number, x: number, y: number) {
+  ctx.save()
+  ctx.translate(x, y)
+  if (kind === 0) {
+    ctx.fillStyle = '#d4202f'
+    ctx.font = '900 40px "Mulish Variable", system-ui, sans-serif'
+    ctx.fillText('7', 0, 2)
+  } else if (kind === 1) {
+    ctx.strokeStyle = '#2f8a3a'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(-8, 4)
+    ctx.quadraticCurveTo(0, -18, 10, -16)
+    ctx.moveTo(8, 6)
+    ctx.quadraticCurveTo(6, -10, 10, -16)
+    ctx.stroke()
+    ctx.fillStyle = '#d4202f'
+    for (const [cx, cy] of [[-8, 8], [8, 10]]) {
+      ctx.beginPath()
+      ctx.arc(cx, cy, 8, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  } else if (kind === 2) {
+    ctx.fillStyle = '#111'
+    ctx.fillRect(-24, -11, 48, 22)
+    ctx.fillStyle = '#fff'
+    ctx.font = '900 15px "Mulish Variable", system-ui, sans-serif'
+    ctx.fillText('BAR', 0, 1)
+  } else {
+    ctx.fillStyle = '#2a8cff'
+    ctx.beginPath()
+    ctx.moveTo(0, -16)
+    ctx.lineTo(15, -2)
+    ctx.lineTo(0, 17)
+    ctx.lineTo(-15, -2)
+    ctx.closePath()
+    ctx.fill()
+  }
+  ctx.restore()
 }
 
 /** Reel artwork for four kinds of slot machine, one per quarter. */
@@ -318,46 +402,6 @@ function slotScreenTexture(): THREE.CanvasTexture {
     { bg: ['#1d0a33', '#5b2391'], ink: '#ffd25a', title: 'JACKPOT' },
     { bg: ['#2b1d05', '#8a5b0c'], ink: '#fff2b0', title: 'GOLD RUSH' },
   ]
-  const symbol = (kind: number, x: number, y: number) => {
-    ctx.save()
-    ctx.translate(x, y)
-    if (kind === 0) {
-      ctx.fillStyle = '#d4202f'
-      ctx.font = '900 40px "Mulish Variable", system-ui, sans-serif'
-      ctx.fillText('7', 0, 2)
-    } else if (kind === 1) {
-      ctx.strokeStyle = '#2f8a3a'
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.moveTo(-8, 4)
-      ctx.quadraticCurveTo(0, -18, 10, -16)
-      ctx.moveTo(8, 6)
-      ctx.quadraticCurveTo(6, -10, 10, -16)
-      ctx.stroke()
-      ctx.fillStyle = '#d4202f'
-      for (const [cx, cy] of [[-8, 8], [8, 10]]) {
-        ctx.beginPath()
-        ctx.arc(cx, cy, 8, 0, Math.PI * 2)
-        ctx.fill()
-      }
-    } else if (kind === 2) {
-      ctx.fillStyle = '#111'
-      ctx.fillRect(-24, -11, 48, 22)
-      ctx.fillStyle = '#fff'
-      ctx.font = '900 15px "Mulish Variable", system-ui, sans-serif'
-      ctx.fillText('BAR', 0, 1)
-    } else {
-      ctx.fillStyle = '#2a8cff'
-      ctx.beginPath()
-      ctx.moveTo(0, -16)
-      ctx.lineTo(15, -2)
-      ctx.lineTo(0, 17)
-      ctx.lineTo(-15, -2)
-      ctx.closePath()
-      ctx.fill()
-    }
-    ctx.restore()
-  }
   themes.forEach((t, q) => {
     const x0 = (q % 2) * 256
     // Quarters 0 and 1 are the top of the canvas, which maps to v 0.5..1.
@@ -380,7 +424,7 @@ function slotScreenTexture(): THREE.CanvasTexture {
       reel.addColorStop(1, '#b9b4aa')
       ctx.fillStyle = reel
       ctx.fillRect(rx, y0 + 64, 64, 132)
-      for (let k = 0; k < 3; k += 1) symbol((q + r * 2 + k) % 4, rx + 32, y0 + 88 + k * 42)
+      for (let k = 0; k < 3; k += 1) drawSymbol(ctx, (q + r * 2 + k) % 4, rx + 32, y0 + 88 + k * 42)
     }
     ctx.fillStyle = t.ink
     ctx.fillRect(x0 + 14, y0 + 128, 228, 4)
@@ -389,6 +433,39 @@ function slotScreenTexture(): THREE.CanvasTexture {
   })
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
+  tex.anisotropy = 4
+  return tex
+}
+
+/** Symbols round each reel, top to bottom (see drawSymbol). */
+const STRIP = [0, 1, 3, 2, 1, 3, 2, 1]
+const SEVEN = STRIP.indexOf(0)
+
+/** The reel strip, its symbols one under another; it wraps round to spin. */
+function reelStripTexture(): THREE.CanvasTexture {
+  const CELL = 88
+  const c = document.createElement('canvas')
+  c.width = 128
+  c.height = CELL * STRIP.length
+  const ctx = c.getContext('2d')!
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  STRIP.forEach((kind, i) => {
+    const shade = ctx.createLinearGradient(0, i * CELL, 0, (i + 1) * CELL)
+    shade.addColorStop(0, '#e4dfd4')
+    shade.addColorStop(0.5, '#fbf8f0')
+    shade.addColorStop(1, '#e4dfd4')
+    ctx.fillStyle = shade
+    ctx.fillRect(0, i * CELL, c.width, CELL)
+    ctx.save()
+    ctx.translate(c.width / 2, (i + 0.5) * CELL)
+    ctx.scale(2, 2)
+    drawSymbol(ctx, kind, 0, 0)
+    ctx.restore()
+  })
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.wrapT = THREE.RepeatWrapping
   tex.anisotropy = 4
   return tex
 }
@@ -414,23 +491,23 @@ function buildRoom() {
   const still = new Batch(root)
   const glow = new Batch(root)
   const screens = new Batch(root)
+  const reels = new Batch(root)
   const pools: Pool[] = []
 
   // Two banks of slot machines behind the far players, facing the table, with
   // a few people playing them. The gap between the banks stays dark, so the
   // player in the middle seat stands out against it.
-  for (let i = 0; i < 6; i += 1) {
-    const side = i < 3 ? -1 : 1
-    const g = still.group(still.root, [side * (3.3 + (i % 3) * 2.45), 0, -13.4])
-    slotMachine(still, glow, screens, g, i % SLOT_THEMES.length)
+  SLOT_MACHINES.forEach(({ x, played }, i) => {
+    const g = still.group(still.root, [x, 0, SLOT_ROW_Z])
+    slotMachine(still, glow, screens, g, i % SLOT_THEMES.length, played ? undefined : reels)
     // A stool's player sits facing the machine (-z), reaching for the deck.
-    if (i === 1 || i === 3 || i === 5) {
-      const seatY = FLOOR + 2.36
+    if (played) {
+      const seatY = STOOL_Y + 0.06
       const fig = still.group(g, [0, seatY, 1.8], Math.PI, FIG)
-      seatedFigure(still, fig, randomLook(rand), seatY, [(FLOOR + 3.05 - seatY) / FIG, 0.55], false)
+      seatedFigure(still, fig, randomLook(rand), seatY, [(BUTTON_DECK.y - 0.03 - seatY) / FIG, 0.55], false)
     }
-  }
-  for (const side of [-1, 1]) pools.push({ x: side * 5.75, z: -11.2, y: FLOOR + 0.02, sx: 9, sz: 5, yaw: 0 })
+  })
+  for (const side of [-1, 1]) pools.push({ x: side * 5.75, z: SLOT_ROW_Z + 2.2, y: FLOOR + 0.02, sx: 9, sz: 5, yaw: 0 })
 
   pokerTable(still, glow, pools, rand, -20, -1, Math.PI / 2, '#1a5a8a')
   pokerTable(still, glow, pools, rand, 20, -1, -Math.PI / 2, '#16653f')
@@ -447,7 +524,13 @@ function buildRoom() {
     poolBatch.add(poolBatch.root, new THREE.PlaneGeometry(1, 1), '#ffffff', [p.x, p.y, p.z], [-Math.PI / 2, 0, p.yaw], [p.sx, p.sz, 1])
   }
 
-  return { still: still.build(), glow: glow.build(), screens: screens.build(true), pools: poolBatch.build(true) }
+  return {
+    still: still.build(),
+    glow: glow.build(),
+    screens: screens.build(true),
+    reels: reels.build(true),
+    pools: poolBatch.build(true),
+  }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -664,14 +747,197 @@ function Walkers({ still }: { still: boolean }) {
 }
 
 /* ------------------------------------------------------------------------ */
+/* The slot machines nobody is playing                                       */
+/* ------------------------------------------------------------------------ */
+
+/** Seconds from the press until each reel stops, left to right. */
+const REEL_STOPS = [0.9, 1.25, 1.6]
+/** The spin button stays pressed in this long. */
+const PRESS_SECONDS = 0.18
+/** On a jackpot the pay-line marks flash this long, and the ticket comes out partway through. */
+const FLASH_SECONDS = 1.6
+const PAYOUT_SECONDS = 0.5
+const MARK_OFF = new THREE.Color('#5c4a22')
+const MARK_ON = new THREE.Color('#fff1a8')
+const SPIN_BUTTON = new THREE.Color('#ff5a3b')
+const SPIN_BUTTON_HOVER = new THREE.Color('#ffb4a0')
+
+interface Spin {
+  start: number
+  from: number[]
+  travel: number[]
+  jackpot: boolean
+}
+
+interface Machine {
+  spun: boolean
+  spin: Spin | null
+  pressedAt: number
+}
+
+const wrap = (p: number) => ((p % STRIP.length) + STRIP.length) % STRIP.length
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+
+/**
+ * The easter egg: the machines nobody is playing can be spun with their red
+ * button. Each one's pay-line marks light once it has been played, and when the last
+ * of them is spun it hits 7-7-7 and pays out the secret card through its ticket
+ * slot (`onJackpot`, with the machine's x). Played again after that, any of them
+ * pays out again.
+ */
+function SlotMachines({ reels, still, onJackpot }: { reels: THREE.BufferGeometry; still: boolean; onJackpot: (x: number) => void }) {
+  const strip = useMemo(() => reelStripTexture(), [])
+  const machines = useRef<Machine[]>(OPEN_SLOT_MACHINES.map(() => ({ spun: false, spin: null, pressedAt: -1 })))
+  // Where each reel has turned to, in symbols (the middle row shows STRIP[p]).
+  const reelPos = useRef(OPEN_SLOT_MACHINES.flatMap((_, m) => [m * 3 + 2, m * 2 + 5, m + 3]))
+  const buttons = useRef<(THREE.Mesh | null)[]>([])
+  const marks = useRef<(THREE.Mesh | null)[]>([])
+  const hovered = useRef(-1)
+  const time = useRef(0)
+  const flashUntil = useRef(-1)
+  const payout = useRef<{ at: number; x: number } | null>(null)
+  const invalidate = useThree((s) => s.invalidate)
+
+  // Each reel window shows three symbols of the strip, centred on its position.
+  const showReels = useCallback(() => {
+    const uv = reels.getAttribute('uv') as THREE.BufferAttribute
+    reelPos.current.forEach((p, q) => {
+      const mid = 1 - (p + 0.5) / STRIP.length
+      const half = 1.5 / STRIP.length
+      // A plane's corners run top-left, top-right, bottom-left, bottom-right.
+      for (const [k, v] of [[0, mid + half], [1, mid + half], [2, mid - half], [3, mid - half]]) uv.setY(q * 4 + k, v)
+    })
+    uv.needsUpdate = true
+  }, [reels])
+  useLayoutEffect(showReels, [showReels])
+
+  const press = (m: number) => {
+    const machine = machines.current[m]
+    if (machine.spin) return
+    machine.spun = true
+    machine.pressedAt = time.current
+    const jackpot = machines.current.every((x) => x.spun)
+    let targets: number[]
+    do {
+      targets = jackpot ? [SEVEN, SEVEN, SEVEN] : [0, 1, 2].map(() => Math.floor(Math.random() * STRIP.length))
+      // Only the last machine to be played hits the jackpot.
+    } while (!jackpot && targets.every((t) => STRIP[t] === STRIP[SEVEN]))
+    const from = [0, 1, 2].map((r) => wrap(reelPos.current[m * 3 + r]))
+    // Reels roll downward (toward lower positions), each a turn more than the last.
+    const travel = from.map((f, r) => wrap(f - targets[r]) + STRIP.length * (2 + r))
+    machine.spin = { start: time.current, from, travel, jackpot }
+    invalidate()
+  }
+
+  useFrame((state, delta) => {
+    time.current += frameStep(delta)
+    const t = time.current
+    let busy = false
+    let rolled = false
+    machines.current.forEach((machine, m) => {
+      const spin = machine.spin
+      if (spin) {
+        busy = true
+        rolled = true
+        const elapsed = t - spin.start
+        for (let r = 0; r < 3; r += 1) {
+          const u = still ? 1 : Math.min(1, elapsed / REEL_STOPS[r])
+          // A little knock past the symbol and back as the reel catches.
+          const knock = 0.12 * Math.sin(Math.PI * Math.max(0, (u - 0.85) / 0.15))
+          reelPos.current[m * 3 + r] = spin.from[r] - spin.travel[r] * easeOutCubic(u) - knock
+        }
+        if (still || elapsed >= REEL_STOPS[2]) {
+          machine.spin = null
+          if (spin.jackpot) {
+            flashUntil.current = t + FLASH_SECONDS
+            payout.current = { at: t + PAYOUT_SECONDS, x: OPEN_SLOT_MACHINES[m].x }
+          }
+        }
+      }
+      const pressed = t - machine.pressedAt < PRESS_SECONDS
+      if (pressed) busy = true
+      const button = buttons.current[m]
+      if (button) {
+        button.position.y = BUTTON_DECK.y - (pressed ? 0.035 : 0)
+        ;(button.material as THREE.MeshBasicMaterial).color.copy(hovered.current === m ? SPIN_BUTTON_HOVER : SPIN_BUTTON)
+      }
+    })
+    if (rolled) showReels()
+
+    // Pay-line marks light as their machines are played, and all flash on a jackpot.
+    const flashing = t < flashUntil.current
+    const blinkOn = Math.floor(t * 8) % 2 === 0
+    marks.current.forEach((mark, m) => {
+      if (!mark) return
+      const lit = flashing ? blinkOn : machines.current[m].spun
+      ;(mark.material as THREE.MeshBasicMaterial).color.copy(lit ? MARK_ON : MARK_OFF)
+    })
+    if (flashing) busy = true
+
+    if (payout.current && t >= payout.current.at) {
+      onJackpot(payout.current.x)
+      payout.current = null
+    }
+    if (busy || payout.current) state.invalidate()
+  })
+
+  return (
+    <>
+      <mesh geometry={reels}>
+        <meshBasicMaterial map={strip} />
+      </mesh>
+      {OPEN_SLOT_MACHINES.map(({ x }, m) => (
+        <group key={x} position={[x, 0, SLOT_ROW_Z]}>
+          <mesh ref={(el) => void (buttons.current[m] = el)} position={[SPIN_BUTTON_X, BUTTON_DECK.y, BUTTON_DECK.z]} rotation-x={BUTTON_DECK.tilt}>
+            <boxGeometry args={[0.26, 0.06, 0.18]} />
+            <meshBasicMaterial color={SPIN_BUTTON} />
+          </mesh>
+          <group position={[0, SCREEN.y, SCREEN.z]} rotation-x={SCREEN.tilt}>
+            <mesh ref={(el) => void (marks.current[m] = el)} geometry={PAY_MARKS}>
+              <meshBasicMaterial color={MARK_OFF} />
+            </mesh>
+          </group>
+          {/* The whole button deck takes the press: from across the room the
+              button itself is only a few pixels. Invisible objects are never
+              drawn but still catch pointer events. */}
+          <mesh
+            visible={false}
+            position={[0, BUTTON_DECK.y - 0.06, BUTTON_DECK.z - 0.06]}
+            rotation-x={BUTTON_DECK.tilt}
+            onClick={(e) => {
+              e.stopPropagation()
+              press(m)
+            }}
+            onPointerOver={(e) => {
+              e.stopPropagation()
+              hovered.current = m
+              document.body.style.cursor = 'pointer'
+              invalidate()
+            }}
+            onPointerOut={() => {
+              hovered.current = -1
+              document.body.style.cursor = ''
+              invalidate()
+            }}
+          >
+            <boxGeometry args={[2.2, 0.5, 1.0]} />
+          </mesh>
+        </group>
+      ))}
+    </>
+  )
+}
+
+/* ------------------------------------------------------------------------ */
 
 /**
  * The room round the table. While `animate` is on, frames are drawn at a
  * steady 30 a second so the walkers keep walking, a lifted card or not; it is
  * switched off while a dialog covers the table, which then costs nothing to
- * show. The walkers stand still altogether when motion is off.
+ * show. The walkers stand still altogether when motion is off. `onJackpot`
+ * is the slot machines paying out the secret card (see SlotMachines).
  */
-export function Casino({ animate, still }: { animate: boolean; still: boolean }) {
+export function Casino({ animate, still, onJackpot }: { animate: boolean; still: boolean; onJackpot: (x: number) => void }) {
   const room = useMemo(() => buildRoom(), [])
   const screenTex = useMemo(() => slotScreenTexture(), [])
   const poolTex = useMemo(() => poolTexture(), [])
@@ -697,6 +963,7 @@ export function Casino({ animate, still }: { animate: boolean; still: boolean })
       <mesh geometry={room.pools} renderOrder={-1}>
         <meshBasicMaterial map={poolTex} color="#ffcf8f" transparent opacity={0.22} depthWrite={false} />
       </mesh>
+      <SlotMachines reels={room.reels} still={still} onJackpot={onJackpot} />
       <Walkers still={still} />
     </>
   )

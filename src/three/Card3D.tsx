@@ -66,15 +66,19 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
   const [outOfDeck, setOutOfDeck] = useState(dealt)
   const faces = useMemo(() => createCardFaces(slot.section, slot.role), [slot.section, slot.role])
 
+  // A card kept out of sight at rest (the slot machines' secret card) is never
+  // dealt: it waits where it is until it slides out to be read.
+  const hiddenAtRest = !!slot.slideOut
   const base = useRef({
-    pos: [...DECK_TOP] as [number, number, number],
-    rot: [FACE_DOWN_X, 0, 0] as [number, number, number],
-    scale: 1,
+    pos: [...(hiddenAtRest ? slot.position : DECK_TOP)] as [number, number, number],
+    rot: [hiddenAtRest ? FACE_UP_X : FACE_DOWN_X, 0, 0] as [number, number, number],
+    scale: slot.scale ?? 1,
   })
   const prog = useRef(0)
   // How far through its flight from the deck the card is (1 once it has landed).
-  const flight = useRef(0)
-  // How far a board card still in the deck has slid out of its side (see DECK_SLOT).
+  const flight = useRef(hiddenAtRest ? 1 : 0)
+  // How far the card has slid out before rising: a board card still in the deck
+  // out of its side (see DECK_SLOT), a hidden card out to its slideOut spot.
   const pull = useRef(0)
 
   useEffect(() => {
@@ -105,7 +109,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     let tp: [number, number, number] = rest
     let tr: [number, number, number] = [face, slot.yaw, 0]
     // Board cards rest a little smaller on the phone table (see BOARD_SCALE).
-    const restScale = isCommunity ? BOARD_SCALE : 1
+    const restScale = slot.scale ?? (isCommunity ? BOARD_SCALE : 1)
     let ts = restScale
     if (!outOfDeck) {
       tp = DECK_TOP
@@ -169,23 +173,27 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
     // player) before it is laid flat by the X rotation.
     _qBase.setFromEuler(_euler.set(b.rot[0], b.rot[1], 0, 'YXZ'))
 
-    // Called up from the deck: slide out of its side face up first, and back
-    // in once it has come down again.
-    const pullWant = !outOfDeck && (focused || prog.current > PULL_BACK_BELOW) ? 1 : 0
+    // Called up from the deck, or out of hiding: slide out face up first, and
+    // back in once it has come down again.
+    const slides = !outOfDeck || hiddenAtRest
+    const from = hiddenAtRest ? rest : DECK_SLOT
+    const to = slot.slideOut ?? DECK_SIDE
+    const pullWant = slides && (focused || prog.current > PULL_BACK_BELOW) ? 1 : 0
     if (pull.current !== pullWant) {
       const step = dt / PULL_SECONDS
       pull.current = pullWant ? Math.min(1, pull.current + step) : Math.max(0, pull.current - step)
       moving = true
     }
     if (pull.current > 0) {
-      _basePos.set(lerp(DECK_SLOT[0], DECK_SIDE[0], easeInOut(pull.current)), DECK_SLOT[1], DECK_SLOT[2])
+      const e = easeInOut(pull.current)
+      _basePos.set(lerp(from[0], to[0], e), lerp(from[1], to[1], e), lerp(from[2], to[2], e))
       _qBase.setFromEuler(_euler.set(FACE_UP_X, 0, 0, 'YXZ'))
     }
 
     // Lower rate = slower pick-up (focus in) and put-down (focus out).
-    // Time-corrected (≈ the old per-frame 0.06 at 60 fps). A card called up
-    // from the deck rises once it is out.
-    const want = focused && (outOfDeck || pull.current >= 1) ? 1 : 0
+    // Time-corrected (≈ the old per-frame 0.06 at 60 fps). A card that slides
+    // out first rises once it is out.
+    const want = focused && (!slides || pull.current >= 1) ? 1 : 0
     prog.current = lerp(prog.current, want, 1 - Math.exp(-3.7 * dt))
     if (Math.abs(prog.current - want) < SETTLED) prog.current = want
     else moving = true
@@ -225,6 +233,7 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
       if (backMat.current.map !== want) backMat.current.map = want
     }
 
+    g.visible = !hiddenAtRest || lifted || pull.current > 0
     if (!lifted) {
       g.position.copy(_basePos)
       g.quaternion.copy(_qBase)
@@ -306,15 +315,17 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
           raises the visual card, but clicking the original footprint (even after
           it has raised) still selects the card. Invisible objects are never
           drawn but still catch pointer events. */}
-      <mesh
-        visible={false}
-        position={[rest[0], CARD.restY + 0.18, rest[2]]}
-        onPointerOver={onOver}
-        onPointerOut={onOut}
-        onClick={onClick}
-      >
-        <boxGeometry args={[CARD.w * (isCommunity ? BOARD_SCALE : 1) + 0.06, 0.7, CARD.h * (isCommunity ? BOARD_SCALE : 1) + 0.06]} />
-      </mesh>
+      {!hiddenAtRest && (
+        <mesh
+          visible={false}
+          position={[rest[0], CARD.restY + 0.18, rest[2]]}
+          onPointerOver={onOver}
+          onPointerOut={onOut}
+          onClick={onClick}
+        >
+          <boxGeometry args={[CARD.w * (isCommunity ? BOARD_SCALE : 1) + 0.06, 0.7, CARD.h * (isCommunity ? BOARD_SCALE : 1) + 0.06]} />
+        </mesh>
+      )}
 
       {/* Materials are `transparent` at full opacity purely for draw order:
           three.js sorts opaque and transparent objects in separate passes, and
@@ -338,9 +349,9 @@ export function Card3D({ slot, dealt, focused, interactive, onToggle }: Card3DPr
           // side. Their z-index stays under the page's own buttons and dialogs
           // (drei's default would float them above everything).
           <Html position={[0, -0.5, isCommunity ? -0.06 : 0.06]} center zIndexRange={[16, 16]}>
-            {/* A card called up from the deck slides out before it rises, so
-                its links wait that much longer to appear. */}
-            <div className="card-link-row" style={outOfDeck ? undefined : { animationDelay: `${0.6 + PULL_SECONDS}s` }}>
+            {/* A card called up from the deck (or out of hiding) slides out
+                before it rises, so its links wait that much longer to appear. */}
+            <div className="card-link-row" style={outOfDeck && !hiddenAtRest ? undefined : { animationDelay: `${0.6 + PULL_SECONDS}s` }}>
               {actions.map((a) => (
                 <a key={a.href} href={a.href} target="_blank" rel="noopener noreferrer">
                   {a.label}

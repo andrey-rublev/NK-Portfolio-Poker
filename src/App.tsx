@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { owner } from './data/portfolio'
 import { canvasFontsReady } from './fonts'
 import { logosReady } from './data/logos'
-import { CONTACT_CARD_KEY, type CardSlot } from './three/layout'
+import { CONTACT_CARD_KEY, SECRET_CARD_KEY, type CardSlot } from './three/layout'
 import { motionOff } from './three/motion'
 import {
   SHIM_COLLAPSE_PX,
@@ -223,6 +223,7 @@ function App() {
               onSelectSeat={handleSeatSelect}
               onDeckPress={handleDeckPress}
               onDismiss={() => setFocusedKey(null)}
+              onJackpot={() => setFocusedKey(SECRET_CARD_KEY)}
             />
           </Suspense>
         </StageBoundary>

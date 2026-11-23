@@ -84,6 +84,13 @@ export interface CardSlot {
   yaw: number
   /** Order this card flies out of the deck during the initial deal. */
   dealIndex: number
+  /** Size at rest, where 1 is a full card (default: 1, or BOARD_SCALE on the board). */
+  scale?: number
+  /**
+   * A card kept out of sight at rest: where it slides out to before it rises
+   * to be read, and back in from after.
+   */
+  slideOut?: [number, number, number]
 }
 
 /**
@@ -198,6 +205,42 @@ export const DECK_TOP: [number, number, number] = [
  * They're the board's size.
  */
 export const BURN_POSITION: [number, number, number] = COMPACT_VIEW ? [-1.3, CARD.restY, 1.45] : [-1.4, CARD.restY, 1.55]
+
+/**
+ * The bank of slot machines behind the far players (see Casino): three either
+ * side of the middle, facing the table, with someone playing each end one (the
+ * ends sit under the page's corner buttons).
+ */
+export const SLOT_ROW_Z = -13
+export const SLOT_MACHINES = Array.from({ length: 6 }, (_, i) => ({
+  x: (i < 3 ? -1 : 1) * (3.3 + (i % 3) * 2.45),
+  played: i % 3 === 2,
+}))
+/** The machines nobody is playing, which a visitor can spin. */
+export const OPEN_SLOT_MACHINES = SLOT_MACHINES.filter((m) => !m.played)
+/** Height of the ticket slot in a machine's front, which pays out the secret card. */
+export const TICKET_SLOT_Y = FLOOR + 1.9
+
+/** Focus key of the secret card (see secretSection). */
+export const SECRET_CARD_KEY = 'secret'
+
+/**
+ * The secret card, waiting inside the slot machine at `x`: it slides out of the
+ * ticket slot before it rises to be read, and back in after.
+ */
+export function secretSlot(section: PortfolioCardData, x: number): CardSlot {
+  return {
+    id: SECRET_CARD_KEY,
+    section,
+    role: 'community',
+    handId: SECRET_CARD_KEY,
+    position: [x, TICKET_SLOT_Y, SLOT_ROW_Z + 0.6],
+    slideOut: [x, TICKET_SLOT_Y, SLOT_ROW_Z + 1.35],
+    scale: 0.45,
+    yaw: 0,
+    dealIndex: 0,
+  }
+}
 
 /** The dealer button, to the right of the pot. */
 export const BUTTON_POSITION: [number, number] = COMPACT_VIEW ? [1.9, 1.3] : [2.1, 1.75]

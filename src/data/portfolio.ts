@@ -112,5 +112,15 @@ export const communitySections: PortfolioCardData[] = pickSections([
   'contact',
 ])
 
+/**
+ * The hidden card the casino's slot machines pay out once every empty one has
+ * been spun. It is left out of the list view and the page text: it's a secret.
+ * A link without an address yet is left off the card.
+ */
+export const secretSection: PortfolioCardData = (() => {
+  const card = mergeCard({ ...basePortfolio.secret, suit: basePortfolio.secret.suit as Suit } as PortfolioCardData)
+  return { ...card, actions: card.actions?.filter((a) => a.href) }
+})()
+
 export const lastDataUpdate: string | null =
   overrides._meta?.lastUpdated ?? null

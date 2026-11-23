@@ -278,5 +278,14 @@
         }
       ]
     }
-  ]
+  ],
+  "secret": {
+    "id": "stealth",
+    "label": "Stealth Projects",
+    "groups": [],
+    "accent": "#c9a0ff",
+    "suit": "spades",
+    "rank": "J",
+    "actions": [{ "label": "Estimathon practice", "href": "" }]
+  }
 }

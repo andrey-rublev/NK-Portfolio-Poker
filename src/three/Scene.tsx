@@ -18,8 +18,11 @@ import {
   CAMERA_HOME,
   FLOOR,
   TABLE,
+  SECRET_CARD_KEY,
+  secretSlot,
   type CardSlot,
 } from './layout'
+import { secretSection } from '../data/portfolio'
 import { getSharedBack, onCardFacesUpdated } from './cardTextures'
 import { getCardGeometry } from './cardGeometry'
 import { createFloorTexture } from './floorTexture'
@@ -340,6 +343,8 @@ export interface SceneProps {
   onSelectSeat: (seatId: string) => void
   onDeckPress: () => void
   onDismiss: () => void
+  /** The slot machines have paid out the secret card: lift it to be read. */
+  onJackpot: () => void
 }
 
 export function Scene({
@@ -354,9 +359,13 @@ export function Scene({
   onSelectSeat,
   onDeckPress,
   onDismiss,
+  onJackpot,
 }: SceneProps) {
   const invalidate = useThree((s) => s.invalidate)
   const [still] = useState(motionOff)
+  // The slot machine that last paid out the secret card, which it goes back into.
+  const [payoutX, setPayoutX] = useState<number | null>(null)
+  const secret = useMemo(() => (payoutX === null ? null : secretSlot(secretSection, payoutX)), [payoutX])
 
   // Frames are drawn on demand. Each animation keeps requesting frames until it
   // settles; this starts them off whenever the hand moves on, and redraws when
@@ -412,7 +421,14 @@ export function Scene({
       <pointLight position={[9, 4, 6]} intensity={8} color="#9fd8ff" />
 
       <Floor />
-      <Casino animate={ambient} still={still} />
+      <Casino
+        animate={ambient}
+        still={still}
+        onJackpot={(x) => {
+          setPayoutX(x)
+          onJackpot()
+        }}
+      />
       <PokerTable />
       <Chips rounds={betStage} />
       <Players />
@@ -445,6 +461,10 @@ export function Scene({
           />
         )
       })}
+
+      {secret && (
+        <Card3D slot={secret} dealt focused={focusedKey === SECRET_CARD_KEY} interactive={false} onToggle={onToggle} />
+      )}
 
       {focusedKey && <DismissCatcher onDismiss={onDismiss} />}
 

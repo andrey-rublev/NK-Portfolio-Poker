@@ -1,12 +1,16 @@
 import type { Category } from './questions'
 
-/** Running totals for one group of attempts. */
+/**
+ * Running totals for one group of attempts. In Estimathon mode a hit is an
+ * interval that contains the answer and the width is high ÷ low; in Fermi mode
+ * a hit is a guess within ×2 and the width is how many times off it was.
+ */
 export interface Tally {
   attempts: number
   hits: number
-  /** Sum of ln(high / low) over attempts that had an interval. */
+  /** Sum of ln(width) over attempts that had a guess. */
   logWidthSum: number
-  /** Attempts that had an interval (a timed-out blank one has none). */
+  /** Attempts that had a guess (a timed-out blank one has none). */
   widths: number
 }
 
@@ -15,14 +19,17 @@ export interface Stats {
   byCategory: Partial<Record<Category, Tally>>
 }
 
-const KEY = 'estimathon-stats-v1'
+export type Mode = 'interval' | 'single'
+
+/** Each mode keeps its own progress. */
+const KEYS: Record<Mode, string> = { interval: 'estimathon-stats-v1', single: 'estimathon-fermi-stats-v1' }
 
 const emptyTally = (): Tally => ({ attempts: 0, hits: 0, logWidthSum: 0, widths: 0 })
 export const emptyStats = (): Stats => ({ total: emptyTally(), byCategory: {} })
 
-export function loadStats(): Stats {
+export function loadStats(mode: Mode): Stats {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Stats | null
+    const saved = JSON.parse(localStorage.getItem(KEYS[mode]) ?? 'null') as Stats | null
     if (saved?.total && saved.byCategory) return saved
   } catch {
     // Private windows and blocked storage: start fresh.
@@ -30,10 +37,10 @@ export function loadStats(): Stats {
   return emptyStats()
 }
 
-export function saveStats(stats: Stats) {
+export function saveStats(mode: Mode, stats: Stats) {
   try {
-    if (stats.total.attempts === 0) localStorage.removeItem(KEY)
-    else localStorage.setItem(KEY, JSON.stringify(stats))
+    if (stats.total.attempts === 0) localStorage.removeItem(KEYS[mode])
+    else localStorage.setItem(KEYS[mode], JSON.stringify(stats))
   } catch {
     // Progress just won't persist.
   }
@@ -48,7 +55,7 @@ function add(t: Tally, hit: boolean, ratio: number | null): Tally {
   }
 }
 
-/** Records one attempt. `ratio` is high/low, or null when no interval was given. */
+/** Records one attempt. `ratio` is its width (see Tally), or null when no guess was given. */
 export function record(stats: Stats, category: Category, hit: boolean, ratio: number | null): Stats {
   return {
     total: add(stats.total, hit, ratio),
@@ -59,7 +66,7 @@ export function record(stats: Stats, category: Category, hit: boolean, ratio: nu
 export const hitRate = (t: Tally) => (t.attempts ? t.hits / t.attempts : null)
 
 /**
- * Average interval width as a high/low ratio. It's the geometric mean, so one
- * wild ×1000 interval doesn't swamp a run of ×2s.
+ * Average width (see Tally). It's the geometric mean, so one wild ×1000 doesn't
+ * swamp a run of ×2s.
  */
 export const averageWidth = (t: Tally) => (t.widths ? Math.exp(t.logWidthSum / t.widths) : null)

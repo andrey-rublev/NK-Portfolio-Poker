@@ -1,14 +1,14 @@
 export type Category =
-  | 'population'
-  | 'geography'
-  | 'space'
-  | 'physics'
-  | 'nature'
-  | 'money'
-  | 'history'
-  | 'sports'
-  | 'technology'
+  | 'food'
   | 'everyday'
+  | 'people'
+  | 'travel'
+  | 'money'
+  | 'sports'
+  | 'nature'
+  | 'body'
+  | 'world'
+  | 'tech'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 

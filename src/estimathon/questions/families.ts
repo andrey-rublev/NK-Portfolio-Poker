@@ -216,11 +216,11 @@ const stackQuestions: Question[] = THICKNESSES.flatMap(([plural, thick, thickSou
 const SPEEDS: [string, number, string][] = [
   ['walk', 5, 'Walking pace ≈ 5 km/h.'],
   ['cycle', 20, 'Steady cycling ≈ 20 km/h.'],
-  ['drive at 100 km/h (62 mph)', 100, 'Motorway speed.'],
+  ['drive at highway speed', 100, 'Highway speed ≈ 100 km/h (62 mph).'],
   ['fly in an airliner', 900, 'Airliners cruise ≈ 900 km/h.'],
   ['travel at the speed of sound', 1_235, 'Sound at sea level ≈ 343 m/s ≈ 1,235 km/h.'],
   ['travel at the ISS’s orbital speed', 27_600, 'The ISS moves at ≈ 7.66 km/s ≈ 27,600 km/h.'],
-  ['crawl at a garden snail’s pace (≈ 1 mm a second)', 0.0036, '1 mm/s = 3.6 m an hour.'],
+  ['crawl at a garden snail’s pace', 0.0036, 'A garden snail manages ≈ 1 mm a second = 3.6 m an hour.'],
   ['run at Usain Bolt’s 100 m world-record average speed', 37.58, '100 m in 9.58 s ≈ 10.4 m/s ≈ 37.6 km/h.'],
 ]
 
@@ -268,18 +268,18 @@ const LIFE_DAYS = 80 * 365.25
 
 /** [prompt, per day, unit, where the daily rate comes from] */
 const LIFETIME: [string, number, string, string][] = [
-  ['How many times does your heart beat in an 80-year life (at 70 beats a minute)?', 70 * 1_440, 'beats', '70 beats a minute × 1,440 minutes.'],
-  ['How many breaths do you take in an 80-year life (at 14 a minute)?', 14 * 1_440, 'breaths', '14 breaths a minute × 1,440 minutes.'],
-  ['How many times do you blink in an 80-year life (15 a minute over 16 waking hours)?', 15 * 960, 'blinks', '15 a minute × 960 waking minutes.'],
-  ['How many meals do you eat in an 80-year life, at three a day?', 3, 'meals', 'Three meals a day.'],
-  ['How many times do you brush your teeth in an 80-year life, twice a day?', 2, 'brushings', 'Twice a day.'],
-  ['How many hours do you spend asleep in an 80-year life, at 8 hours a night?', 8, 'hours', '8 hours a night.'],
-  ['How many steps does the average American take in an 80-year life (≈ 5,100 a day)?', 5_117, 'steps', 'Bassett et al. (2010): US adults average ≈ 5,117 steps a day.'],
-  ['How many words do you speak in an 80-year life (≈ 16,000 a day)?', 16_000, 'words', 'Mehl et al. (2007), Science: ≈ 16,000 words a day.'],
-  ['How many haircuts do you get in an 80-year life, at one every 6 weeks?', 1 / 42, 'haircuts', 'One every 42 days.'],
-  ['How many hours of TV does the average American watch in an 80-year life (≈ 2.8 a day)?', 2.8, 'hours', 'BLS American Time Use Survey 2023: ≈ 2.8 hours a day.'],
-  ['How many times do you go to the toilet in an 80-year life (≈ 7 a day)?', 7, 'visits', 'A typical 6–8 times a day.'],
-  ['How many litres of water do you drink in an 80-year life (≈ 2 litres a day)?', 2, 'litres', '≈ 2 L of drinks a day.'],
+  ['How many times does your heart beat in a lifetime?', 70 * 1_440, 'beats', '70 beats a minute × 1,440 minutes.'],
+  ['How many breaths do you take in a lifetime?', 14 * 1_440, 'breaths', '14 breaths a minute × 1,440 minutes.'],
+  ['How many times do you blink in a lifetime?', 15 * 960, 'blinks', '15 a minute × 960 waking minutes.'],
+  ['How many meals do you eat in a lifetime?', 3, 'meals', 'Three meals a day.'],
+  ['How many times do you brush your teeth in a lifetime?', 2, 'brushings', 'Twice a day.'],
+  ['How many hours do you spend asleep in a lifetime?', 8, 'hours', '8 hours a night.'],
+  ['How many steps does the average American take in a lifetime?', 5_117, 'steps', 'Bassett et al. (2010): US adults average ≈ 5,117 steps a day.'],
+  ['How many words do you speak in a lifetime?', 16_000, 'words', 'Mehl et al. (2007), Science: ≈ 16,000 words a day.'],
+  ['How many haircuts do you get in a lifetime?', 1 / 42, 'haircuts', 'One every 42 days.'],
+  ['How many hours of TV does the average American watch in a lifetime?', 2.8, 'hours', 'BLS American Time Use Survey 2023: ≈ 2.8 hours a day.'],
+  ['How many times do you go to the toilet in a lifetime?', 7, 'visits', 'A typical 6–8 times a day.'],
+  ['How many litres of water do you drink in a lifetime?', 2, 'litres', '≈ 2 L of drinks a day.'],
 ]
 
 const lifetimeQuestions: Question[] = LIFETIME.map(([prompt, perDay, unit, source]) => {
@@ -354,7 +354,7 @@ const OBJECTS: [string, [number, number, number], number, string][] = [
   ['a 1 m cube of solid iron', [1, 1, 1], 7_874, 'Iron and steel are about 7.9× water.'],
   ['a 1 m cube of ice', [1, 1, 1], 917, 'Ice floats with about 9/10 under water: ≈ 0.92× water.'],
   ['a 1-litre bottle full of mercury', [0.1, 0.1, 0.1], 13_534, 'Mercury is about 13.5× water: steel floats on it.'],
-  ['a pane of window glass 1 m × 1 m × 4 mm', [1, 1, 0.004], 2_500, 'Glass is about 2.5× water.'],
+  ['a 1 m × 1 m pane of window glass', [1, 1, 0.004], 2_500, 'Glass is about 2.5× water.'],
   ['a 10 cm cube of aluminium', [0.1, 0.1, 0.1], 2_700, 'Aluminium is about 2.7× water.'],
   ['a 30 cm cube of tungsten', [0.3, 0.3, 0.3], 19_250, 'Tungsten is almost exactly as dense as gold.'],
 ]
@@ -362,7 +362,7 @@ const OBJECTS: [string, [number, number, number], number, string][] = [
 const objectQuestions = OBJECTS.map(([what, [a, b, c], density, note]) => {
   const volume = a * b * c
   const kg = volume * density
-  return question('everyday', `How much does ${what} weigh?`, Number(kg.toPrecision(4)), 'kg', 'medium', `Volume × density (${round(density, 4)} kg/m³)`, [
+  return question('everyday', `How much does ${what} weigh?`, Number(kg.toPrecision(4)), 'kg', 'medium', `Calculated: ${[a, b, c].map((x) => `${round(x, 3)} m`).join(' × ')} at ${round(density, 4)} kg/m³`, [
     { step: `Volume = ${[a, b, c].map((x) => `${round(x, 3)} m`).join(' × ')} = ${round(volume, 3)} m³`, source: '1 m³ = 1,000 litres.' },
     { step: `Density ≈ ${round(density, 2)} kg/m³`, source: note },
     { step: `${round(volume, 3)} × ${round(density, 2)} ≈ ${round(kg)} kg`, source: 'Mass = volume × density.' },
@@ -377,21 +377,21 @@ const AVOGADRO = 6.02214076e23
 
 /** [what, element, grams of it, molar mass in g/mol] */
 const ATOMS: [string, string, number, number][] = [
-  ['a 1-carat diamond (0.2 grams of carbon)', 'carbon', 0.2, 12.011],
+  ['a 1-carat diamond', 'carbon', 0.2, 12.011],
   ['a 1 kg block of aluminium', 'aluminium', 1000, 26.982],
-  ['a 10 gram gold ring', 'gold', 10, 196.97],
+  ['a gold wedding ring', 'gold', 10, 196.97],
   ['a 5 kg iron dumbbell', 'iron', 5000, 55.845],
   ['a 1 kg lead weight', 'lead', 1000, 207.2],
-  ['a 31.1 gram (1 troy ounce) silver coin', 'silver', 31.1, 107.87],
-  ['half a gram of helium (about what a party balloon holds)', 'helium', 0.5, 4.0026],
-  ['a 2 gram platinum earring', 'platinum', 2, 195.08],
+  ['a 1-ounce silver coin', 'silver', 31.1, 107.87],
+  ['the helium in a party balloon', 'helium', 0.5, 4.0026],
+  ['a platinum earring', 'platinum', 2, 195.08],
   ['a 100 gram titanium bar', 'titanium', 100, 47.867],
   ['10 grams of magnesium ribbon', 'magnesium', 10, 24.305],
 ]
 
 const atomQuestions = ATOMS.map(([what, element, grams, molar]) => {
   const molarRounded = Number(molar.toPrecision(2))
-  return question('world', `How many atoms are in ${what}?`, Number(((grams / molar) * AVOGADRO).toPrecision(4)), 'atoms', 'hard', `Avogadro’s number × mass ÷ molar mass (${element}: ${molar} g/mol)`, [
+  return question('world', `How many atoms are in ${what}?`, Number(((grams / molar) * AVOGADRO).toPrecision(4)), 'atoms', 'hard', `Calculated: ≈ ${round(grams, 3)} g of ${element} ÷ ${molar} g/mol × Avogadro’s number`, [
     { step: `Molar mass of ${element} ≈ ${molarRounded} g/mol`, source: 'From the periodic table: about the number of protons plus neutrons.' },
     { step: `${round(grams, 3)} g ÷ ${molarRounded} ≈ ${round(grams / molarRounded)} mol`, source: 'Moles = mass ÷ molar mass.' },
     { step: `× 6 × 10²³ ≈ ${sci((grams / molarRounded) * 6e23)} atoms`, source: 'Avogadro’s number.' },
